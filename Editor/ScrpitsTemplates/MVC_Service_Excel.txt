@@ -1,0 +1,58 @@
+/*
+* FileName: #ScriptName# 
+* Author: #Author# 
+* CreateTime: #CreateTime# 
+*/
+
+using UnityEngine;
+using UnityEditor;
+using System;
+using System.Collections.Generic;
+
+public class #ScriptName#Service : BaseDataRead<#ScriptName#Bean>
+{
+    protected readonly string saveFileName;
+
+    public #ScriptName#Service()
+    {
+        saveFileName = "#ScriptName#";
+    }
+
+    /// <summary>
+    /// 查询所有数据
+    /// </summary>
+    /// <returns></returns>
+    public List<#ScriptName#Bean> QueryAllData()
+    {
+        return BaseLoadDataForList(saveFileName); 
+    }
+        
+    /// <summary>
+    /// 通过ID查询数据
+    /// </summary>
+    /// <param name="id"></param>
+    /// <returns></returns>
+    public List<#ScriptName#Bean> QueryDataById(long id)
+    {
+        return null;
+    }
+
+        /// <summary>
+    /// 查询游戏配置数据
+    /// </summary>
+    /// <returns></returns>
+    public #ScriptName#Bean QueryData()
+    {
+        return null;
+    }
+        
+
+    /// <summary>
+    /// 更新数据
+    /// </summary>
+    /// <param name="data"></param>
+    public void UpdateData(#ScriptName#Bean data)
+    {
+
+    }
+}

@@ -1,0 +1,62 @@
+/*
+* FileName: #ScriptName# 
+* Author: #Author# 
+* CreateTime: #CreateTime# 
+*/
+
+using UnityEngine;
+using UnityEditor;
+using System.Collections.Generic;
+
+public class #ScriptName#Model : BaseMVCModel
+{
+    protected #ScriptName#Service service#ScriptName#;
+
+    public override void InitData()
+    {
+        service#ScriptName# = new #ScriptName#Service();
+    }
+
+    /// <summary>
+    /// 获取所有数据
+    /// </summary>
+    /// <returns></returns>
+    public List<#ScriptName#Bean> GetAll#ScriptName#Data()
+    {
+        List<#ScriptName#Bean> listData = service#ScriptName#.QueryAllData();
+        return listData;
+    }
+
+    /// <summary>
+    /// 获取游戏数据
+    /// </summary>
+    /// <returns></returns>
+    public #ScriptName#Bean Get#ScriptName#Data()
+    {
+        #ScriptName#Bean data = service#ScriptName#.QueryData();
+        if (data == null)
+            data = new #ScriptName#Bean();
+        return data;
+    }
+
+    /// <summary>
+    /// 根据ID获取数据
+    /// </summary>
+    /// <param name="id"></param>
+    /// <returns></returns>
+    public List<#ScriptName#Bean> Get#ScriptName#DataById(long id)
+    {
+        List<#ScriptName#Bean> listData = service#ScriptName#.QueryDataById(id);
+        return listData;
+    }
+
+    /// <summary>
+    /// 保存游戏数据
+    /// </summary>
+    /// <param name="data"></param>
+    public void Set#ScriptName#Data(#ScriptName#Bean data)
+    {
+        service#ScriptName#.UpdateData(data);
+    }
+
+}

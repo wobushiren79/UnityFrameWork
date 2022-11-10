@@ -1,0 +1,15 @@
+/*
+* FileName: #ScriptName# 
+* Author: #Author# 
+* CreateTime: #CreateTime# 
+*/
+
+using UnityEngine;
+using UnityEditor;
+using System;
+
+[Serializable]
+public class #ScriptName#Bean : BaseBean
+{
+
+}

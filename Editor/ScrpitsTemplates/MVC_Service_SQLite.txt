@@ -1,0 +1,93 @@
+/*
+* FileName: #ScriptName# 
+* Author: #Author# 
+* CreateTime: #CreateTime# 
+*/
+
+using UnityEngine;
+using UnityEditor;
+using System.Collections.Generic;
+
+public class #ScriptName#Service : BaseMVCService
+{
+    public #ScriptName#Service() : base("", "")
+    {
+
+    }
+
+    /// <summary>
+    /// 查询所有数据
+    /// </summary>
+    /// <returns></returns>
+    public List<#ScriptName#Bean> QueryAllData()
+    {
+        List<#ScriptName#Bean> listData = BaseQueryAllData<#ScriptName#Bean>();
+        return listData; 
+    }
+
+    /// <summary>
+    /// 查询数据
+    /// </summary>
+    /// <returns></returns>
+    public #ScriptName#Bean QueryData()
+    {
+        return null; 
+    }
+
+    /// <summary>
+    /// 通过ID查询数据
+    /// </summary>
+    /// <param name="id"></param>
+    /// <returns></returns>
+    public List<#ScriptName#Bean> QueryDataById(long id)
+    {
+        return BaseQueryData<#ScriptName#Bean>("link_id", "id", id + "");
+    }
+        
+    /// <summary>
+    /// 根据ID查询数据
+    /// </summary>
+    /// <param name="ids"></param>
+    /// <returns></returns>
+    public List<#ScriptName#Bean> QueryDataByIds(long[] ids)
+    {
+        string values = TypeConversionUtil.ArrayToStringBySplit(ids, ",");
+        return BaseQueryData<#ScriptName#Bean>("link_id", tableNameForMain + ".id", "IN", "(" + values + ")");
+    }
+
+    /// <summary>
+    /// 通过名字查询
+    /// </summary>
+    /// <param name="name"></param>
+    /// <returns></returns>
+    public List<#ScriptName#Bean> QueryDataByName(string name)
+    {
+        return BaseQueryData<#ScriptName#Bean>("link_id", tableNameForLeft + ".name", "'" + name + "'");
+    }
+
+    /// <summary>
+    /// 更新数据
+    /// </summary>
+    /// <param name="data"></param>
+    /// <returns></returns>
+    public bool UpdateData(#ScriptName#Bean data)
+    {
+        bool deleteState = BaseDeleteDataById(data.id);
+        if (deleteState)
+        {
+            bool insertSuccess = BaseInsertData(tableNameForMain, data);
+            return insertSuccess;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// 删除数据
+    /// </summary>
+    /// <param name="id"></param>
+    /// <returns></returns>
+    public bool DeleteData(long id)
+    {
+       return BaseDeleteDataWithLeft("id", "link_id", id + "");
+    }
+}

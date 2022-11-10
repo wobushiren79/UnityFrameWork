@@ -1,0 +1,74 @@
+/*
+* FileName: #ScriptName# 
+* Author: #Author# 
+* CreateTime: #CreateTime# 
+*/
+
+using System;
+using System.Collections.Generic;
+using UnityEditor;
+using UnityEngine;
+
+public class #ScriptName#Controller : BaseMVCController<#ScriptName#Model, I#ScriptName#View>
+{
+
+    public #ScriptName#Controller(BaseMonoBehaviour content, I#ScriptName#View view) : base(content, view)
+    {
+
+    }
+
+    public override void InitData()
+    {
+
+    }
+
+    /// <summary>
+    /// 获取数据
+    /// </summary>
+    /// <param name="action"></param>
+    /// <returns></returns>
+    public #ScriptName#Bean Get#ScriptName#Data(Action<#ScriptName#Bean> action)
+    {
+        #ScriptName#Bean data = GetModel().Get#ScriptName#Data();
+        if (data == null) {
+            GetView().Get#ScriptName#Fail("没有数据",null);
+            return null;
+        }
+        GetView().Get#ScriptName#Success<#ScriptName#Bean>(data,action);
+        return data;
+    }
+
+    /// <summary>
+    /// 获取所有数据
+    /// </summary>
+    /// <param name="action"></param>
+    public void GetAll#ScriptName#Data(Action<List<#ScriptName#Bean>> action)
+    {
+        List<#ScriptName#Bean> listData = GetModel().GetAll#ScriptName#Data();
+        if (listData.IsNull())
+        {
+            GetView().Get#ScriptName#Fail("没有数据", null);
+        }
+        else
+        {
+            GetView().Get#ScriptName#Success<List<#ScriptName#Bean>>(listData, action);
+        }
+    }
+
+    /// <summary>
+    /// 根据ID获取数据
+    /// </summary>
+    /// <param name="action"></param>
+    public void Get#ScriptName#DataById(long id,Action<#ScriptName#Bean> action)
+    {
+        List<#ScriptName#Bean> listData = GetModel().Get#ScriptName#DataById(id);
+        if (listData.IsNull())
+        {
+            GetView().Get#ScriptName#Fail("没有数据", null);
+        }
+        else
+        {
+            GetView().Get#ScriptName#Success(listData[0], action);
+        }
+    }
+} 

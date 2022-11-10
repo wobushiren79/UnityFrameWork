@@ -1,0 +1,16 @@
+/*
+* FileName: #ScriptName# 
+* Author: #Author# 
+* CreateTime: #CreateTime# 
+*/
+
+using UnityEngine;
+using System;
+using System.Collections.Generic;
+
+public interface I#ScriptName#View
+{
+	void Get#ScriptName#Success<T>(T data, Action<T> action);
+
+	void Get#ScriptName#Fail(string failMsg, Action action);
+}
