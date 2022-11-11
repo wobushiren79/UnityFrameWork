@@ -8,7 +8,7 @@ using System;
 [CustomEditor(typeof(BaseUIComponent), true)]
 public class InspectorBaseUIComponent : Editor
 {
-    protected readonly static string scrpitsTemplatesPath = "/Editor/ScrpitsTemplates/UI_BaseUIComponent.txt";
+    protected readonly static string scrpitsTemplatesPath = "/FrameWork/Editor/ScrpitsTemplates/UI_BaseUIComponent.txt";
     protected readonly static string classSuffix = "Component";
     public override void OnInspectorGUI()
     {
