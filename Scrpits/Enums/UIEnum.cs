@@ -20,12 +20,14 @@ public enum UIEnum
     GameExit = 2009,//游戏-退出
     GameDead = 2010,//游戏-死亡
     GameMagicCore = 2011,//游戏-法术核心装备界面
+    
 
     GameBox = 2101,//游戏-箱子
     GameFurnaces = 2102,//游戏-熔炉
     GameSign = 2103,//游戏-牌子
     GameItemsTransition = 2104,//游戏-道具转换
     GameMagicInstrumentAssembly = 2105,//法器组装台
+    GameFocalManipulator = 2106, // 核心镶嵌
 
     GodMain = 9001,//GM-主界面
 }

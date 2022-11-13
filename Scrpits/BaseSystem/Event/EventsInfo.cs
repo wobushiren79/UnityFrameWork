@@ -23,6 +23,7 @@ public static class EventsInfo
     public static readonly string UIBuildingEditorCreate_SelectChange = "UIBuildingEditorCreate_SelectChange";//建造模式 选择方块
 
     public static readonly string BlockTypeCrucible_UpdateElemental = "BlockTypeCrucible_UpdateElemental";//更新元素
+    public static readonly string BlockTypeFocalManipulator_UpdateWork = "BlockTypeFocalManipulator_UpdateWork";//更新工作进度
 
     public static readonly string UIViewShortcutsMagic_InitData = "UIViewShortcutsMagic_InitData";//法术快捷栏 初始化数据 刷新UI
     
