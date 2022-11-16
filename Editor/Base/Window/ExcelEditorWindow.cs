@@ -81,6 +81,7 @@ public class ExcelEditorWindow : EditorWindow
         {
             ExcelToJson();
         }
+
         GUILayout.EndHorizontal();
     }
 
@@ -166,7 +167,7 @@ public class ExcelEditorWindow : EditorWindow
                     {
                         File.Create(jsonPath).Dispose();
                     }
-                    string jsonData = JsonUtil.ToJsonByNet(lst);
+                    string jsonData = JsonUtil.ToJsonByNet(lst.ToArray());
                     File.WriteAllText(jsonPath, jsonData);
                 }
                 LogUtil.Log("转换完成");
@@ -245,23 +246,76 @@ public class ExcelEditorWindow : EditorWindow
         StringBuilder sb = new StringBuilder();
 
         sb.AppendLine($"using System;");
-        sb.AppendLine($"\t[Serializable]");
-        sb.AppendLine($"\tpublic partial class {sheet.Name}Bean : BaseBean");
-        sb.AppendLine("\t{");
+        sb.AppendLine($"using System.Collections.Generic;");
+        //创建bean
+        sb.AppendLine($"[Serializable]");
+        sb.AppendLine($"public partial class {sheet.Name}Bean : BaseBean");
+        sb.AppendLine("{");
+
+        //key的类型0为默认long 1为int 2为string
+        string keyTypeName = "long";
+        string keyName = "id";
         //遍历sheet首行每个字段描述的值
         for (int i = 1; i <= sheet.Dimension.End.Column; i++)
         {
             string cellName = sheet.Cells[1, i].Text;
+            string typeName = sheet.Cells[2, i].Text;
+            string remarkName = sheet.Cells[3, i].Text;
+            if (remarkName.Contains("(key)"))
+            {
+                keyName = cellName;
+                keyTypeName = typeName;   
+            }
+
             if (cellName.Equals("id")
                 || cellName.Equals("name_cn")
                 || cellName.Equals("name_en"))
                 continue;
-            sb.AppendLine("\t\t/// <summary>");
-            sb.AppendLine($"\t\t///{sheet.Cells[3, i].Text}");
-            sb.AppendLine("\t\t/// </summary>");
-            sb.AppendLine($"\t\tpublic {sheet.Cells[2, i].Text} {sheet.Cells[1, i].Text};");
+            sb.AppendLine("\t/// <summary>");
+            sb.AppendLine($"\t///{remarkName}");
+            sb.AppendLine("\t/// </summary>");
+            sb.AppendLine($"\tpublic {typeName} {cellName};");
         }
+        sb.AppendLine("}");
+
+        //创建cfg
+        sb.AppendLine($"public partial class {sheet.Name}Cfg : BaseCfg<{keyTypeName}, {sheet.Name}Bean>");
+        sb.AppendLine("{");
+            
+        sb.AppendLine($"\tpublic static string fileName = \"{sheet.Name}\";");
+        sb.AppendLine($"\tprotected static Dictionary<{keyTypeName}, {sheet.Name}Bean> dicData = null;");
+
+        sb.AppendLine($"\tpublic static Dictionary<{keyTypeName}, {sheet.Name}Bean> GetAllData()");
+        sb.AppendLine("\t{");
+        sb.AppendLine($"\t\tif (dicData == null)");
+        sb.AppendLine("\t\t{");
+        sb.AppendLine($"\t\t\t{sheet.Name}Bean[] arrayData = GetInitData(fileName);");
+        sb.AppendLine($"\t\t\tInitData(arrayData);");
+        sb.AppendLine("\t\t}");
+        sb.AppendLine($"\t\treturn dicData;");
         sb.AppendLine("\t}");
+
+        sb.AppendLine($"\tpublic static {sheet.Name}Bean GetItemData({keyTypeName} key)");
+        sb.AppendLine("\t{");
+        sb.AppendLine($"\t\tif (dicData == null)");
+        sb.AppendLine("\t\t{");
+        sb.AppendLine($"\t\t\t{sheet.Name}Bean[] arrayData = GetInitData(fileName);");
+        sb.AppendLine($"\t\t\tInitData(arrayData);");
+        sb.AppendLine("\t\t}");
+        sb.AppendLine($"\t\treturn GetItemData(key, dicData);");
+        sb.AppendLine("\t}");
+
+        sb.AppendLine($"\tpublic static void InitData({sheet.Name}Bean[] arrayData)");
+        sb.AppendLine("\t{");  
+        sb.AppendLine($"\t\tdicData = new Dictionary<long, {sheet.Name}Bean>();");
+        sb.AppendLine($"\t\tfor (int i = 0; i < arrayData.Length; i++)");
+        sb.AppendLine("\t\t{");
+        sb.AppendLine($"\t\t\t{sheet.Name}Bean itemData = arrayData[i];");
+        sb.AppendLine($"\t\t\tdicData.Add(itemData.id, itemData);");
+        sb.AppendLine("\t\t}");
+        sb.AppendLine("\t}");
+
+        sb.AppendLine("}");
         try
         {
             if (!Directory.Exists(dir))
@@ -279,5 +333,6 @@ public class ExcelEditorWindow : EditorWindow
             LogUtil.LogError($"Excel转json时创建对应的实体类出错，实体类为：{sheet.Name},e:{e.Message}");
         }
         AssetDatabase.Refresh();
+
     }
 }

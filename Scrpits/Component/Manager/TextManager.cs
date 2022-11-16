@@ -12,13 +12,28 @@ public class TextManager : BaseManager
     }
 
     /// <summary>
-    /// 通过ID获取文本
+    /// 根据ID获取文字内容
     /// </summary>
-    /// <param name="id"></param>
     /// <returns></returns>
     public string GetTextById(long id)
     {
-       return controllerForText.GetTextById(id);
+        UITextBean uiText = UITextCfg.GetItemData(id);
+        if (uiText != null)
+        {
+            GameConfigBean gameConfig = GameDataHandler.Instance.manager.GetGameConfig();
+            switch (gameConfig.GetLanguage())
+            {
+                case LanguageEnum.cn:
+                    return uiText.content_cn;
+                case LanguageEnum.en:
+                    return uiText.content_en;
+            }
+            return null;
+        }
+        else
+        {
+            LogUtil.LogError("没有找到ID为" + id + "的UI内容");
+            return null;
+        }
     }
-
 }
