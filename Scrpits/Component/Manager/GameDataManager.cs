@@ -5,7 +5,7 @@ using UnityEditor;
 using UnityEngine;
 
 public class GameDataManager : BaseManager,
-    IGameConfigView, IChunkSaveView, IUserDataView, IBaseDataView,IBiomeSaveView
+    IGameConfigView, IChunkSaveView, IUserDataView,IBiomeSaveView
 {
     //游戏设置
     public GameConfigBean gameConfig;
@@ -14,7 +14,6 @@ public class GameDataManager : BaseManager,
     public GameConfigController controllerForGameConfig;
     public ChunkSaveController controllerForChunkSave;
     public UserDataController controllerForUserData;
-    public BaseDataController controllerForBase;
     public BiomeSaveController controllerForBiomeSave;
 
     //保存的生态信息
@@ -27,7 +26,6 @@ public class GameDataManager : BaseManager,
         controllerForGameConfig = new GameConfigController(this, this);
         controllerForChunkSave = new ChunkSaveController(this, this);
         controllerForUserData = new UserDataController(this, this);
-        controllerForBase = new BaseDataController(this, this);
         controllerForBiomeSave = new BiomeSaveController(this,this);
         controllerForGameConfig.GetGameConfigData();
     }

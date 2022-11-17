@@ -38,7 +38,7 @@ public abstract class BaseDataRead<T>
     /// </summary>
     /// <param name="fileName"></param>
     /// <returns></returns>
-    public List<T> BaseLoadDataForList(string fileName)
+    public T[] BaseLoadDataForList(string fileName)
     {
         if (fileName == null)
         {
@@ -49,7 +49,7 @@ public abstract class BaseDataRead<T>
         //string strData = FileUtil.LoadTextFile(dataStoragePath + "/" + fileName);
         if (textAsset == null || textAsset.text == null)
             return null;
-        List<T> listData = JsonUtil.FromJsonByNet<List<T>>(textAsset.text);
+        T[] listData = JsonUtil.FromJsonByNet<T[]>(textAsset.text);
         return listData;
     }
 }

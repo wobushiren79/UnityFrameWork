@@ -39,7 +39,7 @@ public class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     /// <param name="volumeScale"></param>
     public void PlayMusicForLoop(int musicId, float volumeScale)
     {
-        AudioInfoBean audioInfo = manager.GetAudioInfo(musicId);
+        AudioInfoBean audioInfo = AudioInfoCfg.GetItemData(musicId);
         if (audioInfo == null)
             return;
         manager.GetMusicClip(audioInfo.name_res, (audioClip) => 
@@ -63,7 +63,7 @@ public class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     {
         if (sourceNumber > sourceMaxNumber)
             return;
-        AudioInfoBean audioInfo = manager.GetAudioInfo(soundId);
+        AudioInfoBean audioInfo = AudioInfoCfg.GetItemData(soundId);
         if (audioInfo == null)
             return;
         manager.GetSoundClip(audioInfo.name_res, (audioClip) => 
@@ -119,7 +119,7 @@ public class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     /// <param name="audioEnvironment"></param>
     public void PlayEnvironment(int environmentId, float volumeScale)
     {
-        AudioInfoBean audioInfo = manager.GetAudioInfo(environmentId);
+        AudioInfoBean audioInfo = AudioInfoCfg.GetItemData(environmentId);
         if (audioInfo == null)
             return;
         manager.GetMusicClip(audioInfo.name_res, (audioClip) =>

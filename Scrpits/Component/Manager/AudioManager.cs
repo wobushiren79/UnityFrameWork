@@ -3,7 +3,7 @@ using UnityEditor;
 using System.Collections.Generic;
 using System;
 
-public class AudioManager : BaseManager, IAudioInfoView
+public class AudioManager : BaseManager
 {
     protected AudioListener _audioListener;
     protected AudioSource _audioSourceForMusic;
@@ -73,42 +73,6 @@ public class AudioManager : BaseManager, IAudioInfoView
     protected static string PathMusic = "Assets/Audio/Music";
     protected static string PathSound = "Assets/Audio/Sound";
     protected static string PathEnvironment = "Assets/Audio/Environment";
-
-    protected Dictionary<int, AudioInfoBean> dicAudioInfoData = new Dictionary<int, AudioInfoBean>();
-    protected AudioInfoController controllerForAudioInfo;
-
-    public virtual void Awake()
-    {
-        controllerForAudioInfo = new AudioInfoController(this, this);
-        controllerForAudioInfo.GetAllAudioInfoData(InitAudioInfoData);
-    }
-
-    /// <summary>
-    /// 初始化音频数据
-    /// </summary>
-    /// <param name="listData"></param>
-    public void InitAudioInfoData(List<AudioInfoBean> listData)
-    {
-        dicAudioInfoData.Clear();
-        for (int i = 0; i < listData.Count; i++)
-        {
-            var itemData = listData[i];
-            dicAudioInfoData.Add(itemData.id, itemData);
-        }
-    }
-
-    /// <summary>
-    /// 获取音频数据
-    /// </summary>
-    /// <param name="id"></param>
-    public AudioInfoBean GetAudioInfo(int id)
-    {
-        if (dicAudioInfoData.TryGetValue(id,out AudioInfoBean data))
-        {
-            return data;
-        }
-        return null;
-    }
 
     /// <summary>
     /// 根据名字获取音乐

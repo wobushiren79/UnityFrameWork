@@ -3,13 +3,6 @@ using UnityEngine;
 
 public class TextManager : BaseManager
 {
-    public UITextController controllerForText;
-
-    private void Awake()
-    {
-        controllerForText = new UITextController(this, null);
-        controllerForText.GetAllData();
-    }
 
     /// <summary>
     /// 根据ID获取文字内容
