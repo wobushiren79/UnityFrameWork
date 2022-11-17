@@ -59,8 +59,9 @@ public class UIHandler : BaseUIHandler<UIHandler, UIManager>
     /// </summary>
     /// <param name="uiName"></param>
     /// <returns></returns>
-    public T GetUI<T>(string uiName, int layer = -1) where T : BaseUIComponent
+    public T GetUI<T>(int layer = -1) where T : BaseUIComponent
     {
+        string uiName = typeof(T).Name;
         if (manager.uiList == null || uiName.IsNull())
             return null;
         for (int i = 0; i < manager.uiList.Count; i++)
@@ -85,16 +86,6 @@ public class UIHandler : BaseUIHandler<UIHandler, UIManager>
     }
 
     /// <summary>
-    /// 获取UI
-    /// </summary>
-    /// <param name="uiEnum"></param>
-    /// <returns></returns>
-    public T GetUI<T>(UIEnum uiEnum) where T : BaseUIComponent
-    {
-        return GetUI<T>(uiEnum.GetEnumName());
-    }
-
-    /// <summary>
     /// 根据UI的名字获取UI列表
     /// </summary>
     /// <param name="uiName"></param>
@@ -116,21 +107,12 @@ public class UIHandler : BaseUIHandler<UIHandler, UIManager>
     }
 
     /// <summary>
-    /// 根据UI的枚举获取UI列表
-    /// </summary>
-    /// <param name="uiEnum"></param>
-    /// <returns></returns>
-    public List<BaseUIComponent> GetUIList(UIEnum uiEnum)
-    {
-        return GetUIList(uiEnum.GetEnumName());
-    }
-
-    /// <summary>
     /// 通过UI的名字开启UI
     /// </summary>
     /// <param name="uiName"></param>
-    public T OpenUI<T>(string uiName,Action<T> actionBeforeOpen = null, int layer = -1) where T : BaseUIComponent
+    public T OpenUI<T>(Action<T> actionBeforeOpen = null, int layer = -1) where T : BaseUIComponent
     {
+        string uiName = typeof(T).Name;
         if (uiName.IsNull())
             return null;
         for (int i = 0; i < manager.uiList.Count; i++)
@@ -158,16 +140,6 @@ public class UIHandler : BaseUIHandler<UIHandler, UIManager>
         return null;
     }
 
-    /// <summary>
-    /// 开启UI
-    /// </summary>
-    /// <param name="uiEnum"></param>
-    public T OpenUI<T>(UIEnum uiEnum) where T : BaseUIComponent
-    {
-        string uiName = uiEnum.GetEnumName();
-        return OpenUI<T>(uiName);
-    }
-
 
     /// <summary>
     /// 通过UI的名字关闭UI
@@ -193,15 +165,6 @@ public class UIHandler : BaseUIHandler<UIHandler, UIManager>
     }
 
     /// <summary>
-    /// 通过UI的枚举关闭UI
-    /// </summary>
-    /// <param name="uiEnum"></param>
-    public void CloseUI(UIEnum uiEnum)
-    {
-        CloseUI(uiEnum.GetEnumName());
-    }
-
-    /// <summary>
     /// 关闭所有UI
     /// </summary>
     public void CloseAllUI()
@@ -218,8 +181,9 @@ public class UIHandler : BaseUIHandler<UIHandler, UIManager>
     /// 通过UI的名字开启UI并关闭其他UI
     /// </summary>
     /// <param name="uiName"></param>
-    public T OpenUIAndCloseOther<T>(string uiName, Action<T> actionBeforeOpen = null, int layer = -1) where T : BaseUIComponent
+    public T OpenUIAndCloseOther<T>(Action<T> actionBeforeOpen = null, int layer = -1) where T : BaseUIComponent
     {
+        string uiName = typeof(T).Name;
         if (manager.uiList == null || uiName.IsNull())
             return null;
         //首先关闭其他UI
@@ -232,18 +196,7 @@ public class UIHandler : BaseUIHandler<UIHandler, UIManager>
                     itemUI.CloseUI();
             }
         }
-        return OpenUI<T>(uiName, actionBeforeOpen, layer);
-    }
-
-    /// <summary>
-    /// 通过UI的枚举开启UI并关闭其他UI
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="ui"></param>
-    /// <returns></returns>
-    public T OpenUIAndCloseOther<T>(UIEnum uiEnum, Action<T> actionBeforeOpen = null, int layer = -1) where T : BaseUIComponent
-    {
-        return OpenUIAndCloseOther<T>(uiEnum.GetEnumName(), actionBeforeOpen, layer);
+        return OpenUI<T>(actionBeforeOpen, layer);
     }
 
     /// <summary>
@@ -322,15 +275,6 @@ public class UIHandler : BaseUIHandler<UIHandler, UIManager>
     {
         BaseUIComponent itemUI = GetOpenUI();
         itemUI.RefreshUI();
-    }
-
-    /// <summary>
-    /// 根据枚举刷新UI
-    /// </summary>
-    /// <param name="uiEnum"></param>
-    public void RefreshUI(UIEnum uiEnum, int layer = -1)
-    {
-        RefreshUI(uiEnum.GetEnumName(), layer);
     }
 
     /// <summary>
