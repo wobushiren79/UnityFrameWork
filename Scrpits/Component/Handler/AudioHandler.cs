@@ -11,6 +11,14 @@ public class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     //最大同时存在的音效数量
     protected int sourceMaxNumber = 5;
 
+    public void Update()
+    {
+        if (Camera.main != null)
+        {
+            manager.audioListener.transform.position = Camera.main.transform.position;
+        }
+    }
+
     /// <summary>
     /// 初始化
     /// </summary>

@@ -55,6 +55,7 @@ public static class MonoExtension
         yield return new WaitForSeconds(timeWait);
         action?.Invoke();
     }
+
     public static IEnumerator CoroutineForDelayExecuteSecondsRealtime(float timeWait, Action action)
     {
         yield return new WaitForSecondsRealtime(timeWait);
