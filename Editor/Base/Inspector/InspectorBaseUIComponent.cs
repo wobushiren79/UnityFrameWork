@@ -133,7 +133,7 @@ public class InspectorBaseUIComponent : Editor
     /// <returns></returns>
     public virtual string GetCreateScriptFileName(GameObject objSelect)
     {
-        string fileName = "UI" + objSelect.name + classSuffix;
+        string fileName = objSelect.name + classSuffix;
         return fileName;
     }
 
@@ -144,7 +144,7 @@ public class InspectorBaseUIComponent : Editor
     /// <returns></returns>
     public virtual string GetCurrentScriptFileName(GameObject objSelect)
     {
-        string fileName = "UI" + objSelect.name;
+        string fileName = objSelect.name;
         return fileName;
     }
 }
