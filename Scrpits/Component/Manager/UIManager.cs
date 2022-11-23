@@ -30,7 +30,7 @@ public class UIManager : BaseUIManager
     /// <returns></returns>
     public GameObject GetDialogModel(string dialogName)
     {
-        return GetModelForResources(dicDialogModel, $"UI/Dialog/Dialog{dialogName}");
+        return GetModelForResources(dicDialogModel, $"UI/Dialog/UIDialog{dialogName}");
     }
 
     /// <summary>
@@ -39,7 +39,7 @@ public class UIManager : BaseUIManager
     /// <returns></returns>
     public GameObject GetToastModel(string toastName)
     {
-        return GetModelForResources(dicToastModel, $"UI/Toast/Toast{toastName}");
+        return GetModelForResources(dicToastModel, $"UI/Toast/UIToast{toastName}");
     }
 
     /// <summary>
@@ -49,7 +49,7 @@ public class UIManager : BaseUIManager
     /// <returns></returns>
     public GameObject GetPopupModel(string popupName)
     {
-        return GetModelForResources(dicPopupModel, $"UI/Popup/Popup{popupName}");
+        return GetModelForResources(dicPopupModel, $"UI/Popup/UIPopup{popupName}");
     }
 
     /// <summary>
@@ -166,7 +166,7 @@ public class UIManager : BaseUIManager
             return null;
         }
         Transform objToastContainer = GetUITypeContainer(UITypeEnum.Toast);
-        Transform objToastContainerList = objToastContainer.Find("ToastList").Find("Container");
+        Transform objToastContainerList = objToastContainer.Find("UIToastList").Find("Container");
         GameObject objToast = Instantiate(objToastContainerList.gameObject, objToastModel);
         if (objToast)
         {
