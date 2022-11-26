@@ -34,7 +34,7 @@ public class BaseUIInit : BaseMonoBehaviour
     public virtual void OpenUI()
     {
         gameObject.ShowObj(true);
-        RefreshUI();
+        RefreshUI(true);
     }
 
     public virtual void CloseUI()
@@ -51,7 +51,7 @@ public class BaseUIInit : BaseMonoBehaviour
     /// <summary>
     /// 刷新UI大小
     /// </summary>
-    public virtual void RefreshUI()
+    public virtual void RefreshUI(bool isOpenInit = false)
     {
 
     }
@@ -67,13 +67,18 @@ public class BaseUIInit : BaseMonoBehaviour
         for (int i = 0; i < buttonArray.Length; i++)
         {
             Button itemButton = buttonArray[i];
-            itemButton.onClick.AddListener(() =>
-            {
-                if (!UIHandler.Instance.manager.CanClickUIButtons)
-                    return;
-                OnClickForButton(itemButton);
-            });
+            RegisterButton(itemButton);
         }
+    }
+
+    public void RegisterButton(Button button)
+    {
+        button.onClick.AddListener(() =>
+        {
+            if (!UIHandler.Instance.manager.CanClickUIButtons)
+                return;
+            OnClickForButton(button);
+        });
     }
 
     /// <summary>

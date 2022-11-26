@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEditor;
 using System;
+using System.Collections.Generic;
 
 [Serializable]
 public class BaseBean 
@@ -14,6 +15,11 @@ public class BaseBean
     public string GetName()
     {
         return GetBaseText("name").Replace(" ", TextHandler.Instance.noBreakingSpace);
+    }
+
+    public string GetContent()
+    {
+        return GetBaseText("content").Replace(" ", TextHandler.Instance.noBreakingSpace);
     }
 
     /// <summary>
@@ -32,5 +38,31 @@ public class BaseBean
             data = (string)this.GetType().GetField(fieldName).GetValue(this);
         }
         return data;
+    }
+}
+
+public class BaseCfg<E, T> where T : BaseBean
+{
+    protected static T GetItemData(E key, Dictionary<E, T> dicData)
+    {
+        if (dicData.TryGetValue(key, out T value))
+        {
+            return value;
+        }
+        return null;
+    }
+
+    protected static T[] GetInitData(string fileName)
+    {
+        if (fileName == null)
+        {
+            LogUtil.Log($"读取文件失败-没有文件名称{fileName}");
+            return null;
+        }
+        TextAsset textAsset = LoadResourcesUtil.SyncLoadData<TextAsset>($"JsonText/{fileName}");
+        if (textAsset == null || textAsset.text == null)
+            return null;
+        T[] arrayData = JsonUtil.FromJsonByNet<T[]>(textAsset.text);
+        return arrayData;
     }
 }
