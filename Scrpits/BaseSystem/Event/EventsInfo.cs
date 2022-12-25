@@ -25,6 +25,10 @@ public static class EventsInfo
     public static readonly string BlockTypeCrucible_UpdateElemental = "BlockTypeCrucible_UpdateElemental";//更新元素
     public static readonly string BlockTypeFocalManipulator_UpdateWork = "BlockTypeFocalManipulator_UpdateWork";//更新工作进度
 
+    public static readonly string UIViewShortcuts_ChangeSelect = "UIViewShortcuts_ChangeSelect";//快捷栏 道具切换
+
+    
+    public static readonly string UIViewShortcutsMagic_ChangeSelect= "UIViewShortcutsMagic_ChangeSelect";//法术快捷栏 切换法术
     public static readonly string UIViewShortcutsMagic_InitData = "UIViewShortcutsMagic_InitData";//法术快捷栏 初始化数据 刷新UI
 
     public static readonly string UIGameResearch_ChangeSelect = "UIGameResearch_ChangeSelect";//研究页面 切换选择

@@ -6,16 +6,18 @@ using System;
 
 public class AudioHandler : BaseHandler<AudioHandler, AudioManager>
 {
-    //当前正在播放的音效数量
-    protected int sourceNumber = 0;
-    //最大同时存在的音效数量
-    protected int sourceMaxNumber = 5;
+    //重复播放时间检测
+    protected float timeUpdateForRepeatPlay = 0;
 
     public void Update()
     {
         if (Camera.main != null)
         {
             manager.audioListener.transform.position = Camera.main.transform.position;
+        }
+        if (timeUpdateForRepeatPlay > 0)
+        {
+            timeUpdateForRepeatPlay -= Time.deltaTime;
         }
     }
 
@@ -62,6 +64,8 @@ public class AudioHandler : BaseHandler<AudioHandler, AudioManager>
         });
     }
 
+    protected int lastPlaySoundId;//上一个播放的音效
+
     /// <summary>
     /// 播放音效
     /// </summary>
@@ -69,14 +73,15 @@ public class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     /// <param name="volumeScale">音量大小</param>
     public void PlaySound(int soundId, Vector3 soundPosition, float volumeScale, AudioSource audioSource)
     {
-        if (sourceNumber > sourceMaxNumber)
+        //如果上一个音效和这次播放的音效一样，并且间隔再 0.1s内，则不播放
+        if(lastPlaySoundId == soundId && timeUpdateForRepeatPlay > 0)
             return;
         AudioInfoBean audioInfo = AudioInfoCfg.GetItemData(soundId);
         if (audioInfo == null)
             return;
         manager.GetSoundClip(audioInfo.name_res, (audioClip) => 
         {
-            if (audioClip != null)
+            if (audioClip != null)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
             {
                 StartCoroutine(CoroutineForPlayOneShot(audioSource, audioClip, volumeScale, soundPosition));
             }
@@ -84,7 +89,9 @@ public class AudioHandler : BaseHandler<AudioHandler, AudioManager>
             {
                 Debug.LogError($"没有名字为:{audioInfo.name_res} 的音效资源");
             }
-        });
+        }); 
+        timeUpdateForRepeatPlay = 0.1f;
+        lastPlaySoundId = soundId;
     }
 
     public void PlaySound(int soundId)
@@ -108,7 +115,6 @@ public class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     /// <returns></returns>
     IEnumerator CoroutineForPlayOneShot(AudioSource audioSource, AudioClip audioClip, float volumeScale, Vector3 soundPosition)
     {
-        sourceNumber++;
         if (audioSource != null)
         {
             audioSource.PlayOneShot(audioClip, volumeScale);
@@ -118,7 +124,6 @@ public class AudioHandler : BaseHandler<AudioHandler, AudioManager>
             AudioSource.PlayClipAtPoint(audioClip, soundPosition, volumeScale);
         }
         yield return new WaitForSeconds(audioClip.length);
-        sourceNumber--;
     }
 
     /// <summary>

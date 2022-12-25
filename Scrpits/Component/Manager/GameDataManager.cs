@@ -48,10 +48,26 @@ public class GameDataManager : BaseManager,
         if (userData == null)
         {
             //如果没有数据 则使用测试数据
-            userData = new UserDataBean();
-            userData.timeForGame.hour = 7;
-            userData.userId = "Test";
-            userData.seed = 132349;
+            //首先加载测试数据
+            GameDataHandler.Instance.manager.GetAllUserData((listData) =>
+            {
+                for (int i = 0; i < listData.Count; i++)
+                {
+                    UserDataBean itemUserData = listData[i];
+                    if(itemUserData.userId.Equals("Test"))
+                    {
+                        userData = itemUserData;
+                    }
+                }
+            });
+
+            if (userData == null)
+            {
+                userData = new UserDataBean();
+                userData.timeForGame.hour = 7;
+                userData.userId = "Test";
+                userData.seed = 132349;
+            }
         }
         return userData;
     }
