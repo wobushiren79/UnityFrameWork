@@ -1,9 +1,28 @@
 ﻿//https://github.com/SaladLab/Json.Net.Unity3D/releases
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
 using UnityEngine;
 
 public class JsonUtil : ScriptableObject
 {
+    /// <summary>
+    /// 修改json中单独某一项属性
+    /// </summary>
+    public static string ChangeJson(string jsonStr,string propertyName,int newValue)
+    {
+        JObject jo = JObject.Parse(jsonStr);
+        jo[propertyName] = newValue;
+        return Convert.ToString(jo);
+    }
+
+    public static string ChangeJson<T>(string jsonStr, string propertyName, string newValue)
+    {
+        JObject jo = JObject.Parse(jsonStr);
+        jo[propertyName] = newValue;
+        return Convert.ToString(jo);
+    }
+
     /// <summary>
     /// Json转换成类
     /// </summary>
