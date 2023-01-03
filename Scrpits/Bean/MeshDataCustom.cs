@@ -12,18 +12,16 @@ public class MeshDataCustom
     public Vector3[] verticesCollider;
     public int[] trianglesCollider;
 
-    public Vector3 colliderSize;
-
-    public MeshDataCustom(Collider collider, Mesh mesh, float size, Vector3 offset, Vector3 rotate)
+    public MeshDataCustom(Collider[] colliderList, Mesh mesh, float size, Vector3 offset, Vector3 rotate)
     {
         mainMeshData = new MeshDataDetailsCustom(mesh, size, offset, rotate);
-        InitMeshCollider(collider);
+        InitMeshCollider(colliderList);
     }
 
-    public MeshDataCustom(Collider collider, float size, Vector3 offset, Vector3 rotate)
+    public MeshDataCustom(Collider[] colliderList, float size, Vector3 offset, Vector3 rotate)
     {
         mainMeshData = new MeshDataDetailsCustom(size, offset, rotate);
-        InitMeshCollider(collider);
+        InitMeshCollider(colliderList);
     }
 
     /// <summary>
@@ -50,9 +48,9 @@ public class MeshDataCustom
     /// 初始化碰撞mesh
     /// </summary>
     /// <param name="collider"></param>
-    public void InitMeshCollider(Collider collider)
+    public void InitMeshCollider(Collider[] colliderList)
     {
-        Mesh meshCollider = GetColliderMesh(collider);
+        Mesh meshCollider = GetColliderMesh(colliderList);
         verticesCollider = meshCollider.vertices;
         trianglesCollider = meshCollider.triangles;
     }
@@ -76,38 +74,56 @@ public class MeshDataCustom
     /// </summary>
     /// <param name="collider"></param>
     /// <returns></returns>
-    public Mesh GetColliderMesh(Collider collider)
+    public Mesh GetColliderMesh(Collider[] colliderList)
     {
         Mesh mesh = new Mesh();
-        if (collider is BoxCollider boxCollider)
+        int index = 0;
+        List<Vector3> listVertices = new List<Vector3>();
+        List<int> listTriangles = new List<int>();
+        foreach (var itemCollider in colliderList)
         {
-            Vector3 size = boxCollider.size;
-            Vector3 center = boxCollider.center;
-            mesh.vertices = new Vector3[]
+            if (itemCollider is BoxCollider boxCollider)
             {
-               //左面顶点
-               center + new Vector3(-size.x/2,-size.y/2,-size.z/2),
-               center + new Vector3(-size.x/2,size.y/2,-size.z/2),
-               center + new Vector3(-size.x/2,size.y/2,size.z/2),
-               center + new Vector3(-size.x/2,-size.y/2,size.z/2),
+                Vector3 size = boxCollider.size;
+                Vector3 center = boxCollider.center;
+                List<Vector3> verts = new List<Vector3>
+                {
+                    //左面顶点
+                    center + new Vector3(-size.x/2,-size.y/2,-size.z/2),
+                    center + new Vector3(-size.x/2,size.y/2,-size.z/2),
+                    center + new Vector3(-size.x/2,size.y/2,size.z/2),
+                    center + new Vector3(-size.x/2,-size.y/2,size.z/2),
 
-               //右面顶点
-               center + new Vector3(size.x/2,-size.y/2,-size.z/2),
-               center + new Vector3(size.x/2,size.y/2,-size.z/2),
-               center + new Vector3(size.x/2,size.y/2,size.z/2),
-               center + new Vector3(size.x/2,-size.y/2,size.z/2),
-            };
-            mesh.triangles = new int[]
-            {
-                0,2,1, 0,3,2,//左
-                4,5,6, 4,6,7,//右
-                2,6,5, 2,5,1,//上
-                0,4,7, 0,7,3,//下
-                0,1,5, 0,5,4,//前
-                3,6,2, 3,7,6 //后
-            };
-            colliderSize = size;
+                    //右面顶点
+                    center + new Vector3(size.x/2,-size.y/2,-size.z/2),
+                    center + new Vector3(size.x/2,size.y/2,-size.z/2),
+                    center + new Vector3(size.x/2,size.y/2,size.z/2),
+                    center + new Vector3(size.x/2,-size.y/2,size.z/2),
+                };
+                listVertices.AddRange(verts);
+
+                List<int> triangles = new List<int>
+                {
+                    0+index,2+index,1+index, 0+index,3+index,2+index,//左
+                    4+index,5+index,6+index, 4+index,6+index,7+index,//右
+                    2+index,6+index,5+index, 2+index,5+index,1+index,//上
+                    0+index,4+index,7+index, 0+index,7+index,3+index,//下
+                    0+index,1+index,5+index, 0+index,5+index,4+index,//前
+                    3+index,6+index,2+index, 3+index,7+index,6+index //后
+                };
+                listTriangles.AddRange(triangles);
+                index += 8;
+            }
+
+            //else if (itemCollider is MeshCollider meshCollider)
+            //{
+            //    //mesh = meshCollider.sharedMesh;
+            //    mesh.vertices = meshCollider.sharedMesh.vertices;
+            //    mesh.triangles = meshCollider.sharedMesh.triangles;
+            //}
         }
+        mesh.SetVertices(listVertices);
+        mesh.SetTriangles(listTriangles,0);
         return mesh;
     }
 
