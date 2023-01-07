@@ -12,9 +12,9 @@ public class MeshDataCustom
     public Vector3[] verticesCollider;
     public int[] trianglesCollider;
 
-    public MeshDataCustom(Collider[] colliderList, Mesh mesh, float size, Vector3 offset, Vector3 rotate)
+    public MeshDataCustom(Collider[] colliderList, Mesh mesh, float size, Vector3 offset, Vector3 rotate,Texture2D tex = null)
     {
-        mainMeshData = new MeshDataDetailsCustom(mesh, size, offset, rotate);
+        mainMeshData = new MeshDataDetailsCustom(mesh, size, offset, rotate, tex);
         InitMeshCollider(colliderList);
     }
 

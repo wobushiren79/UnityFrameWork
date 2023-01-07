@@ -3,7 +3,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using UnityEngine;
-
+using System.Collections.Generic;
 public class JsonUtil : ScriptableObject
 {
     /// <summary>
@@ -71,4 +71,16 @@ public class JsonUtil : ScriptableObject
         return json;
     }
 
+    /// <summary>
+    /// 类转换成Json 用于float 精度处理
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="dataBean"></param>
+    /// <returns></returns>
+    public static string ToJsonByUnityNewtonsoftJsonSerializer<T>(T dataBean)
+    {
+        UnityNewtonsoftJsonSerializer unityNewtonsoftJson = new UnityNewtonsoftJsonSerializer();
+        string json = unityNewtonsoftJson.Serialize(dataBean);
+        return json;
+    }
 }

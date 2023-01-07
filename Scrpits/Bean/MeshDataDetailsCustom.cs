@@ -5,6 +5,8 @@ using UnityEngine;
 [Serializable]
 public class MeshDataDetailsCustom
 {
+    [SerializeField]
+    public Color[] texColor;
     public Vector3[] vertices;
     public Vector2[] uv;
     public int[] triangles;
@@ -15,7 +17,7 @@ public class MeshDataDetailsCustom
     /// <param name="mesh"></param>
     /// <param name="size">大小</param>
     /// <param name="offset">偏移</param>
-    public MeshDataDetailsCustom(Mesh mesh, float size, Vector3 offset, Vector3 rotate)
+    public MeshDataDetailsCustom(Mesh mesh, float size, Vector3 offset, Vector3 rotate, Texture2D tex = null)
     {
         vertices = mesh.vertices;
         uv = mesh.uv;
@@ -24,24 +26,21 @@ public class MeshDataDetailsCustom
         for (int i = 0; i < vertices.Length; i++)
         {
             Vector3 itemVer = vertices[i];
-
             Vector3 newVer = itemVer * size + offset;
-            ////保留小数点后5位
-            //float newFX = float.Parse(newVer.x.ToString("f5"));
-            //float newFY = float.Parse(newVer.y.ToString("f5"));
-            //float newFZ = float.Parse(newVer.z.ToString("f5"));
-            //newVer = new Vector3(newFX, newFY, newFZ);
             vertices[i] = newVer;
         }
-        //for (int i = 0; i < uv.Length; i++)
-        //{
-        //    Vector2 itemUV = uv[i];
-        //    //保留小数点后5位
-        //    float newFX = float.Parse(itemUV.x.ToString("f5"));
-        //    float newFY = float.Parse(itemUV.y.ToString("f5"));
-        //    itemUV = new Vector2(newFX, newFY);
-        //    uv[i] = itemUV;
-        //}
+        if (tex != null)
+        {
+            texColor = new Color[uv.Length];
+            for (int i = 0; i < uv.Length; i++)
+            {
+                Vector2 uvItem = uv[i];
+                int pixX = (int)(uvItem.x / (1f / tex.width));
+                int pixY = (int)(uvItem.y / (1f / tex.height));
+                Color colorItem = tex.GetPixel(pixX, pixY);
+                texColor[i] = colorItem;
+            }
+        }
     }
     public MeshDataDetailsCustom(float size, Vector3 offset, Vector3 rotate)
     {
