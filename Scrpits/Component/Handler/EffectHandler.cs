@@ -28,8 +28,8 @@ public class EffectHandler : BaseHandler<EffectHandler, EffectManager>
         });
     }
 
-    public void ShowEffect(EffectBean effectData, Action<EffectBase> callBack = null)
+    public void ShowEffect(EffectBean effectData, Action<EffectBase> callBackShow = null, Action<EffectBase> callBackDestory = null)
     {
-        ShowEffect(gameObject, effectData, callBack);
+        ShowEffect(gameObject, effectData, callBackShow, callBackDestory);
     }
 }

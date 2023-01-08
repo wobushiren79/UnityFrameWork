@@ -33,6 +33,7 @@ public class EffectManager : BaseManager
         GetModelForAddressables(dicEffectModel, $"Assets/Prefabs/Effects/{effectData.effectName}.prefab", (obj) =>
         {
             GameObject objEffects = Instantiate(objContainer, obj);
+            objEffects.ShowObj(true);
             EffectBase effect = objEffects.GetComponent<EffectBase>();
             effect.SetData(effectData);
             completeAction?.Invoke(effect);
