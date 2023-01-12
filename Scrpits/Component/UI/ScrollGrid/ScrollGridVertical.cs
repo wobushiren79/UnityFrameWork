@@ -45,6 +45,22 @@ public class ScrollGridVertical : MonoBehaviour
     }
 
     /// <summary>
+    /// 清空所有元素
+    /// </summary>
+    public void ClearAllCell()
+    {
+        this.cellCount = 0;
+        for (int i = 0; i < cellList.Count; i++)
+        {
+            var itemCell = cellList[i];
+            Destroy(itemCell.gameObject);
+        }
+        cellList.Clear();
+        this.scrollRect.content.offsetMin = new Vector2(0, 0);
+        viewport.transform.rotation = new Quaternion();
+    }
+
+    /// <summary>
     /// 设置ScrollGrid要显示的数据数量。
     /// </summary>
     /// <param name="count"></param>
@@ -64,7 +80,6 @@ public class ScrollGridVertical : MonoBehaviour
         newMinY = Mathf.Min(maxY, newMinY);//保证不小于viewport的高度。
         this.scrollRect.content.offsetMin = new Vector2(0, newMinY);
         this.CreateCells();
-
         viewport.transform.rotation = new Quaternion();
     }
 
@@ -197,7 +212,7 @@ public class ScrollGridVertical : MonoBehaviour
                 if (newY > -this.scrollRect.content.rect.height)
                 {
                     //重复利用cell，重置位置到视野范围内。
-                    cellRect.anchoredPosition3D = new Vector3(cellRect.anchoredPosition3D.x, newY,0);
+                    cellRect.anchoredPosition3D = new Vector3(cellRect.anchoredPosition3D.x, newY, 0);
                     this.cellUpdate(cell);
                 }
 
@@ -207,7 +222,7 @@ public class ScrollGridVertical : MonoBehaviour
                 float newY = cellRect.anchoredPosition3D.y + (this.row + 1) * this.cellHeight;
                 if (newY < 0)
                 {
-                    cellRect.anchoredPosition3D = new Vector3(cellRect.anchoredPosition3D.x, newY,0);
+                    cellRect.anchoredPosition3D = new Vector3(cellRect.anchoredPosition3D.x, newY, 0);
                     this.cellUpdate(cell);
                 }
             }
