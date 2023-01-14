@@ -4,6 +4,19 @@ using UnityEngine;
 
 public class MathUtil
 {
+    /// <summary>
+    /// 重置
+    /// </summary>
+    /// <param name="In"></param>
+    /// <param name="inMin"></param>
+    /// <param name="inMax"></param>
+    /// <param name="outMin"></param>
+    /// <param name="outMax"></param>
+    /// <returns></returns>
+    public static float Remap(float In,float inMin,float inMax,float outMin,float outMax)
+    {
+        return outMin + (In - inMin) * (outMax - outMin) / (inMax - inMin);
+    }
 
     /// <summary>
     /// 获取唯一下标

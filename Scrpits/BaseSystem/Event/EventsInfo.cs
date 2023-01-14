@@ -25,6 +25,9 @@ public static class EventsInfo
     public static readonly string BlockTypeCrucible_UpdateElemental = "BlockTypeCrucible_UpdateElemental";//更新元素
     public static readonly string BlockTypeFocalManipulator_UpdateWork = "BlockTypeFocalManipulator_UpdateWork";//更新工作进度
 
+    public static readonly string BlockTypeFurnaces_Update= "BlockTypeFurnaces_Update";//熔炉数据改变
+    public static readonly string BlockTypeElementSmeltery_Update = "BlockTypeElementSmeltery_Update";//熔炉数据改变
+    
     public static readonly string UIViewShortcuts_ChangeSelect = "UIViewShortcuts_ChangeSelect";//快捷栏 道具切换
 
     
