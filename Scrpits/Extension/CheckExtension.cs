@@ -4,6 +4,20 @@ using UnityEngine;
 
 public static class CheckExtension
 {
+    /// <summary>
+    /// 检测 list是否为null
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="list"></param>
+    /// <returns></returns>
+    public static bool IsNull<T>(this Queue<T> selfList)
+    {
+        if (selfList == null || selfList.Count == 0)
+        {
+            return true;
+        }
+        return false;
+    }
 
     /// <summary>
     /// 是否是null或者长度为0
