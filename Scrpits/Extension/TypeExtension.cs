@@ -200,6 +200,25 @@ public static class TypeExtension
     }
 
     /// <summary>
+    /// string[] 强转 List<long>
+    /// </summary>
+    public static List<long> ToListLong(this string[] arrayStr)
+    {
+        if (arrayStr == null)
+            return null;
+        List<long> listData = new List<long>(arrayStr.Length);
+        for (int i = 0; i < arrayStr.Length; i++)
+        {
+            string itemStr = arrayStr[i];
+            if (long.TryParse(itemStr, out long itemLong))
+            {
+                listData[i] = itemLong;
+            }
+        }
+        return listData;
+    }
+
+    /// <summary>
     ///  string[] 强转 long[]
     /// </summary>
     /// <param name="arrayStr"></param>
@@ -219,6 +238,7 @@ public static class TypeExtension
         }
         return listData;
     }
+
 
     /// <summary>
     ///  string[] 强转 long[]

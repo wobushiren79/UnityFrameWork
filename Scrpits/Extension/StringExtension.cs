@@ -99,6 +99,21 @@ public static class StringExtension
     }
 
     /// <summary>
+    /// string通过指定字符拆分成列表
+    /// </summary>
+    /// <param name="selfData"></param>
+    /// <param name="substring"></param>
+    /// <returns></returns>
+    public static List<long> SplitForListLong(this string selfData, char substring)
+    {
+        if (selfData.IsNull())
+            return new List<long>();
+        string[] splitData = selfData.Split(new char[] { substring }, StringSplitOptions.RemoveEmptyEntries);
+        List<long> listData = splitData.ToListLong();
+        return listData;
+    }
+
+    /// <summary>
     /// string通过指定字符拆分成数组
     /// </summary>
     /// <param name="selfData"></param>
