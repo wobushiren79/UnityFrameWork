@@ -522,4 +522,14 @@ public class BaseManager : BaseMonoBehaviour
         else
             return null;
     }
+
+    public virtual T GetDataById<T>(int name, Dictionary<int, T> map) where T : class
+    {
+        if (map == null)
+            return null;
+        if (map.TryGetValue(name, out T itemData))
+            return itemData;
+        else
+            return null;
+    }
 }

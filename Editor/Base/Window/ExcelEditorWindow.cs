@@ -222,6 +222,7 @@ public class ExcelEditorWindow : EditorWindow
                 //遍历所有工作表
                 for (int w = 1; w <= workSheets.Count; w++)
                 {
+                    CreateEntityPartial(workSheets[w]);
                     CreateEntity(workSheets[w]);
                 }
                 AssetDatabase.Refresh();
@@ -235,6 +236,42 @@ public class ExcelEditorWindow : EditorWindow
             {
                 fs.Close();
             }
+        }
+        AssetDatabase.Refresh();
+    }
+
+    void CreateEntityPartial(ExcelWorksheet sheet)
+    {
+        string dir = entityFolderPath;
+        string path = $"{dir}/{sheet.Name}BeanPartial.cs";
+        StringBuilder sb = new StringBuilder();
+
+        sb.AppendLine($"using System;");
+        sb.AppendLine($"using System.Collections.Generic;");
+        //创建bean
+        sb.AppendLine($"public partial class {sheet.Name}Bean");
+        sb.AppendLine("{");
+        sb.AppendLine("}");
+
+        //创建cfg
+        sb.AppendLine($"public partial class {sheet.Name}Cfg");
+        sb.AppendLine("{");
+        sb.AppendLine("}");
+        try
+        {
+            if (!Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+            if (!File.Exists(path))
+            {
+                File.Create(path).Dispose(); //避免资源占用
+                File.WriteAllText(path, sb.ToString());
+            }
+        }
+        catch (System.Exception e)
+        {
+            LogUtil.LogError($"Excel转json时创建对应的实体类出错，实体类为：{sheet.Name},e:{e.Message}");
         }
         AssetDatabase.Refresh();
     }
