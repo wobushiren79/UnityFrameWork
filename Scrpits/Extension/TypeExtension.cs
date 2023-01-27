@@ -212,7 +212,7 @@ public static class TypeExtension
             string itemStr = arrayStr[i];
             if (long.TryParse(itemStr, out long itemLong))
             {
-                listData[i] = itemLong;
+                listData.Add(itemLong);
             }
         }
         return listData;
