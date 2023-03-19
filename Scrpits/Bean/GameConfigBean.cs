@@ -3,7 +3,7 @@ using UnityEditor;
 using System;
 
 [Serializable]
-public class GameConfigBean
+public partial class GameConfigBean
 {
     //屏幕模式 0窗口  1全屏
     public int window = 0;
@@ -41,15 +41,6 @@ public class GameConfigBean
     //抗锯齿质量
     public int antialiasingQualityLevel = 0;
 
-    //角色X轴镜头移动速度
-    public float speedForPlayerCameraMoveX = 2f;
-    //角色Y轴镜头移动速度
-    public float speedForPlayerCameraMoveY = 2f;
-
-    //世界刷新范围
-    public int worldRefreshRange = 5;
-    //世界删除范围
-    public int worldDestoryRange = 5;
 
     /// <summary>
     /// 获取抗锯齿模式
