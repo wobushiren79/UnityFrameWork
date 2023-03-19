@@ -15,4 +15,10 @@ public enum AIIntentEnum
     MonsterAttackMelee,//近战攻击
     MonsterAttackRemote,//远程攻击
     MonsterDead,//死亡
+
+    GolemIdle,//闲置
+    GolemStandby,//待机
+    GolemPick,//拾取
+    GolemPut,//放置
+    GolemTake,//拿去
 }

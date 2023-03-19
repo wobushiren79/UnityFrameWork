@@ -16,7 +16,7 @@ public abstract class AIBaseEntity : BaseMonoBehaviour
 
     public virtual void Awake()
     {
-        InitIntentEntity();
+
     }
 
     public virtual void Start()
@@ -104,7 +104,7 @@ public abstract class AIBaseEntity : BaseMonoBehaviour
     /// 初始化意图
     /// </summary>
     /// <typeparam name="I"></typeparam>
-    protected virtual void InitIntentEntity()
+    public virtual void InitIntentEntity()
     {
         listIntentEnum.Clear();
         dicIntentPool.Clear();

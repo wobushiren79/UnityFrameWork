@@ -11,7 +11,7 @@ public class SearchEditorWindow : EditorWindow
     /// 原理--------->prefab中直接引用到的资源，可以通过查找prefab txt是否包含资源的guid
     /// prefab通过mat引用到的资源，同样查找mat txt中是否有目标guid，然后再在prefab txt中找mat的guid。最终获得目标prefab
     /// </summary>
-    [MenuItem("Custom/Search/查找资源被哪些prefab引用")]
+    [MenuItem("Custom/工具弹窗/查找资源被哪些prefab引用")]
     static void DoSearchRefrence()
     {
         SearchEditorWindow window = (SearchEditorWindow)EditorWindow.GetWindow(typeof(SearchEditorWindow), false, "Searching", true);

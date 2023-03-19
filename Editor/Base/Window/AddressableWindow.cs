@@ -18,7 +18,7 @@ public class AddressableWindow : EditorWindow
         AddressableUtil.AddCallBackForAssetChange(HandleForAssetChange);
     }
 
-    [MenuItem("Custom/资源/Addressable")]
+    [MenuItem("Custom/工具弹窗/资源Addressable")]
     static void CreateWindows()
     {
         EditorWindow.GetWindow(typeof(AddressableWindow));

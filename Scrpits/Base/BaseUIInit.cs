@@ -152,22 +152,26 @@ public class BaseUIInit : BaseMonoBehaviour
     #region 注册事件
     public virtual void RegisterEvent(string eventName, Action action)
     {
+        eventName += "_UI";
         EventHandler.Instance.RegisterEvent(eventName, action);
         listEvents.Add(eventName);
     }
 
     public virtual void RegisterEvent<A>(string eventName, Action<A> action)
     {
+        eventName += "_UI";
         EventHandler.Instance.RegisterEvent(eventName, action);
         listEvents.Add(eventName);
     }
     public virtual void RegisterEvent<A, B>(string eventName, Action<A, B> action)
     {
+        eventName += "_UI";
         EventHandler.Instance.RegisterEvent(eventName, action);
         listEvents.Add(eventName);
     }
     public virtual void UnRegisterEvent(string eventName)
     {
+        eventName += "_UI";
         EventHandler.Instance.UnRegisterEvent(eventName);
         listEvents.Remove(eventName);
     }
@@ -175,13 +179,19 @@ public class BaseUIInit : BaseMonoBehaviour
     public virtual void TriggerEvent(string eventName)
     {
         EventHandler.Instance.TriggerEvent(eventName);
+        eventName += "_UI";
+        EventHandler.Instance.TriggerEvent(eventName);
     }
     public virtual void TriggerEvent<A>(string eventName, A data)
     {
         EventHandler.Instance.TriggerEvent(eventName, data);
+        eventName += "_UI";
+        EventHandler.Instance.TriggerEvent(eventName, data);
     }
     public virtual void TriggerEvent<A, B>(string eventName, A dataA, B dataB)
     {
+        EventHandler.Instance.TriggerEvent(eventName, dataA, dataB);
+        eventName += "_UI";
         EventHandler.Instance.TriggerEvent(eventName, dataA, dataB);
     }
     #endregion

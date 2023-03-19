@@ -9,7 +9,7 @@ using UnityEngine;
 
 public class ExcelEditorWindow : EditorWindow
 {
-    [MenuItem("MVC/Excel")]
+    [MenuItem("Custom/工具弹窗/处理Excel")]
     static void CreateWindows()
     {
         EditorWindow.GetWindow(typeof(ExcelEditorWindow));

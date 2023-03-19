@@ -18,7 +18,7 @@ public class MVCEditorWindow : EditorWindow
     protected string mvcControllerPath = "Assets/Scrpits/MVC/Controller";
     protected string mvcServicePath = "Assets/Scrpits/MVC/Service";
 
-    [MenuItem("MVC/创建")]
+    [MenuItem("Custom/工具弹窗/创建MVC")]
     static void CreateWindows()
     {
         EditorWindow.GetWindow(typeof(MVCEditorWindow));

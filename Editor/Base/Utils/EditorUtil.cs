@@ -135,7 +135,7 @@ public static class EditorUtil
     /// 获取资源
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    /// <param name="path"></param>
+    /// <param name="path">Assets开头</param>
     /// <returns></returns>
     public static T GetAssetByPath<T>(string path) where T : UnityEngine.Object
     {

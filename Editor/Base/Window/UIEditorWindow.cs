@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 public class UIEditorWindow : EditorWindow
 {
-    [MenuItem("Custom/UI/更换字体")]
+    [MenuItem("Custom/工具弹窗/更换字体")]
     public static void Open()
     {
         EditorWindow.GetWindow(typeof(UIEditorWindow));
