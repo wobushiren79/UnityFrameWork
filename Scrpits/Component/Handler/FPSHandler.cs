@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class FPSHandler : BaseHandler<FPSHandler, BaseManager>
+public partial class FPSHandler : BaseHandler<FPSHandler, BaseManager>
 {
     private float m_LastUpdateShowTime = 0f;    //上一次更新帧率的时间;
 

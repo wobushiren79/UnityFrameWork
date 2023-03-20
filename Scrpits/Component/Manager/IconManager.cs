@@ -5,7 +5,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.U2D;
 
-public class IconManager : BaseManager
+public partial class IconManager : BaseManager
 {
     //UI图标
     public SpriteAtlas atlasForUI;

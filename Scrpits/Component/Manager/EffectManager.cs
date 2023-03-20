@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
-public class EffectManager : BaseManager
+public partial class EffectManager : BaseManager
 {
     //粒子模型列表
     public Dictionary<string, GameObject> dicEffectModel = new Dictionary<string, GameObject>();

@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 
-public class GameDataManager : BaseManager,
+public partial class GameDataManager : BaseManager,
     IGameConfigView, IChunkSaveView, IUserDataView,IBiomeSaveView
 {
     //游戏设置

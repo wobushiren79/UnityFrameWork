@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using UnityEngine;
 
-public class TextHandler : BaseHandler<TextHandler, TextManager>
+public partial class TextHandler : BaseHandler<TextHandler, TextManager>
 {
     //空格不换行
     public string noBreakingSpace = "\u00A0";

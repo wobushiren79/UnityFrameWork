@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Collections;
 using System;
 
-public class AudioHandler : BaseHandler<AudioHandler, AudioManager>
+public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
 {
     //重复播放时间检测
     protected float timeUpdateForRepeatPlay = 0;

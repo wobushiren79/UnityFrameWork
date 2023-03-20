@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Utilities;
 
-public class InputManager : BaseManager
+public partial class InputManager : BaseManager
 {
     public GameInputActions inputActions;
 

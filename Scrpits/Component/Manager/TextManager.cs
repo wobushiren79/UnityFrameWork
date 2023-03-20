@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using UnityEngine;
 
-public class TextManager : BaseManager
+public partial class TextManager : BaseManager
 {
 
     /// <summary>

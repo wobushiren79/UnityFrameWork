@@ -3,7 +3,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-public class UIManager : BaseUIManager
+public partial class UIManager : BaseUIManager
 {
     //所有的UI控件
     public List<BaseUIComponent> uiList = new List<BaseUIComponent>();

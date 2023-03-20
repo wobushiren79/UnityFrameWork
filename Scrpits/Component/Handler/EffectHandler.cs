@@ -3,7 +3,7 @@ using UnityEngine;
 using System.Collections;
 using System;
 
-public class EffectHandler : BaseHandler<EffectHandler, EffectManager>
+public partial class EffectHandler : BaseHandler<EffectHandler, EffectManager>
 {
     /// <summary>
     /// 展示粒子特效

@@ -3,7 +3,7 @@ using UnityEditor;
 using System.Collections.Generic;
 using System;
 
-public class AudioManager : BaseManager
+public partial class AudioManager : BaseManager
 {
     protected AudioListener _audioListener;
     protected AudioSource _audioSourceForMusic;

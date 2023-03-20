@@ -6,7 +6,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class UIHandler : BaseUIHandler<UIHandler, UIManager>
+public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
 {
     public override void Awake()
     {

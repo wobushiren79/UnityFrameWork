@@ -3,7 +3,7 @@ using UnityEditor;
 using UnityEngine;
 using System.Linq;
 
-public class GameDataHandler : BaseHandler<GameDataHandler, GameDataManager>
+public partial class GameDataHandler : BaseHandler<GameDataHandler, GameDataManager>
 {
     /// <summary>
     /// 获取基础信息

@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.U2D;
 
-public class IconHandler : BaseHandler<IconHandler, IconManager>
+public partial class IconHandler : BaseHandler<IconHandler, IconManager>
 {
     //是否初始化图集
     protected bool isInitAtlas = false;
