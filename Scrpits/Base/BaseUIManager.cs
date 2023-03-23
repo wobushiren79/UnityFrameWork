@@ -12,7 +12,6 @@ public class BaseUIManager : BaseManager
     public virtual void Awake()
     {
         InitUI();
-        GameHandler.Instance.actionForLauncher += InitCanvasCamera;
     }
 
     /// <summary>
