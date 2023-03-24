@@ -5,6 +5,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEditor.AddressableAssets;
 using UnityEditor.AddressableAssets.Settings;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 public static class EditorUtil
@@ -203,9 +204,9 @@ public static class EditorUtil
     /// </summary>
     /// <param name="prefabStage"></param>
     /// <returns></returns>
-    public static bool CheckIsPrefabMode(out UnityEditor.SceneManagement.PrefabStage prefabStage)
+    public static bool CheckIsPrefabMode(out PrefabStage prefabStage)
     {
-        prefabStage = UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage();
+        prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
         if (prefabStage != null)
         {
             // 当前正处于Prefab Mode
@@ -219,7 +220,7 @@ public static class EditorUtil
     }
     public static bool CheckIsPrefabMode()
     {
-        return CheckIsPrefabMode(out UnityEditor.SceneManagement.PrefabStage prefabStage);
+        return CheckIsPrefabMode(out PrefabStage prefabStage);
     }
 
 
