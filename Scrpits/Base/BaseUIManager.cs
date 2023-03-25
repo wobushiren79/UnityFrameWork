@@ -19,7 +19,7 @@ public class BaseUIManager : BaseManager
     /// </summary>
     public void InitUI()
     {
-        GameObject uiContainerModel = LoadResourcesUtil.SyncLoadData<GameObject>("UI/Base/UIContainer");
+        GameObject uiContainerModel = LoadResourcesUtil.SyncLoadData<GameObject>("UI/UIContainer");
         //实例化UI容器
         objUIContainer = Instantiate(gameObject, uiContainerModel);
         //初始化所有UI容器
