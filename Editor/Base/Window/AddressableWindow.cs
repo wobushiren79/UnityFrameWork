@@ -55,6 +55,8 @@ public class AddressableWindow : EditorWindow
     {
         //获取所有组
         allGroup = AddressableUtil.FindAllGrop();
+        //首先创建文件夹
+        FileUtil.CreateDirectory(pathSaveData);
         //获取保存数据
         string dataSave = FileUtil.LoadTextFile($"{pathSaveData}/{saveDataFileName}");
         if (dataSave.IsNull())
@@ -139,16 +141,19 @@ public class AddressableWindow : EditorWindow
         }
 
         GUILayout.BeginVertical(GUILayout.Width(220));
-        for (int i = 0; i < value.listPathSave.Count; i++)
+        if (value != null && value.listPathSave != null)
         {
-            GUILayout.BeginHorizontal(GUILayout.Width(220), GUILayout.Height(30));
-            value.listPathSave[i] = EditorUI.GUIEditorText(value.listPathSave[i], 200);
-            if (EditorUI.GUIButton("-", 20))
+            for (int i = 0; i < value.listPathSave.Count; i++)
             {
-                value.listPathSave.RemoveAt(i);
-                i--;
+                GUILayout.BeginHorizontal(GUILayout.Width(220), GUILayout.Height(30));
+                value.listPathSave[i] = EditorUI.GUIEditorText(value.listPathSave[i], 200);
+                if (EditorUI.GUIButton("-", 20))
+                {
+                    value.listPathSave.RemoveAt(i);
+                    i--;
+                }
+                GUILayout.EndHorizontal();
             }
-            GUILayout.EndHorizontal();
         }
         GUILayout.EndVertical();
 
@@ -158,16 +163,19 @@ public class AddressableWindow : EditorWindow
             value.listLabel.Add("");
         }
         GUILayout.BeginVertical(GUILayout.Width(100));
-        for (int i = 0; i < value.listLabel.Count; i++)
+        if (value != null && value.listLabel != null)
         {
-            GUILayout.BeginHorizontal(GUILayout.Width(100), GUILayout.Height(30));
-            value.listLabel[i] = EditorUI.GUIEditorText(value.listLabel[i], 200);
-            if (EditorUI.GUIButton("-", 20))
+            for (int i = 0; i < value.listLabel.Count; i++)
             {
-                value.listLabel.RemoveAt(i);
-                i--;
+                GUILayout.BeginHorizontal(GUILayout.Width(100), GUILayout.Height(30));
+                value.listLabel[i] = EditorUI.GUIEditorText(value.listLabel[i], 200);
+                if (EditorUI.GUIButton("-", 20))
+                {
+                    value.listLabel.RemoveAt(i);
+                    i--;
+                }
+                GUILayout.EndHorizontal();
             }
-            GUILayout.EndHorizontal();
         }
         GUILayout.EndVertical();
 
@@ -233,7 +241,7 @@ public class AddressableWindow : EditorWindow
 
             AddressableAssetEntry itemAssetEntry = listChangeAssetEntry[i];
             LogUtil.Log($"资源修改 address:{itemAssetEntry.address} AssetPath:{itemAssetEntry.AssetPath}");
-            if(itemAssetEntry.AssetPath.LastIndexOf("/")==0)
+            if (itemAssetEntry.AssetPath.LastIndexOf("/") == 0)
                 LogUtil.Log($"--------- address:{itemAssetEntry.address} AssetPath:{itemAssetEntry.AssetPath}");
             string assetPathFile = itemAssetEntry.AssetPath.Remove(itemAssetEntry.AssetPath.LastIndexOf("/"));
             //查询保存的路径
