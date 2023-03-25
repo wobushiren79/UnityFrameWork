@@ -71,7 +71,7 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     /// </summary>
     /// <param name="sound">音效</param>
     /// <param name="volumeScale">音量大小</param>
-    public void PlaySound(int soundId, Vector3 soundPosition, float volumeScale, AudioSource audioSource)
+    public void PlaySound(int soundId, Vector3 soundPosition, float volumeScale, AudioSource audioSource = null)
     {
         //如果上一个音效和这次播放的音效一样，并且间隔再 0.1s内，则不播放
         if(lastPlaySoundId == soundId && timeUpdateForRepeatPlay > 0)
@@ -94,16 +94,16 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
         lastPlaySoundId = soundId;
     }
 
-    public void PlaySound(int soundId)
+    public void PlaySound(int soundId, AudioSource audioSource = null)
     {
         GameConfigBean gameConfig = GameDataHandler.Instance.manager.GetGameConfig();
-        PlaySound(soundId, Camera.main.transform.position, gameConfig.soundVolume, manager.audioSourceForSound);
+        PlaySound(soundId, Camera.main.transform.position, gameConfig.soundVolume, audioSource);
     }
 
-    public void PlaySound(int soundId, Vector3 soundPosition)
+    public void PlaySound(int soundId, Vector3 soundPosition, AudioSource audioSource = null)
     {
         GameConfigBean gameConfig = GameDataHandler.Instance.manager.GetGameConfig();
-        PlaySound(soundId, soundPosition, gameConfig.soundVolume, null);
+        PlaySound(soundId, soundPosition, gameConfig.soundVolume, audioSource);
     }
 
     /// <summary>
