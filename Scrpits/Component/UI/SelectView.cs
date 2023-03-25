@@ -76,6 +76,16 @@ public class SelectView : BaseUIView
         this.listData = listData;
     }
 
+    public void SetListData(int listNum)
+    {
+        List<string> listData = new List<string>();
+        for (int i = 0; i < listNum; i++)
+        {
+            listData.Add($"{i + 1}");
+        }
+        SetListData(listData);
+    }
+
     /// <summary>
     /// 随机数据
     /// </summary>

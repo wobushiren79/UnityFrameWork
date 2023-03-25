@@ -97,6 +97,25 @@ public class GameUtil
     }
 
     /// <summary>
+    /// 世界坐标转UI坐标
+    /// </summary>
+    /// <param name="parentUI"></param>
+    /// <param name="worldPosition"></param>
+    /// <param name="originCamera"></param>
+    /// <param name="targetCamera"></param>
+    /// <returns></returns>
+    public static Vector2 WorldPointToUILocalPoint(RectTransform parentUI, Vector3 worldPosition, Camera originCamera = null, Camera uiCamera = null)
+    {
+        if (originCamera)
+            originCamera = Camera.main;
+        if (uiCamera)
+            uiCamera = Camera.main;
+        Vector3 screenPoint = originCamera.WorldToScreenPoint(worldPosition);
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(parentUI, screenPoint, uiCamera, out Vector2 vecMouse);
+        return vecMouse;
+    }
+
+    /// <summary>
     /// 获取物体LookAt后的旋转值
     /// </summary>
     /// <param name="originalObj"></param>
