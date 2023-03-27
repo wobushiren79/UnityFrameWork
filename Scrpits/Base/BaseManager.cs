@@ -30,7 +30,7 @@ public class BaseManager : BaseMonoBehaviour
         for (int i = 0; i < listData.Count; i++)
         {
             T itemHairInfo = listData[i];
-            dic.Add(itemHairInfo.id, itemHairInfo);
+            dic.Add((int)itemHairInfo.id, itemHairInfo);
         }
     }
 

@@ -6,7 +6,7 @@ using System.Collections.Generic;
 [Serializable]
 public class BaseBean 
 {
-    public int id;//id
+    public long id;//id
     public int valid;//是否有效
 
     public string name_cn;
