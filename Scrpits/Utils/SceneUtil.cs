@@ -6,14 +6,20 @@ using UnityEngine.SceneManagement;
 public class SceneUtil
 {
 
-    public static void SceneChange(ScenesEnum scenenName)
+    public static void SceneChange(ScenesEnum scenenName,bool hasLoadingScene = false)
     {
         //获取当前场景名字
         string beforeSceneName = SceneManager.GetActiveScene().name;
         GameCommonInfo.ScenesChangeData.beforeScene = beforeSceneName.GetEnum<ScenesEnum>();
         GameCommonInfo.ScenesChangeData.loadingScene = scenenName;
-        //SceneManager.LoadSceneAsync(EnumExtension.GetEnumName(ScenesEnum.LoadingScene));
-        SceneManager.LoadScene(scenenName.GetEnumName());
+        if (hasLoadingScene)
+        {
+            SceneManager.LoadScene(EnumExtension.GetEnumName(ScenesEnum.LoadingScene));
+        }
+        else
+        {
+            SceneManager.LoadScene(scenenName.GetEnumName());
+        }
     }
 
     /// <summary>
