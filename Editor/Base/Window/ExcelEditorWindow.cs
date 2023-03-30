@@ -119,6 +119,7 @@ public class ExcelEditorWindow : EditorWindow
                 ExcelPackage ep = new ExcelPackage(fs);
                 //获得所有工作表
                 ExcelWorksheets workSheets = ep.Workbook.Worksheets;
+                //workSheets.Add("IgnoreErrors");
                 List<object> lst = new List<object>();
                 //遍历所有工作表
                 for (int w = 1; w <= workSheets.Count; w++)
@@ -156,7 +157,8 @@ public class ExcelEditorWindow : EditorWindow
                                 LogUtil.LogError($"没有找到 第{column}竖排：{sheetCellName}的字段信息");
                                 continue;
                             }
-                            System.Object value = Convert.ChangeType(sheet.Cells[row, column].Text, fieldInfo.FieldType);
+                            string textData = sheet.Cells[row, column].Text;
+                            object value = Convert.ChangeType(textData, fieldInfo.FieldType);
                             type.GetField(sheet.Cells[1, column].Text).SetValue(o, value);
                         }
                         lst.Add(o);
@@ -181,7 +183,7 @@ public class ExcelEditorWindow : EditorWindow
                 fs.Close();
             }
         }
-        AssetDatabase.Refresh();
+        EditorUtil.RefreshAsset();
     }
 
     void CreateEntities()

@@ -13,10 +13,14 @@ public class FileUtil
     /// <param name="strData"></param>
     public static void CreateTextFile(string filePath, string fileName, string strData)
     {
+        CreateTextFile($"{filePath}/{fileName}", strData);
+    }
+
+    public static void CreateTextFile(string filePathName, string strData)
+    {
         StreamWriter writer = null;
         try
         {
-            string filePathName = filePath + "/" + fileName;
             DeleteFile(filePathName);
             writer = new StreamWriter(filePathName, false, Encoding.Default);
             writer.Write(strData);
@@ -32,6 +36,7 @@ public class FileUtil
                 writer.Close();
         }
     }
+
 
     /// <summary>
     /// 加载文本

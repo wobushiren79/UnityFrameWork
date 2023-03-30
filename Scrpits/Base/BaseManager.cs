@@ -273,8 +273,7 @@ public class BaseManager : BaseMonoBehaviour
         });
     }
 
-    protected void GetSpriteByName(Dictionary<string, Sprite> dicIcon, SpriteAtlas spriteAtlas, string resName, string name, 
-        Action<SpriteAtlas> callBackForSpriteAtlas = null, Action<Sprite> callBackForSprite = null)
+    public void GetSpriteByName(Dictionary<string, Sprite> dicIcon, SpriteAtlas spriteAtlas, string resName, string name, Action<Sprite> callBackForSprite = null)
     {
         if (name == null)
             return;
@@ -296,9 +295,43 @@ public class BaseManager : BaseMonoBehaviour
         SpriteAtlas spriteAtlasNew = LoadAddressablesUtil.LoadAssetSync<SpriteAtlas>(resName);
         if (spriteAtlasNew != null)
         {
-            callBackForSpriteAtlas?.Invoke(spriteAtlasNew);
+            spriteAtlas = spriteAtlasNew;
+            Sprite itemSprite = GetSpriteByName(name, spriteAtlas);
+            if (itemSprite != null)
+                dicIcon.Add(name, itemSprite);
+            callBackForSprite?.Invoke(itemSprite);
         }
     }
+
+    public Sprite GetSpriteByNameSync(Dictionary<string, Sprite> dicIcon, SpriteAtlas spriteAtlas, string resName, string name)
+    {
+        if (name == null)
+            return null;
+        //从字典获取sprite
+        if (dicIcon.TryGetValue(name, out Sprite value))
+        {
+            return value;
+        }
+        //如果字典没有 尝试从atlas获取sprite
+        if (spriteAtlas != null)
+        {
+            Sprite itemSprite = GetSpriteByName(name, spriteAtlas);
+            if (itemSprite != null)
+                dicIcon.Add(name, itemSprite);
+            return itemSprite;
+        }
+        SpriteAtlas spriteAtlasNew = LoadAddressablesUtil.LoadAssetSync<SpriteAtlas>(resName);
+        if (spriteAtlasNew != null)
+        {
+            spriteAtlas = spriteAtlasNew;
+            Sprite itemSprite = GetSpriteByName(name, spriteAtlas);
+            if (itemSprite != null)
+                dicIcon.Add(name, itemSprite);
+            return itemSprite;
+        }
+        return null;
+    }
+
 
     protected Sprite GetSpriteByName(IconBeanDictionary dicIcon, ref SpriteAtlas spriteAtlas, string atlasName, string assetBundlePath, string name)
     {

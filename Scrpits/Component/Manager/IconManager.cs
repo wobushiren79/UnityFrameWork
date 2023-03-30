@@ -31,12 +31,7 @@ public partial class IconManager : BaseManager
     /// <param name="callBack"></param>
     public void GetUISpriteByName(string name,Action<Sprite> callBack)
     {
-        Action<SpriteAtlas> callBackForSpriteAtlas = (spriteAtlas) =>
-        {
-            this.atlasForUI = spriteAtlas;
-            GetSpriteByName(dicUI, spriteAtlas, PathSpriteAtlasForUI, name, null, callBack);
-        };
-        GetSpriteByName(dicUI, atlasForUI, PathSpriteAtlasForUI, name, callBackForSpriteAtlas, callBack);
+        GetSpriteByName(dicUI, atlasForUI, PathSpriteAtlasForUI, name, callBack);
     }
 
     /// <summary>
@@ -46,12 +41,8 @@ public partial class IconManager : BaseManager
     /// <param name="callBack"></param>
     public void GetItemsSpriteByName(string name, Action<Sprite> callBack)
     {
-        Action<SpriteAtlas> callBackForSpriteAtlas = (spriteAtlas) =>
-        {
-            this.atlasForItems = spriteAtlas;
-            GetSpriteByName(dicUI, atlasForItems, PathSpriteAtlasForItems, name, null, callBack);
-        };
-        GetSpriteByName(dicUI, atlasForItems, PathSpriteAtlasForItems, name, callBackForSpriteAtlas, callBack);
+
+        GetSpriteByName(dicUI, atlasForItems, PathSpriteAtlasForItems, name, callBack);
     }
 
     /// <summary>
@@ -61,12 +52,7 @@ public partial class IconManager : BaseManager
     /// <param name="callBack"></param>
     public void GetSkySpriteByName(string name, Action<Sprite> callBack)
     {
-        Action<SpriteAtlas> callBackForSpriteAtlas = (spriteAtlas) =>
-        {
-            this.atlasForSky = spriteAtlas;
-            GetSpriteByName(dicSky, atlasForSky, PathSpriteAtlasForSky, name, null, callBack);
-        };
-        GetSpriteByName(dicSky, atlasForSky, PathSpriteAtlasForSky, name, callBackForSpriteAtlas, callBack);
+        GetSpriteByName(dicSky, atlasForSky, PathSpriteAtlasForSky, name, callBack);
     }
 
     public Texture2D GetTexture2DByName(string name)
