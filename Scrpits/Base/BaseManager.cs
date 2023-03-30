@@ -273,7 +273,7 @@ public class BaseManager : BaseMonoBehaviour
         });
     }
 
-    public void GetSpriteByName(Dictionary<string, Sprite> dicIcon, SpriteAtlas spriteAtlas, string resName, string name, Action<Sprite> callBackForSprite = null)
+    public void GetSpriteByName(Dictionary<string, Sprite> dicIcon, ref SpriteAtlas spriteAtlas, string resName, string name, Action<Sprite> callBackForSprite = null)
     {
         if (name == null)
             return;
@@ -303,7 +303,7 @@ public class BaseManager : BaseMonoBehaviour
         }
     }
 
-    public Sprite GetSpriteByNameSync(Dictionary<string, Sprite> dicIcon, SpriteAtlas spriteAtlas, string resName, string name)
+    public Sprite GetSpriteByNameSync(Dictionary<string, Sprite> dicIcon,ref SpriteAtlas spriteAtlas, string resName, string name)
     {
         if (name == null)
             return null;

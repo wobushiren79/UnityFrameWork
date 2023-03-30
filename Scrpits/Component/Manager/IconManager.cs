@@ -12,7 +12,7 @@ public partial class IconManager : BaseManager
     public SpriteAtlas atlasForItems;
     public SpriteAtlas atlasForSky;
 
-    public Dictionary<string,Sprite> dicUI = new Dictionary<string, Sprite>();
+    public Dictionary<string, Sprite> dicUI = new Dictionary<string, Sprite>();
     public Dictionary<string, Sprite> dicItems = new Dictionary<string, Sprite>();
     public Dictionary<string, Sprite> dicSky = new Dictionary<string, Sprite>();
 
@@ -29,9 +29,9 @@ public partial class IconManager : BaseManager
     /// </summary>
     /// <param name="name"></param>
     /// <param name="callBack"></param>
-    public void GetUISpriteByName(string name,Action<Sprite> callBack)
+    public void GetUISpriteByName(string name, Action<Sprite> callBack)
     {
-        GetSpriteByName(dicUI, atlasForUI, PathSpriteAtlasForUI, name, callBack);
+        GetSpriteByName(dicUI, ref atlasForUI, PathSpriteAtlasForUI, name, callBack);
     }
 
     /// <summary>
@@ -42,7 +42,7 @@ public partial class IconManager : BaseManager
     public void GetItemsSpriteByName(string name, Action<Sprite> callBack)
     {
 
-        GetSpriteByName(dicUI, atlasForItems, PathSpriteAtlasForItems, name, callBack);
+        GetSpriteByName(dicUI, ref atlasForItems, PathSpriteAtlasForItems, name, callBack);
     }
 
     /// <summary>
@@ -52,7 +52,7 @@ public partial class IconManager : BaseManager
     /// <param name="callBack"></param>
     public void GetSkySpriteByName(string name, Action<Sprite> callBack)
     {
-        GetSpriteByName(dicSky, atlasForSky, PathSpriteAtlasForSky, name, callBack);
+        GetSpriteByName(dicSky, ref atlasForSky, PathSpriteAtlasForSky, name, callBack);
     }
 
     public Texture2D GetTexture2DByName(string name)
