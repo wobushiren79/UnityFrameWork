@@ -94,8 +94,15 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
         lastPlaySoundId = soundId;
     }
 
+    /// <summary>
+    /// 播放音效 （没有指定播放位置 所以当audioSource为null是 自动使用audioSourceForSound）
+    /// </summary>
     public void PlaySound(int soundId, AudioSource audioSource = null)
     {
+        if (audioSource == null)
+        {
+            audioSource = manager.audioSourceForSound;
+        }
         GameConfigBean gameConfig = GameDataHandler.Instance.manager.GetGameConfig();
         PlaySound(soundId, Camera.main.transform.position, gameConfig.soundVolume, audioSource);
     }
