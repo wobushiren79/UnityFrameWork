@@ -135,7 +135,7 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
         AudioInfoBean audioInfo = AudioInfoCfg.GetItemData(environmentId);
         if (audioInfo == null)
             return;
-        manager.GetMusicClip(audioInfo.name_res, (audioClip) =>
+        manager.GetEnvironmentClip(audioInfo.name_res, (audioClip) =>
         {
             if (audioClip != null)
             {

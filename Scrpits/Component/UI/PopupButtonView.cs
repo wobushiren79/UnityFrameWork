@@ -13,7 +13,7 @@ public abstract class PopupButtonView<T> : BaseUIView,
     //目标按钮
     public Button btnTarget;
     //弹窗数据
-    public PopupEnum popupType;
+    protected PopupEnum popupType;
 
     protected T popupShow;
 
@@ -36,6 +36,9 @@ public abstract class PopupButtonView<T> : BaseUIView,
 
     public virtual void OnPointerEnter(PointerEventData eventData)
     {
+        string tName = GetType().Name;
+        tName = tName.Replace("UI", "").Replace("Popup","").Replace("Button","");
+        popupType = tName.GetEnum<PopupEnum>();
         popupShow = UIHandler.Instance.ShowPopup<T>(new PopupBean(popupType));
         popupShow.RefreshViewSize();
         PopupShow();
