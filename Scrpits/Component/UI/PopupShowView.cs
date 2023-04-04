@@ -16,6 +16,14 @@ public class PopupShowView : BaseUIView
     public override void Awake()
     {
         base.Awake();
+        if (rtfContent == null)
+        {
+            rtfContent = gameObject.GetComponent<RectTransform>();
+        }
+        if (rectTransform == null)
+        {
+            rectTransform = gameObject.GetComponent<RectTransform>();
+        }
     }
 
     public virtual void Update()

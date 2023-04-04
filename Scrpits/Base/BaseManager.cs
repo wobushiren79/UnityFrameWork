@@ -34,11 +34,11 @@ public class BaseManager : BaseMonoBehaviour
         }
     }
 
-    protected List<T> GetAllModel<T>(string assetBundlePath) where T : UnityEngine.Object
+    public List<T> GetAllModel<T>(string assetBundlePath) where T : UnityEngine.Object
     {
         return GetAllModel<T>(assetBundlePath, null);
     }
-    protected List<T> GetAllModel<T>(string assetBundlePath, string remarkResourcesPath) where T : UnityEngine.Object
+    public List<T> GetAllModel<T>(string assetBundlePath, string remarkResourcesPath) where T : UnityEngine.Object
     {
         List<T> models = null;
 #if UNITY_EDITOR
@@ -56,11 +56,11 @@ public class BaseManager : BaseMonoBehaviour
 #endif
         return models;
     }
-    protected T GetModel<T>(string assetBundlePath, string name) where T : UnityEngine.Object
+    public T GetModel<T>(string assetBundlePath, string name) where T : UnityEngine.Object
     {
         return GetModel<T>(assetBundlePath, name, null);
     }
-    protected T GetModel<T>(string assetBundlePath, string name, string remarkResourcesPath) where T : UnityEngine.Object
+    public T GetModel<T>(string assetBundlePath, string name, string remarkResourcesPath) where T : UnityEngine.Object
     {
         if (name == null)
             return null;
@@ -81,12 +81,12 @@ public class BaseManager : BaseMonoBehaviour
         return model;
     }
 
-    protected T GetModel<T>(Dictionary<string, T> listModel, string assetBundlePath, string name) where T : UnityEngine.Object
+    public T GetModel<T>(Dictionary<string, T> listModel, string assetBundlePath, string name) where T : UnityEngine.Object
     {
         return GetModel<T>(listModel, assetBundlePath, name, null);
     }
 
-    protected T GetModel<T>(Dictionary<string, T> listModel, string assetBundlePath, string name, string remarkResourcesPath) where T : UnityEngine.Object
+    public T GetModel<T>(Dictionary<string, T> listModel, string assetBundlePath, string name, string remarkResourcesPath) where T : UnityEngine.Object
     {
         if (name == null)
             return null;
@@ -116,12 +116,12 @@ public class BaseManager : BaseMonoBehaviour
         return model;
     }
 
-    protected T GetModel<T>(SerializableDictionaryBase<string, T> listModel, string assetBundlePath, string name) where T : UnityEngine.Object
+    public T GetModel<T>(SerializableDictionaryBase<string, T> listModel, string assetBundlePath, string name) where T : UnityEngine.Object
     {
         return GetModel<T>(listModel, assetBundlePath, name, null);
     }
 
-    protected T GetModel<T>(SerializableDictionaryBase<string, T> listModel, string assetBundlePath, string name, string remarkResourcesPath) where T : UnityEngine.Object
+    public T GetModel<T>(SerializableDictionaryBase<string, T> listModel, string assetBundlePath, string name, string remarkResourcesPath) where T : UnityEngine.Object
     {
         if (name == null)
             return null;
@@ -152,7 +152,7 @@ public class BaseManager : BaseMonoBehaviour
         return model;
     }
 
-    protected T GetModelForResources<T>(Dictionary<string, T> listModel, string resPath) where T : UnityEngine.Object
+    public T GetModelForResources<T>(Dictionary<string, T> listModel, string resPath) where T : UnityEngine.Object
     {
         if (resPath == null)
             return null;
@@ -170,7 +170,28 @@ public class BaseManager : BaseMonoBehaviour
         return model;
     }
 
-    protected void GetModelForAddressables<T>(Dictionary<string, T> listModel, string keyName, Action<T> callBack) where T : UnityEngine.Object
+    public T GetModelForAddressablesSync<T>(Dictionary<string, T> listModel, string keyName) where T : UnityEngine.Object
+    {
+        if (keyName == null)
+        {
+            return null;
+        }
+
+        if (listModel.TryGetValue(keyName, out T value))
+        {
+            return value;
+        }
+
+        var data = LoadAddressablesUtil.LoadAssetSync<T>(keyName);
+        if (data != null)
+        {
+            if (!listModel.ContainsKey(keyName))
+                listModel.Add(keyName, data);
+        }
+        return data;
+    }
+
+    public void GetModelForAddressables<T>(Dictionary<string, T> listModel, string keyName, Action<T> callBack) where T : UnityEngine.Object
     {
         if (keyName == null)
         {
@@ -198,7 +219,7 @@ public class BaseManager : BaseMonoBehaviour
         });
     }
 
-    protected void GetModelForAddressables<T>(Dictionary<long, T> listModel, long id, string keyName, Action<T> callBack) where T : UnityEngine.Object
+    public void GetModelForAddressables<T>(Dictionary<long, T> listModel, long id, string keyName, Action<T> callBack) where T : UnityEngine.Object
     {
         if (keyName == null)
         {
@@ -229,7 +250,7 @@ public class BaseManager : BaseMonoBehaviour
         });
     }
 
-    protected void GetModelsForAddressables<T>(Dictionary<long, IList<T>> listModel, long id, List<string> listKeyName, Action<IList<T>> callBack) where T : UnityEngine.Object
+    public void GetModelsForAddressables<T>(Dictionary<long, IList<T>> listModel, long id, List<string> listKeyName, Action<IList<T>> callBack) where T : UnityEngine.Object
     {
         if (listKeyName.IsNull())
         {
@@ -260,7 +281,7 @@ public class BaseManager : BaseMonoBehaviour
         });
     }
 
-    protected void GetModelsForAddressables<T>(List<string> listKeyName, Action<IList<T>> callBack) where T : UnityEngine.Object
+    public void GetModelsForAddressables<T>(List<string> listKeyName, Action<IList<T>> callBack) where T : UnityEngine.Object
     {
         if (listKeyName == null)
         {
@@ -303,7 +324,7 @@ public class BaseManager : BaseMonoBehaviour
         }
     }
 
-    public Sprite GetSpriteByNameSync(Dictionary<string, Sprite> dicIcon,ref SpriteAtlas spriteAtlas, string resName, string name)
+    public Sprite GetSpriteByNameSync(Dictionary<string, Sprite> dicIcon, ref SpriteAtlas spriteAtlas, string resName, string name)
     {
         if (name == null)
             return null;
@@ -536,7 +557,16 @@ public class BaseManager : BaseMonoBehaviour
 
     public virtual Sprite GetSpriteByName(string name, SpriteAtlas spriteAtlas)
     {
-        return spriteAtlas.GetSprite(name);
+        Sprite targetSp = null;
+        try
+        {
+            targetSp = spriteAtlas.GetSprite(name);
+        }
+        catch
+        {
+            LogUtil.LogError($"在spriteAtlas {spriteAtlas.name} 中找不到名字为{name}");
+        }
+        return targetSp;
     }
 
     /// <summary>
