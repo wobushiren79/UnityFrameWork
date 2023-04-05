@@ -8,12 +8,6 @@ using UnityEngine.UI;
 
 public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
 {
-    public override void Awake()
-    {
-        base.Awake();
-        GameConfigBean gameConfig = GameDataHandler.Instance.manager.GetGameConfig();
-        ChangeUISize(gameConfig.uiSize);
-    }
 
     /// <summary>
     /// 获取打开的UI

@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 public class UIEditorWindow : EditorWindow
 {
-    [MenuItem("Custom/工具弹窗/更换字体")]
+    [MenuItem("Custom/工具弹窗/字体处理")]
     public static void Open()
     {
         EditorWindow.GetWindow(typeof(UIEditorWindow));
@@ -25,7 +25,7 @@ public class UIEditorWindow : EditorWindow
         SelectNewFont = (Font)EditorGUILayout.ObjectField("请选择新的字体", SelectNewFont, typeof(Font), true, GUILayout.MinWidth(100));
         NewFont = SelectNewFont;
 
-        if (GUILayout.Button("更换选中的预制体"))
+        if (EditorUI.GUIButton("更换选中的预制体",300))
         {
             if (SelectOldFont == null || SelectNewFont == null)
             {
@@ -36,7 +36,7 @@ public class UIEditorWindow : EditorWindow
                 ChangeForText();
             }
         }
-        if (GUILayout.Button("更换文件夹下所有的预制体"))
+        if (EditorUI.GUIButton("更换文件夹下所有的预制体", 300))
         {
             if (SelectOldFont == null || SelectNewFont == null)
             {
@@ -44,37 +44,119 @@ public class UIEditorWindow : EditorWindow
             }
             else
             {
-                ChangeSelectFloudForText();
+                ChangeSelectFolderForText();
             }
+        }
+        GUILayout.Space(5);
+        if (EditorUI.GUIButton("修正选中Bestfit的默认字体大小", 300))
+        {
+            FixTextBestfit();
+        }
+        if (EditorUI.GUIButton("修正文件夹下所有Bestfit的默认字体大小", 300))
+        {
+            FixSelectFolderTextBestfit();
         }
     }
 
+    /// <summary>
+    /// 替换选中的文本字体
+    /// </summary>
     public static void ChangeForText()
     {
-        Object[] Texts = Selection.GetFiltered(typeof(Text), SelectionMode.Deep);
-        Debug.Log("找到" + Texts.Length + "个Text，即将处理");
+        List<Text> listText = GetTextForSelect();
+        Debug.Log("找到" + listText.Count + "个Text，即将处理");
         int count = 0;
-        foreach (Object text in Texts)
+        foreach (Text text in listText)
         {
-            if (text)
+            Undo.RecordObject(text, text.gameObject.name);
+            if (text.font == OldFont)
             {
-                Text AimText = (Text)text;
-                Undo.RecordObject(AimText, AimText.gameObject.name);
-                if (AimText.font == OldFont)
-                {
-                    AimText.font = NewFont;
-                    //Debug.Log(AimText.name + ":" + AimText.text);
-                    EditorUtility.SetDirty(AimText);
-                    count++;
-                }
+                text.font = NewFont;
+                //Debug.Log(AimText.name + ":" + AimText.text);
+                EditorUtility.SetDirty(text);
+                count++;
             }
+        }
+        if (count > 0)
+        {
+            EditorUtil.RefreshAsset();
         }
         Debug.Log("字体更换完毕！更换了" + count + "个");
     }
 
-    public static void ChangeSelectFloudForText()
+    /// <summary>
+    /// 替换文件夹下所有的字体
+    /// </summary>
+    public static void ChangeSelectFolderForText()
     {
+        List<Text> listText = GetTextForSelectFolder();
+        int count = 0;
+        foreach (Text text in listText)
+        {
+            Undo.RecordObject(text, text.gameObject.name);
+            if (text.font == OldFont)
+            {
+                text.font = NewFont;
+                EditorUtility.SetDirty(text);
+                count++;
+            }
+        }
+        if (count > 0)
+        {
+            EditorUtil.RefreshAsset();
+        }
+    }
 
+    /// <summary>
+    /// 修正选中Bestfit的默认字体大小
+    /// </summary>
+    public static void FixTextBestfit()
+    {
+        List<Text> listText = GetTextForSelect();
+        foreach (var itemText in listText)
+        {
+            Undo.RecordObject(itemText, itemText.gameObject.name);
+            if (itemText.resizeTextForBestFit == true && itemText.fontSize != itemText.resizeTextMaxSize)
+            {
+                itemText.fontSize = itemText.resizeTextMaxSize;
+                EditorUtility.SetDirty(itemText);
+            }
+        }
+        EditorUtil.RefreshAsset();
+    }
+    public static void FixSelectFolderTextBestfit()
+    {
+        List<Text> listText = GetTextForSelectFolder();
+        foreach (var itemText in listText)
+        {
+            Undo.RecordObject(itemText, itemText.gameObject.name);
+            if (itemText.resizeTextForBestFit == true && itemText.fontSize != itemText.resizeTextMaxSize)
+            {
+                itemText.fontSize = itemText.resizeTextMaxSize;
+                EditorUtility.SetDirty(itemText);
+            }
+        }
+        EditorUtil.RefreshAsset();
+    }
+
+    public static List<Text> GetTextForSelect()
+    {
+        List<Text> listData = new List<Text>();
+        Object[] Texts = Selection.GetFiltered(typeof(Text), SelectionMode.Deep);
+        foreach (Object text in Texts)
+        {
+            if (text)
+            {
+                Text itemText = (Text)text;
+                listData.Add(itemText);
+            }
+        }
+        return listData;
+    }
+
+    public static List<Text> GetTextForSelectFolder()
+    {
+        List<Text> listData = new List<Text>();
         object[] objs = Selection.GetFiltered(typeof(object), SelectionMode.DeepAssets);
         for (int i = 0; i < objs.Length; i++)
         {
@@ -85,23 +167,11 @@ public class UIEditorWindow : EditorWindow
             }
             GameObject go = (GameObject)objs[i];
             var Texts = go.GetComponentsInChildren<Text>(true);
-            int count = 0;
             foreach (Text text in Texts)
             {
-                Undo.RecordObject(text, text.gameObject.name);
-                if (text.font == OldFont)
-                {
-                    text.font = NewFont;
-                    EditorUtility.SetDirty(text);
-                    count++;
-                }
+                listData.Add(text);
             }
-            if (count > 0)
-            {
-                AssetDatabase.SaveAssets();
-                Debug.Log(go.name + "界面有:" + count + "个Arial字体");
-            }
-
         }
+        return listData;
     }
 }

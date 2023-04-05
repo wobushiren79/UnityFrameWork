@@ -26,6 +26,9 @@ public class BaseUIManager : BaseManager
         InitUIType();
         //修改一些摄像机
         InitCanvasCamera();
+        //刷新UI大小
+        GameConfigBean gameConfig = GameDataHandler.Instance.manager.GetGameConfig();
+        UIHandler.Instance.ChangeUISize(gameConfig.uiSize);
     }
 
     /// <summary>
