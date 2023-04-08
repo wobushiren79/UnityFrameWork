@@ -16,8 +16,6 @@ public partial class IconManager : BaseManager
     public Dictionary<string, Sprite> dicItems = new Dictionary<string, Sprite>();
     public Dictionary<string, Sprite> dicSky = new Dictionary<string, Sprite>();
 
-    public Dictionary<string, Texture2D> dicTextureUI = new Dictionary<string, Texture2D>();
-
     public static string PathSpriteAtlas = "Assets/Texture/SpriteAtlas";
 
     public string PathSpriteAtlasForUI = $"{PathSpriteAtlas}/SpriteAtlasForUI.spriteatlas";
@@ -41,7 +39,6 @@ public partial class IconManager : BaseManager
     /// <param name="callBack"></param>
     public void GetItemsSpriteByName(string name, Action<Sprite> callBack)
     {
-
         GetSpriteByName(dicUI, ref atlasForItems, PathSpriteAtlasForItems, name, callBack);
     }
 
@@ -53,10 +50,5 @@ public partial class IconManager : BaseManager
     public void GetSkySpriteByName(string name, Action<Sprite> callBack)
     {
         GetSpriteByName(dicSky, ref atlasForSky, PathSpriteAtlasForSky, name, callBack);
-    }
-
-    public Texture2D GetTexture2DByName(string name)
-    {
-        return GetModel(dicTextureUI, "texture/ui", name);
     }
 }

@@ -18,7 +18,6 @@ public class LoadAddressablesUtil
     {
         var op = Addressables.LoadAssetAsync<T>(key);
         T go = op.WaitForCompletion();
-        Addressables.Release(op);
         return go;
     }
 
