@@ -53,9 +53,9 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
     /// </summary>
     /// <param name="uiName"></param>
     /// <returns></returns>
-    public T GetUI<T>(int layer = -1) where T : BaseUIComponent
+    public T GetUI<T>(int layer = -1, string uiNameIn = null) where T : BaseUIComponent
     {
-        string uiName = typeof(T).Name;
+        string uiName = uiNameIn.IsNull() ? typeof(T).Name : uiNameIn;
         if (manager.uiList == null || uiName.IsNull())
             return null;
         for (int i = 0; i < manager.uiList.Count; i++)
@@ -104,9 +104,9 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
     /// 通过UI的名字开启UI
     /// </summary>
     /// <param name="uiName"></param>
-    public T OpenUI<T>(Action<T> actionBeforeOpen = null, int layer = -1) where T : BaseUIComponent
+    public T OpenUI<T>(Action<T> actionBeforeOpen = null, int layer = -1, string uiNameIn = null) where T : BaseUIComponent
     {
-        string uiName = typeof(T).Name;
+        string uiName = uiNameIn.IsNull() ? typeof(T).Name : uiNameIn;
         if (uiName.IsNull())
             return null;
         for (int i = 0; i < manager.uiList.Count; i++)
@@ -175,9 +175,9 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
     /// 通过UI的名字开启UI并关闭其他UI
     /// </summary>
     /// <param name="uiName"></param>
-    public T OpenUIAndCloseOther<T>(Action<T> actionBeforeOpen = null, int layer = -1) where T : BaseUIComponent
+    public T OpenUIAndCloseOther<T>(Action<T> actionBeforeOpen = null, int layer = -1, string uiNameIn = null) where T : BaseUIComponent
     {
-        string uiName = typeof(T).Name;
+        string uiName = uiNameIn.IsNull() ? typeof(T).Name : uiNameIn;
         if (manager.uiList == null || uiName.IsNull())
             return null;
         //首先关闭其他UI
@@ -190,7 +190,7 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
                     itemUI.CloseUI();
             }
         }
-        return OpenUI<T>(actionBeforeOpen, layer);
+        return OpenUI<T>(actionBeforeOpen, layer, uiName);
     }
 
     /// <summary>

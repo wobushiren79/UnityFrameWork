@@ -108,8 +108,6 @@ public class GameUtil
     {
         if (originCamera)
             originCamera = Camera.main;
-        if (uiCamera)
-            uiCamera = Camera.main;
         Vector3 screenPoint = originCamera.WorldToScreenPoint(worldPosition);
         RectTransformUtility.ScreenPointToLocalPointInRectangle(parentUI, screenPoint, uiCamera, out Vector2 vecMouse);
         return vecMouse;

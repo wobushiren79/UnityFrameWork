@@ -30,12 +30,15 @@ public partial class EffectManager : BaseManager
             }
         }
 
-        GetModelForAddressables(dicEffectModel, $"Assets/Prefabs/Effects/{effectData.effectName}.prefab", (obj) =>
+        GetModelForAddressables(dicEffectModel, $"Assets/Prefabs/Effects/Common/{effectData.effectName}.prefab", (obj) =>
         {
             GameObject objEffects = Instantiate(objContainer, obj);
             objEffects.ShowObj(true);
             EffectBase effect = objEffects.GetComponent<EffectBase>();
-            effect.SetData(effectData);
+            if (effect != null)
+            {
+                effect.SetData(effectData);       
+            }
             completeAction?.Invoke(effect);
         });
     }
