@@ -106,7 +106,7 @@ public class GameUtil
     /// <returns></returns>
     public static Vector2 WorldPointToUILocalPoint(RectTransform parentUI, Vector3 worldPosition, Camera originCamera = null, Camera uiCamera = null)
     {
-        if (originCamera)
+        if (originCamera == null)
             originCamera = Camera.main;
         Vector3 screenPoint = originCamera.WorldToScreenPoint(worldPosition);
         RectTransformUtility.ScreenPointToLocalPointInRectangle(parentUI, screenPoint, uiCamera, out Vector2 vecMouse);
