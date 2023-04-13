@@ -172,7 +172,7 @@ public class ExcelEditorWindow : EditorWindow
                     string jsonData = JsonUtil.ToJsonByNet(lst.ToArray());
                     File.WriteAllText(jsonPath, jsonData);
                 }
-                LogUtil.Log("转换完成");
+                LogUtil.Log($"转换完成 {filePath}");
             }
             catch (Exception e)
             {
