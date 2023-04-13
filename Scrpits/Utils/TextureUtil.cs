@@ -45,25 +45,35 @@ public class TextureUtil
     /// <param name="sprite"></param>
     /// <param name="filterMode">适配模式</param>
     /// <param name="isSameWH">是否相同宽高</param>
+    /// <param name="texW">固定宽</param>
+    /// <param name="texH">固定高</param>
     /// <returns></returns>
-    public static Texture2D SpriteToTexture2D(Sprite sprite, FilterMode filterMode = FilterMode.Point, bool isSameWH = false)
+    public static Texture2D SpriteToTexture2D(Sprite sprite, FilterMode filterMode = FilterMode.Point,
+        bool isSameWH = false,int texW = 0,int texH = 0)
     {
         try
         {
             if (sprite.rect.width != sprite.texture.width)
             {
                 Texture2D texture;
-                //如果是需要设置相同的长宽
-                if (isSameWH)
+                //如果是指定宽高
+                if(texW != 0 && texH != 0)
                 {
-                    int moreSize = (int)(sprite.rect.width > sprite.rect.height ? sprite.rect.width : sprite.rect.height);
-                    texture = new Texture2D(moreSize, moreSize, TextureFormat.RGBA32, false);
+                    texture = new Texture2D(texW, texH, TextureFormat.RGBA32, false);
                 }
                 else
-                {
-                    texture = new Texture2D((int)sprite.rect.width, (int)sprite.rect.height, TextureFormat.RGBA32, false);
+                {          
+                    //如果是需要设置相同的长宽
+                    if (isSameWH)
+                    {
+                        int moreSize = (int)(sprite.rect.width > sprite.rect.height ? sprite.rect.width : sprite.rect.height);
+                        texture = new Texture2D(moreSize, moreSize, TextureFormat.RGBA32, false);
+                    }
+                    else
+                    {
+                        texture = new Texture2D((int)sprite.rect.width, (int)sprite.rect.height, TextureFormat.RGBA32, false);
+                    }
                 }
-
                 Color[] pixels = sprite.texture.GetPixels
                     (
                         (int)(sprite.textureRect.x),
@@ -73,19 +83,29 @@ public class TextureUtil
                     );
                 //如果大小不对 则需要调整pixel的位置
                 if (pixels.Length < texture.width * texture.height)
-                {
-                    int offset = (int)Mathf.Abs(sprite.rect.width - sprite.rect.height);
+                {        
                     //默认设置所有的像素为透明
                     texture.SetPixels(new Color[texture.width * texture.height]);
-                    if (sprite.rect.width > sprite.rect.height)
+                    //如果是指定的大小
+                    if (texW != 0 && texH != 0)
                     {
-                        //如果原图 W>H
-                        texture.SetPixels(0, offset / 2, (int)sprite.rect.width, (int)sprite.rect.height, pixels);
+                        int offsetX = (int)Mathf.Abs(texW - sprite.rect.width);
+                        int offsetY = (int)Mathf.Abs(texH - sprite.rect.height);
+                        texture.SetPixels(offsetX / 2, offsetY / 2, (int)sprite.rect.width, (int)sprite.rect.height, pixels);
                     }
-                    else
+                    else 
                     {
-                        //如果原图 H>W
-                        texture.SetPixels(offset / 2, 0, (int)sprite.rect.width, (int)sprite.rect.height, pixels);
+                        int offset = (int)Mathf.Abs(sprite.rect.width - sprite.rect.height);       
+                        if (sprite.rect.width > sprite.rect.height)
+                        {
+                            //如果原图 W>H
+                            texture.SetPixels(0, offset / 2, (int)sprite.rect.width, (int)sprite.rect.height, pixels);
+                        }
+                        else
+                        {
+                            //如果原图 H>W
+                            texture.SetPixels(offset / 2, 0, (int)sprite.rect.width, (int)sprite.rect.height, pixels);
+                        }
                     }
                 }
                 else
