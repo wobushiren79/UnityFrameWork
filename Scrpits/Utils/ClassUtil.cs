@@ -9,19 +9,66 @@ using System.Runtime.Serialization;
 
 public class ClassUtil : MonoBehaviour
 {
-    public static T DeepCopyByReflect<T>(T obj)
+    /// <summary>
+    /// 打包后可能有点问题
+    /// </summary>
+    public static T DeepCopy<T>(T obj)
     {
-        //如果是字符串或值类型则直接返回
-        if (obj is string || obj.GetType().IsValueType) return obj;
-        object retval = Activator.CreateInstance(obj.GetType());
-        FieldInfo[] fields = obj.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
-        foreach (FieldInfo field in fields)
+        if (obj == null) return default(T);
+
+        Type type = obj.GetType();
+
+        // 如果对象是值类型或字符串，则直接返回
+        if (type.IsValueType || type == typeof(string))
         {
-            try { field.SetValue(retval, DeepCopyByReflect(field.GetValue(obj))); }
-            catch { }
+            return obj;
         }
-        return (T)retval;
+        // 如果对象是数组，则创建一个新数组，并复制每个元素
+        else if (type.IsArray)
+        {
+            Type elementType = Type.GetType(
+                type.FullName.Replace("[]", string.Empty));
+            var array = obj as Array;
+            Array copied = Array.CreateInstance(elementType, array.Length);
+            for (int i = 0; i < array.Length; i++)
+            {
+                copied.SetValue(DeepCopy(array.GetValue(i)), i);
+            }
+            return (T)(object)copied;
+        }
+        // 如果对象是类，则递归复制每个属性
+        else if (type.IsClass)
+        {
+            object copiedObj = Activator.CreateInstance(obj.GetType());
+            PropertyInfo[] properties = type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            foreach (PropertyInfo property in properties)
+            {
+                if (!property.CanWrite || !property.CanRead) continue;
+                object propertyValue = property.GetValue(obj, null);
+                if (propertyValue == null) continue;
+                property.SetValue(copiedObj, DeepCopy(propertyValue), null);
+            }
+            return (T)copiedObj;
+        }
+        else
+        {
+            throw new ArgumentException("Unsupported type");
+        }
     }
+
+    public static T DeepCopyBySerialize<T>(T obj)
+    {
+        if (obj == null) return default(T);
+
+        BinaryFormatter formatter = new BinaryFormatter();
+        using (MemoryStream stream = new MemoryStream())
+        {
+            formatter.Serialize(stream, obj);
+            stream.Seek(0, SeekOrigin.Begin);
+            return (T)formatter.Deserialize(stream);
+        }
+    }
+
 
     public static T DeepCopyByXml<T>(T obj)
     {
@@ -53,18 +100,4 @@ public class ClassUtil : MonoBehaviour
         return (T)retval;
     }
 
-    //需要silverlight支持
-    public static T DeepCopy<T>(T obj)
-    {
-        object retval;
-        using (MemoryStream ms = new MemoryStream())
-        {
-            DataContractSerializer ser = new DataContractSerializer(typeof(T));
-            ser.WriteObject(ms, obj);
-            ms.Seek(0, SeekOrigin.Begin);
-            retval = ser.ReadObject(ms);
-            ms.Close();
-        }
-        return (T)retval;
-    }
 }

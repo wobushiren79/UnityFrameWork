@@ -104,13 +104,29 @@ public class GameUtil
     /// <param name="originCamera"></param>
     /// <param name="targetCamera"></param>
     /// <returns></returns>
-    public static Vector2 WorldPointToUILocalPoint(RectTransform parentUI, Vector3 worldPosition, Camera originCamera = null, Camera uiCamera = null)
+    public static Vector2 WorldPointToUILocalPoint(RectTransform parentUI, Vector3 worldPosition, Camera sceneCamera = null, Camera uiCamera = null)
     {
-        if (originCamera == null)
-            originCamera = Camera.main;
-        Vector3 screenPoint = originCamera.WorldToScreenPoint(worldPosition);
+        if (sceneCamera == null)
+            sceneCamera = Camera.main;
+        Vector3 screenPoint = sceneCamera.WorldToScreenPoint(worldPosition);
         RectTransformUtility.ScreenPointToLocalPointInRectangle(parentUI, screenPoint, uiCamera, out Vector2 vecMouse);
         return vecMouse;
+    }
+
+    /// <summary>
+    /// UI左边转世界坐标
+    /// </summary>
+    /// <param name="worldPosition"></param>
+    /// <param name="sceneCamera"></param>
+    /// <param name="uiCamera"></param>
+    /// <returns></returns>
+    public static Vector3 UILocalPointToWorldPoint(Vector3 worldPosition, Camera sceneCamera, Camera uiCamera = null)
+    {
+        if (sceneCamera == null)
+            sceneCamera = Camera.main;
+        Vector3 screenPoint = RectTransformUtility.WorldToScreenPoint(uiCamera, worldPosition);
+        Vector3 worldPoint = sceneCamera.ScreenToWorldPoint(screenPoint);
+        return worldPoint;
     }
 
     /// <summary>

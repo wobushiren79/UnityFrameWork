@@ -83,7 +83,11 @@ public class DialogView : BaseUIView
     {
         if (timeDelayDelete != 0)
         {
-            transform.DOScale(new Vector3(1, 1, 1), timeDelayDelete).OnComplete(delegate () { Destroy(gameObject); });
+            transform.DOScale(new Vector3(1, 1, 1), timeDelayDelete).OnComplete(()=> 
+            { 
+                if(gameObject != null)
+                    Destroy(gameObject); 
+            });
         }
         else
         {

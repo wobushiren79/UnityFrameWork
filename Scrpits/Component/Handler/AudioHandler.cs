@@ -73,6 +73,9 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     /// <param name="volumeScale">音量大小</param>
     public void PlaySound(int soundId, Vector3 soundPosition, float volumeScale, AudioSource audioSource = null)
     {
+        //如果音效为0 则不播放
+        if (volumeScale == 0)
+            return;
         //如果上一个音效和这次播放的音效一样，并且间隔再 0.1s内，则不播放
         if(lastPlaySoundId == soundId && timeUpdateForRepeatPlay > 0)
             return;

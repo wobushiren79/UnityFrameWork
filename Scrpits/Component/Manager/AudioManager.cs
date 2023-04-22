@@ -36,7 +36,7 @@ public partial class AudioManager : BaseManager
         {
             if (_audioSourceForMusic == null)
             {
-                _audioSourceForMusic = audioListener.transform.AddComponentEX<AudioSource>();
+                _audioSourceForMusic = audioListener.gameObject.AddComponent<AudioSource>();
             }
             return _audioSourceForMusic;
         }
@@ -48,7 +48,7 @@ public partial class AudioManager : BaseManager
         {
             if (_audioSourceForSound == null)
             {
-                _audioSourceForSound = audioListener.transform.AddComponentEX<AudioSource>();
+                _audioSourceForSound = audioListener.gameObject.AddComponent<AudioSource>();
             }
             return _audioSourceForSound;
         }
@@ -60,7 +60,7 @@ public partial class AudioManager : BaseManager
         {
             if (_audioSourceForEnvironment == null)
             {
-                _audioSourceForEnvironment = audioListener.transform.AddComponentEX<AudioSource>();
+                _audioSourceForEnvironment = audioListener.gameObject.AddComponent<AudioSource>();
             }
             return _audioSourceForEnvironment;
         }
