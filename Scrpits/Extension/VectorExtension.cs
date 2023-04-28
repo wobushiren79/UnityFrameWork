@@ -93,6 +93,23 @@ public static class VectorExtension
     }
 
     //-------Vector3--------
+
+    public static Vector3 MultiplyX(this Vector3 self, float multiply)
+    {
+        self.x *= multiply;
+        return self;
+    }
+    public static Vector3 MultiplyY(this Vector3 self, float multiply)
+    {
+        self.y *= multiply;
+        return self;
+    }
+    public static Vector3 MultiplyZ(this Vector3 self, float multiply)
+    {
+        self.z *= multiply;
+        return self;
+    }
+
     public static Vector3 AddX(this Vector3 self, float add)
     {
         self.x += add;
@@ -235,6 +252,35 @@ public static class VectorExtension
     }
 
     //-------Vector3[]--------
+    public static Vector3[] MultiplyX(this Vector3[] self, float multiply)
+    {
+        Vector3[] newSelf = new Vector3[self.Length];
+        for (int i = 0; i < self.Length; i++)
+        {
+            newSelf[i] = self[i].MultiplyX(multiply);
+        }
+        return newSelf;
+    }
+
+    public static Vector3[] MultiplyY(this Vector3[] self, float multiply)
+    {
+        Vector3[] newSelf = new Vector3[self.Length];
+        for (int i = 0; i < self.Length; i++)
+        {
+            newSelf[i] = self[i].MultiplyY(multiply);
+        }
+        return newSelf;
+    }
+
+    public static Vector3[] MultiplyZ(this Vector3[] self, float multiply)
+    {
+        Vector3[] newSelf = new Vector3[self.Length];
+        for (int i = 0; i < self.Length; i++)
+        {
+            newSelf[i] = self[i].MultiplyZ(multiply);
+        }
+        return newSelf;
+    }
 
     public static Vector3[] AddX(this Vector3[] self, float add)
     {
