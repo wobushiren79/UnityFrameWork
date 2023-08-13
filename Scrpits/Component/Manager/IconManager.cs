@@ -18,9 +18,9 @@ public partial class IconManager : BaseManager
 
     public static string PathSpriteAtlas = "Assets/Texture/SpriteAtlas";
 
-    public string PathSpriteAtlasForUI = $"{PathSpriteAtlas}/SpriteAtlasForUI.spriteatlas";
-    public string PathSpriteAtlasForItems = $"{PathSpriteAtlas}/SpriteAtlasForItems.spriteatlas";
-    public string PathSpriteAtlasForSky = $"{PathSpriteAtlas}/SpriteAtlasForSky.spriteatlas";
+    public string PathSpriteAtlasForUI = $"{PathSpriteAtlas}/AtlasForUI.spriteatlas";
+    public string PathSpriteAtlasForItems = $"{PathSpriteAtlas}/AtlasForItems.spriteatlas";
+    public string PathSpriteAtlasForSky = $"{PathSpriteAtlas}/AtlasForSky.spriteatlas";
 
     /// <summary>
     /// 根据名字获取UI图标

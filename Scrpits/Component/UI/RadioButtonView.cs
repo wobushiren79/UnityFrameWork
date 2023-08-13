@@ -74,7 +74,9 @@ public class RadioButtonView : BaseMonoBehaviour
     public void ChangeStates(bool isSelect)
     {
         if (rbButton.enabled == false)
+        {
             return;
+        }
         this.isSelect = isSelect;
         switch (isSelect)
         {

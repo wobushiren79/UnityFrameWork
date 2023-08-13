@@ -361,6 +361,24 @@ public static class ComponentExtension
     }
 
     /// <summary>
+    /// 删除自己
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="selfComponent"></param>
+    /// <param name="mode"></param>
+    public static void DestorySelf<T>(this T selfComponent, int mode = 0) where T : Component
+    {
+        if (mode == 1)
+        {
+            GameObject.DestroyImmediate(selfComponent.gameObject);
+        }
+        else
+        {
+            GameObject.Destroy(selfComponent.gameObject);
+        }
+    }
+
+    /// <summary>
     /// 展示OBJ
     /// </summary>
     /// <typeparam name="T"></typeparam>
