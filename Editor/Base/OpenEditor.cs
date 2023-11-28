@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using UnityEditor;
+using UnityEditor.Toolbars;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 public class OpenEditor : Editor
 {
@@ -34,5 +36,32 @@ public class OpenEditor : Editor
     {
         string path = Application.persistentDataPath;
         EditorUI.OpenFolder(path);
+    }
+
+
+    [InitializeOnLoadMethod]
+    public static void Init()
+    {
+        ToolbarExtension.ToolbarZoneLeftAlign += OnToolbarGUI;
+    }
+
+    static void OnToolbarGUI(VisualElement rootVisualElement)
+    {
+        var refresh = new EditorToolbarDropdown();
+        refresh.text = "打开存档路径";
+        refresh.clicked += () =>
+        {
+            OpenPersistantPath();
+        };
+
+        var m_TextElement = refresh.Q<TextElement>(className: "unity-editor-toolbar-element__label");
+        var ArrowElement = refresh.Q(className: "unity-icon-arrow");
+
+        m_TextElement.style.width = 100;
+        m_TextElement.style.textOverflow = TextOverflow.Clip;
+        m_TextElement.style.unityTextAlign = TextAnchor.MiddleCenter;
+        ArrowElement.style.display = DisplayStyle.None;
+
+        rootVisualElement.Add(refresh);
     }
 }

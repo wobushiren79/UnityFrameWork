@@ -1,11 +1,16 @@
-﻿using OfficeOpenXml;
+﻿using DG.Tweening.Plugins.Core.PathCore;
+using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using UnityEditor;
+using UnityEditor.Toolbars;
 using UnityEngine;
+using UnityEngine.TextCore;
+using UnityEngine.UIElements;
 
 public class ExcelEditorWindow : EditorWindow
 {
@@ -18,6 +23,35 @@ public class ExcelEditorWindow : EditorWindow
     public string excelFolderPath = "";
     public string entityFolderPath = "";
     public string jsonFolderPath = "";
+
+
+    public FileInfo[] queryFileInfos;
+
+    [InitializeOnLoadMethod]
+    public static void Init()
+    {
+        ToolbarExtension.ToolbarZoneLeftAlign += OnToolbarGUI;
+    }
+
+    static void OnToolbarGUI(VisualElement rootVisualElement)
+    {
+        var refresh = new EditorToolbarDropdown();
+        refresh.text = "处理Excel";
+        refresh.clicked += () => 
+        {
+            EditorWindow.GetWindow(typeof(ExcelEditorWindow));
+        };
+
+        var m_TextElement = refresh.Q<TextElement>(className: "unity-editor-toolbar-element__label");
+        var ArrowElement = refresh.Q(className: "unity-icon-arrow");
+
+        m_TextElement.style.width = 100;
+        m_TextElement.style.textOverflow = TextOverflow.Clip;
+        m_TextElement.style.unityTextAlign = TextAnchor.MiddleCenter;
+        ArrowElement.style.display = DisplayStyle.None;
+
+        rootVisualElement.Add(refresh);
+    }
 
     private void OnEnable()
     {
@@ -45,7 +79,7 @@ public class ExcelEditorWindow : EditorWindow
         }
         GUILayout.EndHorizontal();
         excelFolderPath = EditorUI.GUIEditorText(excelFolderPath, 500);
-
+        GUILayout.Space(10);
         GUILayout.BeginHorizontal();
         if (EditorUI.GUIButton("选择Entity所在文件夹", 200))
         {
@@ -57,7 +91,7 @@ public class ExcelEditorWindow : EditorWindow
         }
         GUILayout.EndHorizontal();
         entityFolderPath = EditorUI.GUIEditorText(entityFolderPath, 500);
-
+        GUILayout.Space(10);
         GUILayout.BeginHorizontal();
         if (EditorUI.GUIButton("选择Json文本所在文件夹", 200))
         {
@@ -69,23 +103,73 @@ public class ExcelEditorWindow : EditorWindow
         }
         GUILayout.EndHorizontal();
         jsonFolderPath = EditorUI.GUIEditorText(jsonFolderPath, 500);
-
-        GUILayout.Space(50);
+        GUILayout.Space(10);
+        GUILayout.Space(20);
 
         GUILayout.BeginHorizontal();
-        if (EditorUI.GUIButton("生成相关Entity", 200))
+        if (EditorUI.GUIButton("生成所有相关Entity", 200))
         {
             CreateEntities();
         }
-        if (EditorUI.GUIButton("Excel转Json文本", 200))
+        if (EditorUI.GUIButton("所有Excel转Json文本", 200))
         {
             ExcelToJson();
         }
-
         GUILayout.EndHorizontal();
+        GUILayout.Space(10);
+        UIForListExcel();
     }
 
-    protected void ExcelToJson()
+    /// <summary>
+    /// Excel列表
+    /// </summary>
+    public void UIForListExcel()
+    {
+        if (EditorUI.GUIButton("刷新Excel",500))
+        {
+            queryFileInfos = FileUtil.GetFilesByPath(excelFolderPath);
+            queryFileInfos = queryFileInfos.OrderBy(f => f.LastWriteTime).ToArray();
+        }
+        if (queryFileInfos == null)
+        {
+            queryFileInfos = FileUtil.GetFilesByPath(excelFolderPath);
+            queryFileInfos = queryFileInfos.OrderBy(f => f.LastWriteTime).ToArray();
+        }
+        if (queryFileInfos != null)
+        {
+            for (int i = 0; i < queryFileInfos.Length; i++)
+            {
+                FileInfo fileInfo = queryFileInfos[i];
+                if (fileInfo.Name.Contains(".meta"))
+                    continue;
+                string filePath = fileInfo.FullName;
+                if (filePath.Contains(".meta"))
+                    continue;
+                if (filePath.Contains("~$"))
+                    continue;
+                GUILayout.BeginHorizontal();
+                if (EditorUI.GUIButton("生成Entity"))
+                {
+                    CreateEntitiesItem(fileInfo);
+                }
+                if (EditorUI.GUIButton("生成Json文本"))
+                {
+                    ExcelToJsonItem(fileInfo);
+                }
+                if (EditorUI.GUIButton($"{fileInfo.Name}",300))
+                {
+                    EditorUI.OpenFolder(fileInfo.FullName);
+                }
+                GUILayout.EndHorizontal();
+                GUILayout.Space(5);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Excel转Json文本
+    /// </summary>
+    public void ExcelToJson()
     {
         if (excelFolderPath.IsNull())
         {
@@ -101,92 +185,105 @@ public class ExcelEditorWindow : EditorWindow
         for (int i = 0; i < fileInfos.Length; i++)
         {
             FileInfo fileInfo = fileInfos[i];
-            if (fileInfo.Name.Contains(".meta"))
-                continue;
-            string filePath = fileInfo.FullName;
-            FileStream fs;
-            try
-            {
-                fs = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-            }
-            catch
-            {
-                LogUtil.LogError("请先关闭对应的Excel文档");
-                return;
-            }
-            try
-            {
-                ExcelPackage ep = new ExcelPackage(fs);
-                //获得所有工作表
-                ExcelWorksheets workSheets = ep.Workbook.Worksheets;
-                //workSheets.Add("IgnoreErrors");
-                List<object> lst = new List<object>();
-                //遍历所有工作表
-                for (int w = 1; w <= workSheets.Count; w++)
-                {
-                    //当前工作表 
-                    ExcelWorksheet sheet = workSheets[w];
-                    //初始化集合
-                    lst.Clear();
-                    //横排
-                    int columnCount = sheet.Dimension.End.Column;
-                    //竖排
-                    int rowCount = sheet.Dimension.End.Row;
-
-                    Assembly ab = Assembly.Load("Assembly-CSharp");
-                    Type type = ab.GetType(sheet.Name + "Bean");
-
-                    //从第四行开始，前3行分别是属性名字，属性字段，属性描述
-                    for (int row = 4; row <= rowCount; row++)
-                    {
-
-                        if (type == null)
-                        {
-                            LogUtil.LogError("你还没有创建对应的实体类!");
-                            return;
-                        }
-                        if (!Directory.Exists(jsonFolderPath))
-                            Directory.CreateDirectory(jsonFolderPath);
-                        object o = ab.CreateInstance(type.ToString());
-                        for (int column = 1; column <= columnCount; column++)
-                        {
-                            string sheetCellName = sheet.Cells[w, column].Text;
-                            FieldInfo fieldInfo = type.GetField(sheetCellName); //先获得字段信息，方便获得字段类型
-                            if (fieldInfo == null)
-                            {
-                                LogUtil.LogError($"没有找到 第{column}竖排：{sheetCellName}的字段信息");
-                                continue;
-                            }
-                            string textData = sheet.Cells[row, column].Text;
-                            object value = Convert.ChangeType(textData, fieldInfo.FieldType);
-                            type.GetField(sheet.Cells[1, column].Text).SetValue(o, value);
-                        }
-                        lst.Add(o);
-                    }
-                    //写入json文件
-                    string jsonPath = $"{jsonFolderPath}/{sheet.Name}.txt";
-                    if (!File.Exists(jsonPath))
-                    {
-                        File.Create(jsonPath).Dispose();
-                    }
-                    string jsonData = JsonUtil.ToJsonByNet(lst.ToArray());
-                    File.WriteAllText(jsonPath, jsonData);
-                }
-                LogUtil.Log($"转换完成 {filePath}");
-            }
-            catch (Exception e)
-            {
-                LogUtil.LogError(e.ToString());
-            }
-            finally
-            {
-                fs.Close();
-            }
+            ExcelToJsonItem(fileInfo);
         }
         EditorUtil.RefreshAsset();
     }
 
-    void CreateEntities()
+    public void ExcelToJsonItem(FileInfo fileInfo)
+    {
+        if (fileInfo.Name.Contains(".meta"))
+            return;
+        string filePath = fileInfo.FullName;
+        if (filePath.Contains(".meta"))
+            return;
+        if (filePath.Contains("~$"))
+            return;
+        LogUtil.Log($"filePath:{filePath}");
+        FileStream fs;
+        try
+        {
+            fs = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+        }
+        catch
+        {
+            LogUtil.LogError("请先关闭对应的Excel文档");
+            return;
+        }
+        try
+        {
+            ExcelPackage ep = new ExcelPackage(fs);
+            //获得所有工作表
+            ExcelWorksheets workSheets = ep.Workbook.Worksheets;
+            //workSheets.Add("IgnoreErrors");
+            List<object> lst = new List<object>();
+            //遍历所有工作表
+            for (int w = 1; w <= workSheets.Count; w++)
+            {
+                //当前工作表 
+                ExcelWorksheet sheet = workSheets[w];
+                //初始化集合
+                lst.Clear();
+                //横排
+                int columnCount = sheet.Dimension.End.Column;
+                //竖排
+                int rowCount = sheet.Dimension.End.Row;
+
+                Assembly ab = Assembly.Load("Assembly-CSharp");
+                Type type = ab.GetType(sheet.Name + "Bean");
+
+                //从第四行开始，前3行分别是属性名字，属性字段，属性描述
+                for (int row = 4; row <= rowCount; row++)
+                {
+
+                    if (type == null)
+                    {
+                        LogUtil.LogError("你还没有创建对应的实体类!");
+                        return;
+                    }
+                    if (!Directory.Exists(jsonFolderPath))
+                        Directory.CreateDirectory(jsonFolderPath);
+                    object o = ab.CreateInstance(type.ToString());
+                    for (int column = 1; column <= columnCount; column++)
+                    {
+                        string sheetCellName = sheet.Cells[w, column].Text;
+                        FieldInfo fieldInfo = type.GetField(sheetCellName); //先获得字段信息，方便获得字段类型
+                        if (fieldInfo == null)
+                        {
+                            LogUtil.LogError($"没有找到 第{column}竖排：{sheetCellName}的字段信息");
+                            continue;
+                        }
+                        string textData = sheet.Cells[row, column].Text;
+                        object value = Convert.ChangeType(textData, fieldInfo.FieldType);
+                        type.GetField(sheet.Cells[1, column].Text).SetValue(o, value);
+                    }
+                    lst.Add(o);
+                }
+                //写入json文件
+                string jsonPath = $"{jsonFolderPath}/{sheet.Name}.txt";
+                if (!File.Exists(jsonPath))
+                {
+                    File.Create(jsonPath).Dispose();
+                }
+                string jsonData = JsonUtil.ToJsonByNet(lst.ToArray());
+                File.WriteAllText(jsonPath, jsonData);
+            }
+            LogUtil.Log($"转换完成 {filePath}");
+        }
+        catch (Exception e)
+        {
+            LogUtil.LogError(e.ToString());
+        }
+        finally
+        {
+            fs.Close();
+        }
+    }
+
+    /// <summary>
+    /// 生成相关Entity
+    /// </summary>
+    public void CreateEntities()
     {
         if (excelFolderPath.IsNull())
         {
@@ -202,44 +299,49 @@ public class ExcelEditorWindow : EditorWindow
         for (int i = 0; i < fileInfos.Length; i++)
         {
             FileInfo fileInfo = fileInfos[i];
-            if (fileInfo.Name.Contains(".meta"))
-                continue;
-            string filePath = fileInfo.FullName;
-            FileStream fs;
-            try
-            {
-                fs = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-            }
-            catch
-            {
-                LogUtil.LogError("请先关闭对应的Excel文档");
-                return;
-            }
-            try
-            {
-                ExcelPackage ep = new ExcelPackage(fs);
-
-                //获得所有工作表
-                ExcelWorksheets workSheets = ep.Workbook.Worksheets;
-                //遍历所有工作表
-                for (int w = 1; w <= workSheets.Count; w++)
-                {
-                    CreateEntityPartial(workSheets[w]);
-                    CreateEntity(workSheets[w]);
-                }
-                AssetDatabase.Refresh();
-                LogUtil.Log("生成完成");
-            }
-            catch
-            {
-
-            }
-            finally
-            {
-                fs.Close();
-            }
+            CreateEntitiesItem( fileInfo);
         }
         AssetDatabase.Refresh();
+    }
+
+    public void CreateEntitiesItem(FileInfo fileInfo)
+    {
+        if (fileInfo.Name.Contains(".meta"))
+            return;
+        string filePath = fileInfo.FullName;
+        FileStream fs;
+        try
+        {
+            fs = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+        }
+        catch
+        {
+            LogUtil.LogError("请先关闭对应的Excel文档");
+            return;
+        }
+        try
+        {
+            ExcelPackage ep = new ExcelPackage(fs);
+
+            //获得所有工作表
+            ExcelWorksheets workSheets = ep.Workbook.Worksheets;
+            //遍历所有工作表
+            for (int w = 1; w <= workSheets.Count; w++)
+            {
+                CreateEntityPartial(workSheets[w]);
+                CreateEntity(workSheets[w]);
+            }
+            AssetDatabase.Refresh();
+            LogUtil.Log("生成完成");
+        }
+        catch
+        {
+
+        }
+        finally
+        {
+            fs.Close();
+        }
     }
 
     void CreateEntityPartial(ExcelWorksheet sheet)
