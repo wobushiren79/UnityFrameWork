@@ -285,6 +285,10 @@ public class BaseMVCService
         foreach (var item in mapData)
         {
             string itemKey = item.Key;
+            if (itemKey.Equals("name_cn"))
+                continue;
+            if (itemKey.Equals("name_en"))
+                continue;
             if (listLeftName.Contains(itemKey))
             {
                 string valueStr = Convert.ToString(item.Value);
@@ -338,7 +342,7 @@ public class BaseMVCService
         isInsert = SQLiteHandle.InsertValues(ProjectConfigInfo.DATA_BASE_INFO_NAME, tableNameForMain, listMainKeys.ToArray(), listMainValues.ToArray());
         if (isInsert)
         {
-            SQLiteHandle.InsertValues(ProjectConfigInfo.DATA_BASE_INFO_NAME, tableNameForLeft, listLeftKeys.ToArray(), listMainValues.ToArray());
+            SQLiteHandle.InsertValues(ProjectConfigInfo.DATA_BASE_INFO_NAME, tableNameForLeft, listLeftKeys.ToArray(), listLeftValues.ToArray());
         }
         return isInsert;
     }
