@@ -128,13 +128,14 @@ public class ExcelEditorWindow : EditorWindow
         if (EditorUI.GUIButton("刷新Excel",500))
         {
             queryFileInfos = FileUtil.GetFilesByPath(excelFolderPath);
-            queryFileInfos = queryFileInfos.OrderBy(f => f.LastWriteTime).ToArray();
+            queryFileInfos = queryFileInfos.OrderByDescending(f => f.LastWriteTime).ToArray();
         }
         if (queryFileInfos == null)
         {
             queryFileInfos = FileUtil.GetFilesByPath(excelFolderPath);
-            queryFileInfos = queryFileInfos.OrderBy(f => f.LastWriteTime).ToArray();
+            queryFileInfos = queryFileInfos.OrderByDescending(f => f.LastWriteTime).ToArray();
         }
+        GUILayout.Space(10);
         if (queryFileInfos != null)
         {
             for (int i = 0; i < queryFileInfos.Length; i++)

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using OfficeOpenXml.FormulaParsing.Excel.Functions.Text;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -413,6 +414,23 @@ public static class TypeExtension
         {
             Vector2 itemData = self[i];
             listData[i] = new Vector3(itemData.x, itemData.y,0);
+        }
+        return listData;
+    }
+
+
+    /// <summary>
+    /// list转int(仅限枚举)
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="self"></param>
+    /// <returns></returns>
+    public static List<int> ToListInt<T>(this List<T> self)
+    {
+        List<int> listData = new List<int>();
+        for (int i = 0; i < self.Count; i++)
+        {
+            listData.Add((int)(object)self[i]);
         }
         return listData;
     }

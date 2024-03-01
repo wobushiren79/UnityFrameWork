@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System;
 using System.Reflection;
+using UnityEngine.Rendering;
 
 public class ReflexUtil
 {
@@ -125,6 +126,56 @@ public class ReflexUtil
     }
 
     /// <summary>
+    /// 获取所有的值
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="classType"></param>
+    /// <returns></returns>
+    public static List<object> GetAllValue<T>(T classType,out List<string> allName)
+    {
+        List<object> listData = new List<object>();
+        allName = new List<string>();
+        Type type = classType.GetType();
+        FieldInfo[] fieldInfos = type.GetFields();
+
+        if (fieldInfos == null)
+            return listData;
+
+        int propertyInfoSize = fieldInfos.Length;
+        for (int i = 0; i < propertyInfoSize; i++)
+        {
+            FieldInfo fieldInfo = fieldInfos[i];
+            listData.Add(fieldInfo.GetValue(classType));
+            allName.Add(fieldInfo.Name);
+        };
+        return listData;
+    }
+
+    /// <summary>
+    /// 获取所有值
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="classType"></param>
+    /// <returns></returns>
+    public static List<object> GetAllValue<T>(T classType)
+    {
+        List<object> listData = new List<object>();
+        Type type = classType.GetType();
+        FieldInfo[] fieldInfos = type.GetFields();
+
+        if (fieldInfos == null)
+            return listData;
+
+        int propertyInfoSize = fieldInfos.Length;
+        for (int i = 0; i < propertyInfoSize; i++)
+        {
+            FieldInfo fieldInfo = fieldInfos[i];
+            listData.Add(fieldInfo.GetValue(classType));
+        };
+        return listData;
+    }
+
+    /// <summary>
     /// 根据反射获取属性名称及类型
     /// </summary>
     /// <typeparam name="T"></typeparam>
@@ -184,6 +235,33 @@ public class ReflexUtil
         if (fieldInfo == null)
             return;
         fieldInfo.SetValue(classType, value);
+    }
+    public static T SetValueByNameForStruct<T>(T classType, string name, object value)
+    {
+        object obj = classType;
+        Type type = classType.GetType();
+        FieldInfo fieldInfo = type.GetField(name);
+        if (fieldInfo == null)
+            return default(T);
+
+        fieldInfo.SetValue(obj, value);
+        return (T)obj;
+    }
+
+    /// <summary>
+    /// 设置反射 设置值（性能开销更小 没有装箱开销）
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="classType"></param>
+    /// <param name="name"></param>
+    /// <param name="value"></param>
+    public static void SetValueDirectByName<T>(T classType, string name, object value)
+    {
+        Type type = classType.GetType();
+        FieldInfo fieldInfo = type.GetField(name);
+        if (fieldInfo == null)
+            return;
+        fieldInfo.SetValueDirect(__makeref(classType), value);
     }
 
     /// <summary>
