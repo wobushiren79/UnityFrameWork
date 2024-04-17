@@ -96,6 +96,13 @@ public class BaseMonoBehaviour : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 通过标签找到物体（该方法不能找到隐藏的物体）
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="tag"></param>
+    /// <param name="name"></param>
+    /// <returns></returns>
     public T FindWithTag<T>(string tag, string name = null)
     {
         GameObject[] objArray = GameObject.FindGameObjectsWithTag(tag);

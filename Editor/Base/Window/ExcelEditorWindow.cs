@@ -255,6 +255,15 @@ public class ExcelEditorWindow : EditorWindow
                             continue;
                         }
                         string textData = sheet.Cells[row, column].Text;
+                        if (textData.IsNull())
+                        {
+                            if (fieldInfo.FieldType == typeof(int)
+                                || fieldInfo.FieldType == typeof(float)
+                                || fieldInfo.FieldType == typeof(double))
+                            {
+                                textData = "0";
+                            }
+                        }
                         object value = Convert.ChangeType(textData, fieldInfo.FieldType);
                         type.GetField(sheet.Cells[1, column].Text).SetValue(o, value);
                     }

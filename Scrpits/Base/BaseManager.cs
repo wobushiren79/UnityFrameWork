@@ -213,7 +213,10 @@ public class BaseManager : BaseMonoBehaviour
             }
             else
             {
-                listModel.Add(keyName, data.Result);
+                if(data.Result != null)
+                {
+                    listModel.Add(keyName, data.Result);
+                }
                 callBack?.Invoke(data.Result);
             }
         });

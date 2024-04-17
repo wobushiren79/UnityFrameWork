@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -8,8 +9,8 @@ public partial class CShaderManager : BaseManager
 
     protected static string pathCShader = "Assets/ComputeShader";
 
-    public ComputeShader GetComputeShader(string shaderName)
-    {
-        return GetModelForAddressablesSync(dicComputeShader,$"{pathCShader}/{shaderName}.compute");
+    public void GetComputeShader(string shaderName,Action<ComputeShader> callBack)
+    {      
+        GetModelForAddressables(dicComputeShader, $"{pathCShader}/{shaderName}.compute", callBack);
     }
 }
