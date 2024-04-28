@@ -9,7 +9,7 @@ public class MVCEditorWindow : EditorWindow
 {
     public string mvcClassName = "";
 
-    protected readonly string scrpitsTemplatesPath = "/Editor/ScrpitsTemplates/";
+    protected readonly string scrpitsTemplatesPath = "/FrameWork/Editor/ScrpitsTemplates/";
 
     protected int saveType = 1;
     protected string mvcBeanPath = "Assets/Scrpits/Bean/MVC";

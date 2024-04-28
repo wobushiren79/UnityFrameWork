@@ -17,15 +17,16 @@ public class ExcelEditorWindow : EditorWindow
     [MenuItem("Custom/工具弹窗/处理Excel")]
     static void CreateWindows()
     {
-        EditorWindow.GetWindow(typeof(ExcelEditorWindow));
+        EditorWindow.GetWindowWithRect(typeof(ExcelEditorWindow),new Rect(0,0,600,800));
     }
 
     public string excelFolderPath = "";
     public string entityFolderPath = "";
     public string jsonFolderPath = "";
 
-
     public FileInfo[] queryFileInfos;
+
+    protected Vector2 scrollPosForList = new Vector2();
 
     [InitializeOnLoadMethod]
     public static void Init()
@@ -39,7 +40,7 @@ public class ExcelEditorWindow : EditorWindow
         refresh.text = "处理Excel";
         refresh.clicked += () => 
         {
-            EditorWindow.GetWindow(typeof(ExcelEditorWindow));
+            CreateWindows();
         };
 
         var m_TextElement = refresh.Q<TextElement>(className: "unity-editor-toolbar-element__label");
@@ -138,6 +139,7 @@ public class ExcelEditorWindow : EditorWindow
         GUILayout.Space(10);
         if (queryFileInfos != null)
         {
+            scrollPosForList = EditorGUILayout.BeginScrollView(scrollPosForList);
             for (int i = 0; i < queryFileInfos.Length; i++)
             {
                 FileInfo fileInfo = queryFileInfos[i];
@@ -164,6 +166,7 @@ public class ExcelEditorWindow : EditorWindow
                 GUILayout.EndHorizontal();
                 GUILayout.Space(5);
             }
+            EditorGUILayout.EndScrollView();
         }
     }
 
