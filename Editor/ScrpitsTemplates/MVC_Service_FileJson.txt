@@ -9,7 +9,7 @@ using UnityEditor;
 using System;
 using System.Collections.Generic;
 
-public class #ScriptName#Service : BaseDataStorage<#ScriptName#Bean>
+public class #ScriptName#Service : BaseDataStorage
 {
     protected readonly string saveFileName;
 
@@ -33,7 +33,7 @@ public class #ScriptName#Service : BaseDataStorage<#ScriptName#Bean>
     /// <returns></returns>
     public #ScriptName#Bean QueryData()
     {
-        return BaseLoadData(saveFileName);
+        return BaseLoadData<#ScriptName#Bean>(saveFileName);
     }
         
     /// <summary>
@@ -52,6 +52,6 @@ public class #ScriptName#Service : BaseDataStorage<#ScriptName#Bean>
     /// <param name="data"></param>
     public void UpdateData(#ScriptName#Bean data)
     {
-        BaseSaveData(saveFileName, data);
+        BaseSaveData<#ScriptName#Bean>(saveFileName, data);
     }
 }

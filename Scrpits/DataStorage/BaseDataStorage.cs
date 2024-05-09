@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
 
-public abstract class BaseDataStorage<T>
+public abstract class BaseDataStorage
 {
     //数据保存路径
     protected string dataStoragePath;
@@ -37,7 +37,7 @@ public abstract class BaseDataStorage<T>
     /// </summary>
     /// <param name="fileName"></param>
     /// <param name="dataBean"></param>
-    public void BaseSaveData(string fileName, T dataBean)
+    public void BaseSaveData<T>(string fileName, T dataBean)
     {
         if (fileName.IsNull())
         {
@@ -72,7 +72,7 @@ public abstract class BaseDataStorage<T>
     /// </summary>
     /// <param name="fileName"></param>
     /// <param name="dataBeanList"></param>
-    public void BaseSaveDataForList(string fileName, List<T> dataBeanList)
+    public void BaseSaveDataForList<T>(string fileName, List<T> dataBeanList)
     {
         if (fileName == null)
         {
@@ -95,17 +95,17 @@ public abstract class BaseDataStorage<T>
     /// </summary>
     /// <param name="fileName"></param>
     /// <returns></returns>
-    public T BaseLoadData(string fileName)
+    public T BaseLoadData<T>(string fileName)
     {
         if (fileName == null)
         {
             LogUtil.Log("读取文件失败-没有文件名称");
             return default;
         }
-        return BaseLoadDataByPath($"{dataStoragePath}/{fileName}");
+        return BaseLoadDataByPath<T>($"{dataStoragePath}/{fileName}");
     }
 
-    public T BaseLoadDataByPath(string path)
+    public T BaseLoadDataByPath<T>(string path)
     {
         string strData = FileUtil.LoadTextFile(path);
         if (strData == null)
@@ -119,7 +119,7 @@ public abstract class BaseDataStorage<T>
     /// </summary>
     /// <param name="fileName"></param>
     /// <returns></returns>
-    public List<T> BaseLoadDataForList(string fileName)
+    public List<T> BaseLoadDataForList<T>(string fileName)
     {
         if (fileName == null)
         {
