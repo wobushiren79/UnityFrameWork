@@ -95,11 +95,12 @@ public abstract class BaseDataStorage
     /// </summary>
     /// <param name="fileName"></param>
     /// <returns></returns>
-    public T BaseLoadData<T>(string fileName)
+    public T BaseLoadData<T>(string fileName, bool isShowLog = true)
     {
         if (fileName == null)
         {
-            LogUtil.Log("读取文件失败-没有文件名称");
+            if(isShowLog)
+                LogUtil.Log("读取文件失败-没有文件名称");
             return default;
         }
         return BaseLoadDataByPath<T>($"{dataStoragePath}/{fileName}");
