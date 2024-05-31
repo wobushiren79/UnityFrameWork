@@ -1,9 +1,4 @@
-﻿using Unity.Cinemachine;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using UnityEngine;
-using UnityEngine.Rendering.HighDefinition;
+﻿using UnityEngine;
 
 public partial class CameraManager : BaseManager
 {
