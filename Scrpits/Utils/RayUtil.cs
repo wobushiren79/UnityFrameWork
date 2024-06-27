@@ -45,7 +45,7 @@ public class RayUtil
     }
 
     /// <summary>
-    /// 屏幕位置发射涉嫌检测
+    /// 屏幕位置发射射线检测
     /// </summary>
     /// <param name="screenPoint"></param>
     /// <param name="maxDistance"></param>

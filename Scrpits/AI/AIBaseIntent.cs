@@ -50,4 +50,12 @@ public class AIBaseIntent
     { 
     
     }
+
+    /// <summary>
+    /// 改变意图
+    /// </summary>
+    public virtual void ChangeIntent(AIIntentEnum aIIntentEnum)
+    {
+        aiEntity.ChangeIntent(aIIntentEnum);
+    }
 }

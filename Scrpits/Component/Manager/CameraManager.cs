@@ -14,6 +14,10 @@ public partial class CameraManager : BaseManager
             }
             return _mainCamera;
         }
+        set
+        {
+            _mainCamera = value;
+        }
     }
 
     //ui摄像头

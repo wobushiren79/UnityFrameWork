@@ -3,27 +3,26 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
-public abstract class AIBaseEntity : BaseMonoBehaviour
+public abstract class AIBaseEntity
 {
     //意图列表
     public List<AIIntentEnum> listIntentEnum = new List<AIIntentEnum>();
 
     //当前意图
     public AIBaseIntent currentIntent;
+    public AIIntentEnum currentIntentEnum;
 
     //意图池
     public Dictionary<AIIntentEnum, AIBaseIntent> dicIntentPool = new Dictionary<AIIntentEnum, AIBaseIntent>();
 
-    public virtual void Awake()
+    /// <summary>
+    /// 初始化数据
+    /// </summary>
+    public virtual void InitData()
     {
-
+        InitIntentEntity();
     }
-
-    public virtual void Start()
-    {
-
-    }
-
+    
     public virtual void Update()
     {
         if (currentIntent != null)
@@ -95,6 +94,7 @@ public abstract class AIBaseEntity : BaseMonoBehaviour
             LogUtil.LogError("转换AI意图" + aiIntent.ToString() + "失败，意图池里没有此意图");
             return currentIntent;
         }
+        currentIntentEnum = aiIntent;
         currentIntent = changeIntent;
         currentIntent.IntentEntering(this);
         return currentIntent;
@@ -129,5 +129,23 @@ public abstract class AIBaseEntity : BaseMonoBehaviour
         }
     }
 
-    protected abstract void InitIntentEnum(List<AIIntentEnum> listIntentEnum);
+    /// <summary>
+    /// 启动AI实例
+    /// </summary>
+    public abstract void StartAIEntity();
+
+    /// <summary>
+    /// 关闭AI实例
+    /// </summary>
+    public abstract void CloseAIEntity();
+
+    /// <summary>
+    /// 初始化所有意图
+    /// </summary>
+    public abstract void InitIntentEnum(List<AIIntentEnum> listIntentEnum);
+
+    /// <summary>
+    /// 清理数据
+    /// </summary>
+    public abstract void ClearData();
 }

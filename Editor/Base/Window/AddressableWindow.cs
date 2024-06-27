@@ -146,7 +146,7 @@ public class AddressableWindow : EditorWindow
             for (int i = 0; i < value.listPathSave.Count; i++)
             {
                 GUILayout.BeginHorizontal(GUILayout.Width(220), GUILayout.Height(30));
-                value.listPathSave[i] = EditorUI.GUIEditorText(value.listPathSave[i], 200);
+                value.listPathSave[i] = EditorUI.GUIEditorText(value.listPathSave[i], 500);
                 if (EditorUI.GUIButton("-", 20))
                 {
                     value.listPathSave.RemoveAt(i);
@@ -168,7 +168,7 @@ public class AddressableWindow : EditorWindow
             for (int i = 0; i < value.listLabel.Count; i++)
             {
                 GUILayout.BeginHorizontal(GUILayout.Width(100), GUILayout.Height(30));
-                value.listLabel[i] = EditorUI.GUIEditorText(value.listLabel[i], 200);
+                value.listLabel[i] = EditorUI.GUIEditorText(value.listLabel[i], 500);
                 if (EditorUI.GUIButton("-", 20))
                 {
                     value.listLabel.RemoveAt(i);

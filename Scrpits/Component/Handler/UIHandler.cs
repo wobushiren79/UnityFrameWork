@@ -1,10 +1,12 @@
 ﻿using RotaryHeart.Lib;
 using System;
 using System.Collections.Generic;
+using System.Xml.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using static UnityEditor.Experimental.GraphView.GraphView;
 
 public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
 {
@@ -147,6 +149,28 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
         {
             BaseUIComponent itemUI = manager.uiList[i];
             if (itemUI.name.Equals(uiName))
+            {
+                //设置层级
+                if (layer >= 0)
+                {
+                    itemUI.transform.SetSiblingIndex(layer);
+                }
+                itemUI.CloseUI();
+            }
+        }
+    }
+
+    /// <summary>
+    /// 关闭UI
+    /// </summary>
+    public void CloseUI<T>(int layer = -1) where T : BaseUIComponent
+    {
+        if (manager.uiList == null)
+            return;
+        for (int i = 0; i < manager.uiList.Count; i++)
+        {
+            BaseUIComponent itemUI = manager.uiList[i];
+            if (itemUI as T)
             {
                 //设置层级
                 if (layer >= 0)
