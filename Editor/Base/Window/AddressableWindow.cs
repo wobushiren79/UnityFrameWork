@@ -254,7 +254,7 @@ public class AddressableWindow : EditorWindow
                 for (int f = 0; f < listSavePath.Count; f++)
                 {
                     string savePath = listSavePath[f];
-                    if (assetPathFile.Equals(savePath))
+                    if (assetPathFile.Contains(savePath))
                     {
                         AddressableUtil.MoveAssetEntry(itemAssetEntry, groupName);
                         AddressableUtil.ClearAllLabel(itemAssetEntry);

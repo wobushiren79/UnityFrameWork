@@ -8,12 +8,34 @@ using UnityEngine;
 public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
 {
     /// <summary>
+    /// 设置SkeletonAnimation
+    /// </summary>
+    public SkeletonAnimation SetSkeletonAnimation(GameObject targetObj, string assetName, string[] skinArray)
+    {
+        var skeletonDataAsset = manager.GetSkeletonDataAssetSync(assetName);
+        SkeletonAnimation skeletonAnimation = SkeletonAnimation.AddToGameObject(targetObj, skeletonDataAsset);
+        ChangeSkeletonSkin(skeletonAnimation.skeleton, skinArray);
+        return skeletonAnimation;
+    }
+
+    /// <summary>
+    /// 设置skeletonDataAsset
+    /// </summary>
+    /// <returns></returns>
+    public SkeletonGraphic SetSkeletonGraphic(GameObject targetObj, string assetName, string[] skinArray, Material material)
+    {
+        var skeletonDataAsset = manager.GetSkeletonDataAssetSync(assetName);
+        SkeletonGraphic skeletonGraphic = SkeletonGraphic.AddSkeletonGraphicComponent(targetObj, skeletonDataAsset, material);
+        ChangeSkeletonSkin(skeletonGraphic.Skeleton, skinArray);
+        return skeletonGraphic;
+    }
+
+    /// <summary>
     /// 改变皮肤
     /// </summary>
-    public void ChangeSkeletonAnimationSkinSync(SkeletonAnimation skeletonAnimation, string assetName, string[] skinArray)
+    public void ChangeSkeletonSkin(Skeleton skeleton, string[] skinArray)
     {
-        Skeleton skeleton = skeletonAnimation.skeleton;
-        Skin newSkin = new Skin($"skin_{assetName}");
+        Skin newSkin = new Skin($"skin_{skeleton.Data.Name}");
         for (int i = 0; i < skinArray.Length; i++)
         {
             var itemSkinName = skinArray[i];
@@ -21,7 +43,7 @@ public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
             {
                 continue;
             }
-            var itemSkin = manager.GetSkeletonDataSkinSync(itemSkinName, assetName);
+            var itemSkin = manager.GetSkeletonDataSkin(skeleton, itemSkinName);
             if (itemSkin == null)
             {
                 continue;

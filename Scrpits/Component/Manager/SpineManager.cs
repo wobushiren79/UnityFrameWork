@@ -104,6 +104,7 @@ public class SpineManager : BaseManager
             Skin targetSkinNew = skeletonData.FindSkin(skinName);
             if (targetSkinNew == null)
             {
+                LogUtil.LogError($"没有找到指定皮肤 assetName：{assetName} skinName：{skinName}");
                 return null;
             }
             dicSkeletonDataSkin.Add(keyName, targetSkinNew);
@@ -134,6 +135,7 @@ public class SpineManager : BaseManager
                 Skin targetSkinNew = skeletonData.FindSkin(skinName);
                 if (targetSkinNew == null)
                 {
+                    LogUtil.LogError($"没有找到指定皮肤 assetName：{assetName} skinName：{skinName}");
                     actitonForComplete?.Invoke(null);
                     return;
                 }
@@ -142,4 +144,26 @@ public class SpineManager : BaseManager
             });
         }
     }
+
+    /// <summary>
+    /// 获取皮肤
+    /// </summary>
+    /// <param name="skeleton"></param>
+    /// <param name="skinName"></param>
+    /// <returns></returns>
+    public Skin GetSkeletonDataSkin(Skeleton skeleton, string skinName)
+    {
+        if (skeleton == null)
+            return null;
+        SkeletonData skeletonData = skeleton.Data;
+        Skin targetSkinNew = skeletonData.FindSkin(skinName);
+        if (targetSkinNew == null)
+        {
+            LogUtil.LogError($"没有找到指定皮肤 skeletonData.Name：{skeletonData.Name} skinName：{skinName}");
+            return null;
+        }
+        return targetSkinNew;
+    }
+
+
 }
