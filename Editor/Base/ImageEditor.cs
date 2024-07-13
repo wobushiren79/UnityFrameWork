@@ -1,5 +1,8 @@
-﻿using System.Collections;
+﻿using Steamworks;
+using System;
+using System.Collections;
 using System.Collections.Generic;
+using Unity.Plastic.Newtonsoft.Json.Serialization;
 using UnityEditor;
 using UnityEngine;
 
@@ -153,7 +156,7 @@ public class ImageEditor : Editor
 
     static void BaseSpriteEditor(SpriteImportMode spriteType, int cNumber, int rNumber, float pivotX, float pivotY)
     {
-        Object[] objs = GetSelectedTextures();
+        UnityEngine.Object[] objs = GetSelectedTextures();
 
         // Selection.objects = new Object[0];
 
@@ -210,7 +213,7 @@ public class ImageEditor : Editor
     }
     static void BaseSpriteEditorForExtrude(SpriteImportMode spriteType, int cNumber, int rNumber,float pivotX,float pivotY)
     {
-        Object[] objs = GetSelectedTextures();
+        UnityEngine.Object[] objs = GetSelectedTextures();
 
         // Selection.objects = new Object[0];
 
@@ -260,8 +263,50 @@ public class ImageEditor : Editor
             AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
         }
     }
-    static Object[] GetSelectedTextures()
+    static UnityEngine.Object[] GetSelectedTextures()
     {
         return Selection.GetFiltered(typeof(Texture2D), SelectionMode.DeepAssets);
+    }
+
+    /// <summary>
+    /// 改变图片
+    /// </summary>
+    /// <param name="filterMode"></param>
+    public static void ChangeImageFilterMode(FilterMode filterMode, string filePath = null, Texture2D targetText = null)
+    {
+        GetTextureImporter((textureImporter) =>
+        {
+            textureImporter.filterMode = filterMode;
+        }, filePath, targetText);
+    }
+
+    public static void ChangeImagePixelsPerUnit(float spritePixelsPerUnit, string filePath = null, Texture2D targetText = null)
+    {
+        GetTextureImporter((textureImporter) =>
+        {
+            textureImporter.spritePixelsPerUnit = spritePixelsPerUnit;
+        }, filePath, targetText);
+    }
+
+    public static void ChangeImageTextureImporterType(TextureImporterType textureImporterType, string filePath = null, Texture2D targetText = null)
+    {
+        GetTextureImporter((textureImporter) =>
+        {
+            textureImporter.textureType = textureImporterType;
+        }, filePath, targetText);
+    }
+
+    public static void GetTextureImporter(Action<TextureImporter> callBack,string filePath = null, Texture2D targetText = null)
+    {
+        if (targetText != null)
+        {
+            filePath = AssetDatabase.GetAssetPath(targetText);
+        }
+        if (filePath != null)
+        {
+            TextureImporter textureImporter = AssetImporter.GetAtPath(filePath) as TextureImporter;
+            callBack?.Invoke(textureImporter);
+            AssetDatabase.ImportAsset(filePath, ImportAssetOptions.ForceUpdate);
+        }
     }
 }

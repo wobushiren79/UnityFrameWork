@@ -8,21 +8,37 @@ using UnityEngine;
 public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
 {
     /// <summary>
-    /// 设置SkeletonAnimation
+    /// 增加SkeletonAnimation
     /// </summary>
-    public SkeletonAnimation SetSkeletonAnimation(GameObject targetObj, string assetName, string[] skinArray)
+    public SkeletonAnimation AddSkeletonAnimation(GameObject targetObj, string assetName, string[] skinArray = null)
     {
         var skeletonDataAsset = manager.GetSkeletonDataAssetSync(assetName);
         SkeletonAnimation skeletonAnimation = SkeletonAnimation.AddToGameObject(targetObj, skeletonDataAsset);
-        ChangeSkeletonSkin(skeletonAnimation.skeleton, skinArray);
+        if (skinArray != null)
+        {
+            ChangeSkeletonSkin(skeletonAnimation.skeleton, skinArray);
+        }
         return skeletonAnimation;
     }
 
     /// <summary>
-    /// 设置skeletonDataAsset
+    /// 设置骨骼数据
+    /// </summary>
+    public void SetSkeletonDataAsset(SkeletonAnimation skeletonAnimation, string assetName)
+    {
+        var skeletonDataAsset = manager.GetSkeletonDataAssetSync(assetName);
+        if (skeletonAnimation != null && skeletonDataAsset != null)
+        {
+            skeletonAnimation.skeletonDataAsset = skeletonDataAsset;
+            skeletonAnimation.Initialize(true);
+        }
+    }
+
+    /// <summary>
+    /// 增加skeletonDataAsset
     /// </summary>
     /// <returns></returns>
-    public SkeletonGraphic SetSkeletonGraphic(GameObject targetObj, string assetName, string[] skinArray, Material material)
+    public SkeletonGraphic AddSkeletonGraphic(GameObject targetObj, string assetName, string[] skinArray, Material material)
     {
         var skeletonDataAsset = manager.GetSkeletonDataAssetSync(assetName);
         SkeletonGraphic skeletonGraphic = SkeletonGraphic.AddSkeletonGraphicComponent(targetObj, skeletonDataAsset, material);
