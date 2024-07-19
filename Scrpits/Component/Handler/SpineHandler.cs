@@ -71,6 +71,14 @@ public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     }
 
     /// <summary>
+    /// ÒÆ³ýÆ¤·ô
+    /// </summary>
+    public void RemoveSkeletonSkin(Skeleton skeleton, string slotName)
+    {
+        skeleton.SetAttachment(slotName, null);
+    }
+
+    /// <summary>
     /// ÓÅ»¯Æ¤·ô
     /// </summary>
     public void OptimizeSkeletonAnimationSkin(SkeletonAnimation skeletonAnimation, Material oldMat, Texture2D oldTex, out Material newMat, out Texture2D newTex)
@@ -91,4 +99,11 @@ public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
         AtlasUtilities.ClearCache();
         Resources.UnloadUnusedAssets();
     }
+
+    //public void CreateSprite(SkeletonAnimation skeletonAnimation,string SpriteName)
+    //{
+    //    var skeletonDataAsset = skeletonAnimation.skeletonDataAsset;
+    //    var atals = skeletonDataAsset.atlasAssets[0].GetAtlas();
+    //    AtlasRegion atlasRegion = atals.FindRegion(SpriteName);
+    //}
 }
