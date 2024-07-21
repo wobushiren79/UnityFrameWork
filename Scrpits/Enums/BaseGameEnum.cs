@@ -106,6 +106,12 @@ public enum EffectTypeEnum
     Visual = 1//新版shader粒子系统
 }
 
+public enum EffectShowTypeEnum
+{
+    Once = 0,//一次性
+    Enduring = 1,//持久
+}
+
 /// <summary>
 /// 音频类型
 /// </summary>

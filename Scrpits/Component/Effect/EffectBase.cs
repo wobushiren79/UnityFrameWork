@@ -16,7 +16,8 @@ public class EffectBase : BaseMonoBehaviour
     /// </summary>
     public void Clear()
     {
-        Destroy(gameObject);
+        if(gameObject != null)
+            Destroy(gameObject);
     }
 
     /// <summary>

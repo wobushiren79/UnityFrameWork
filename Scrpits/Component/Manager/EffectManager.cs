@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NUnit.Framework.Interfaces;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -8,8 +9,11 @@ public partial class EffectManager : BaseManager
     public Dictionary<string, GameObject> dicEffectModel = new Dictionary<string, GameObject>();
     //闲置粒子列表
     public Dictionary<string, Queue<EffectBase>> dicPoorEffect = new Dictionary<string, Queue<EffectBase>>();
+
     //当前展示的粒子
     public List<EffectBase> listEffect = new List<EffectBase>();
+    //当前展示的粒子-持久
+    public Dictionary<string, EffectBase> dicEffectForEnduring = new Dictionary<string, EffectBase>();
 
     public string pathEffect = "Assets/LoadResources/Effects";
 
@@ -20,11 +24,11 @@ public partial class EffectManager : BaseManager
     {
         for (int i = 0; i < listEffect.Count; i++)
         {
-            var itemData=  listEffect[i];
+            var itemData = listEffect[i];
             itemData.Clear();
         }
         listEffect.Clear();
-        foreach(var item in dicPoorEffect)
+        foreach (var item in dicPoorEffect)
         {
             var listPoor = item.Value;
             while (listPoor.Count > 0)
@@ -34,10 +38,26 @@ public partial class EffectManager : BaseManager
             }
         }
         dicPoorEffect.Clear();
+        dicEffectForEnduring.Clear();
     }
 
     /// <summary>
-    /// 创建粒子
+    /// 获取持续性粒子
+    /// </summary>
+    /// <param name="effectName"></param>
+    /// <param name="actionForGet"></param>
+    public void GetEffectForEnduring(string effectName,Action<EffectBase> actionForGet)
+    {
+        if (dicEffectForEnduring.TryGetValue(effectName,out EffectBase targetEffect))
+        {
+            actionForGet?.Invoke(targetEffect);
+            return;
+        }
+        actionForGet?.Invoke(null);
+    }
+
+    /// <summary>
+    /// 创建粒子-一次性
     /// </summary>
     public void GetEffect(GameObject objContainer, EffectBean effectData, Action<EffectBase> completeAction)
     {
@@ -49,10 +69,17 @@ public partial class EffectManager : BaseManager
                 effect.SetData(effectData);
                 effect.ShowObj(true);
                 listEffect.Add(effect);
+                //持续性粒子列表添加
+                if (effectData.effectShowType == EffectShowTypeEnum.Enduring)
+                {
+                    if (!dicEffectForEnduring.ContainsKey(effectData.effectName))
+                        dicEffectForEnduring.Add(effectData.effectName, effect);
+                }
                 completeAction?.Invoke(effect);
                 return;
             }
         }
+
         //同步
         GameObject objEffectsModel = GetModelForAddressablesSync(dicEffectModel, $"{pathEffect}/{effectData.effectName}.prefab");
         GameObject objEffects = Instantiate(objContainer, objEffectsModel);
@@ -61,6 +88,17 @@ public partial class EffectManager : BaseManager
         if (effectTarget != null)
         {
             effectTarget.SetData(effectData);
+            listEffect.Add(effectTarget);
+            //持续性粒子列表添加
+            if (effectData.effectShowType == EffectShowTypeEnum.Enduring)
+            {
+                if (!dicEffectForEnduring.ContainsKey(effectData.effectName))
+                    dicEffectForEnduring.Add(effectData.effectName, effectTarget);
+            }
+        }
+        else
+        {
+            LogUtil.LogError($"粒子 {effectData.effectName} 没有 EffectBase");
         }
         completeAction?.Invoke(effectTarget);
         //异步
@@ -94,6 +132,12 @@ public partial class EffectManager : BaseManager
             Queue<EffectBase> listEffect = new Queue<EffectBase>();
             listEffect.Enqueue(effect);
             dicPoorEffect.Add(effectData.effectName, listEffect);
+        }
+        //持续性粒子列表删除
+        if (effectData.effectShowType == EffectShowTypeEnum.Enduring)
+        {
+            if(dicEffectForEnduring.ContainsKey(effectData.effectName))
+                dicEffectForEnduring.Remove(effectData.effectName);
         }
         effect.ShowObj(false);
     }
