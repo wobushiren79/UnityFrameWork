@@ -2,6 +2,7 @@ using DG.Tweening.Plugins.Core.PathCore;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 public class SpineEditor : Editor
 {
@@ -41,6 +42,11 @@ public class SpineEditor : Editor
                 Material mat = EditorUtil.GetAssetByPath<Material>(targetPath);
                 mat.shader = Shader.Find(shaderName);
                 mat.EnableKeyword("_FIXED_NORMALS_VIEWSPACE");
+                mat.EnableKeyword("_ALPHAPREMULTIPLY_ON");
+
+                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
+                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+
                 mat.SetVector("_FixedNormal", new Vector4(0, 0, 1, 1));
             }
         }

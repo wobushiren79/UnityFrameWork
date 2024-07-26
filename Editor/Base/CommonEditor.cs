@@ -23,8 +23,21 @@ public class CommonEditor : Editor
     [MenuItem("Assets/复制路径", false, 25)]
     static void CopyFilePathToClipboard()
     {
-        string selectedFilePath = AssetDatabase.GetAssetPath(Selection.activeObject);
-
+        string selectedFilePath = "";
+        if (Selection.activeObject != null)
+        {
+            selectedFilePath = AssetDatabase.GetAssetPath(Selection.activeObject);
+        }
+        else
+        {
+            Object[] selectedObjects = Selection.GetFiltered(typeof(DefaultAsset), SelectionMode.Assets);
+            if (selectedObjects.Length == 0)
+            {
+                Debug.Log("请选择一个目录");
+                return;
+            }
+            selectedFilePath = AssetDatabase.GetAssetPath(selectedObjects[0]);
+        }
         if (!string.IsNullOrEmpty(selectedFilePath))
         {
             EditorGUIUtility.systemCopyBuffer = selectedFilePath;

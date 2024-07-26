@@ -1,7 +1,4 @@
-using UnityEditor;
-using UnityEngine;
-using UnityEngine.UI;
-using TMPro;
+#Using#
 
 public partial class #ClassName#
 {

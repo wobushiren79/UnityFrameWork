@@ -52,7 +52,7 @@ public class HierarchySelect
                 string componentName = itemKey.Replace("ui_", "");
                 if (itemValue != null)
                 {
-                    Component[] listRootComponent = root.GetComponentsInChildren(itemValue);
+                    Component[] listRootComponent = root.GetComponentsInChildren(itemValue,true);
                     foreach (Component itemRootComponent in listRootComponent)
                     {
                         if (itemRootComponent.name.Equals(componentName))

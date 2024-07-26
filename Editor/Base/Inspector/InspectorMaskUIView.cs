@@ -28,5 +28,8 @@ public class InspectorMaskUIView : Editor
         MaskUIView targetMask = target.GetComponent<MaskUIView>();
         targetMask.CollectAllGraphic();
         serializedObject.ApplyModifiedProperties();
+
+        EditorUtility.SetDirty(target);
+        EditorUtil.RefreshAsset();
     }
 }

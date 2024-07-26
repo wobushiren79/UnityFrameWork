@@ -103,14 +103,19 @@ public class InspectorBaseUIComponent : Editor
     {
         //这里实现自定义的一些规则  
         Dictionary<string, string> dicReplaceData = new Dictionary<string, string>();
-        dicReplaceData.Add("#ClassName#", className);
+
         Dictionary<string, Component> dicSelect = HierarchySelect.dicSelectObj;
         StringBuilder content = new StringBuilder();
         //获取基类
         GameObject objSelect = Selection.activeGameObject;
         BaseMonoBehaviour uiComponent = objSelect.GetComponent<BaseMonoBehaviour>();
-        Dictionary<string,Type> dicBaseTypes =  ReflexUtil.GetAllNameAndTypeFromBase(uiComponent);
+        Dictionary<string, Type> dicBaseTypes = ReflexUtil.GetAllNameAndTypeFromBase(uiComponent);
 
+        //添加类名---------------------------
+        dicReplaceData.Add("#ClassName#", className);
+        //------------------------------------
+
+        //添加属性---------------------------
         foreach (var itemSelect in dicSelect)
         {
             if (itemSelect.Value == null)
@@ -120,9 +125,32 @@ public class InspectorBaseUIComponent : Editor
             //如果基类里面已经有了这个属性，则不再添加
             if(dicBaseTypes.ContainsKey($"ui_{itemSelect.Key}"))
                 continue;
-            content.Append("    public " + type.Name + " ui_" + itemSelect.Key + ";\r\n\r\n");
+            content.Append($"    public {type.Name} ui_{itemSelect.Key};\r\n\r\n");
         }
         dicReplaceData.Add("#PropertyList#", content.ToString());
+        //------------------------------------
+
+        //添加引用---------------------------
+        string usingStr = "";
+        List<string> listUsing = new List<string>();
+        foreach (var itemSelect in dicSelect)
+        {
+            if (itemSelect.Value == null)
+                continue;
+            Type type = itemSelect.Value.GetType();
+            if (type.Namespace.IsNull())
+                continue;
+            if (!listUsing.Contains(type.Namespace))
+            {
+                listUsing.Add(type.Namespace);
+            }
+        }
+        foreach (var itemUsing in listUsing)
+        {
+            usingStr += $"using {itemUsing};\r\n";
+        }
+        dicReplaceData.Add("#Using#", usingStr);
+        //------------------------------------
         return dicReplaceData;
     }
 

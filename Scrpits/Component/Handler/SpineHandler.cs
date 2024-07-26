@@ -33,6 +33,26 @@ public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
             skeletonAnimation.Initialize(true);
         }
     }
+    public void SetSkeletonDataAsset(SkeletonGraphic skeletonGraphic, string assetName)
+    {
+        var skeletonDataAsset = manager.GetSkeletonDataAssetSync(assetName);
+        if (skeletonGraphic != null && skeletonDataAsset != null)
+        {
+            skeletonGraphic.skeletonDataAsset = skeletonDataAsset;
+            skeletonGraphic.Initialize(true);
+
+
+            Atlas atlas = skeletonDataAsset.atlasAssets[0].GetAtlas();
+            if (atlas.Pages.Count > 1)
+            {
+                skeletonGraphic.allowMultipleCanvasRenderers = true;
+            }
+            else
+            {
+                skeletonGraphic.allowMultipleCanvasRenderers = false;
+            }
+        }
+    }
 
     /// <summary>
     /// Ôö¼ÓskeletonDataAsset

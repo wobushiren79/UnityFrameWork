@@ -22,6 +22,26 @@ public partial class IconManager : BaseManager
     public string PathSpriteAtlasForItems = $"{PathSpriteAtlas}/AtlasForItems.spriteatlas";
     public string PathSpriteAtlasForSky = $"{PathSpriteAtlas}/AtlasForSky.spriteatlas";
 
+    //贴图列表
+    public Dictionary<string, Texture2D> dicTex = new Dictionary<string, Texture2D>();
+
+    /// <summary>
+    /// 获取贴图 - 同步
+    /// </summary>
+    public Texture2D GetTextureSync(string texResPath)
+    {
+       return GetModelForAddressablesSync(dicTex, texResPath);
+    }
+
+    /// <summary>
+    /// 获取贴图-异步
+    /// </summary>
+    public void GetTexture(string texResPath,Action<Texture2D> callBackForComplete) 
+    {
+        GetModelForAddressables(dicTex, texResPath, callBackForComplete);
+    }
+
+
     /// <summary>
     /// 根据名字获取UI图标
     /// </summary>
