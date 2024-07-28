@@ -32,7 +32,15 @@ public class SpineEditor : Editor
             else if (item.Name.Length >= 4 && item.Name.Substring(item.Name.Length - 4).Equals(".png"))
             {
                 //LogUtil.Log($"SpineInit Item Png indexTemp_{indexTemp} targetPath_{targetPath}");
-                ImageEditor.ChangeImageFilterMode(FilterMode.Point, targetPath);
+                if (targetPath.Contains("Assets/LoadResources/Spine/Creature/Other"))
+                {
+                    ImageEditor.ChangeImageFilterMode(FilterMode.Bilinear, targetPath);
+                }
+                else
+                {
+                    ImageEditor.ChangeImageFilterMode(FilterMode.Point, targetPath);
+                }
+
                 ImageEditor.ChangeImageTextureImporterType(TextureImporterType.Sprite, targetPath);
                 ImageEditor.ChangeImageTextureImporterType(TextureImporterType.Default, targetPath);
             }
