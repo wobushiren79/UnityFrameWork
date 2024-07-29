@@ -12,6 +12,15 @@ public class AIManager : BaseManager
     public Dictionary<string, Queue<AIBaseEntity>> poolAIEntity = new Dictionary<string, Queue<AIBaseEntity>>();
 
     /// <summary>
+    /// 清理数据
+    /// </summary>
+    public void Clear()
+    {
+        listAIEntity.Clear();
+        poolAIEntity.Clear();
+    }
+
+    /// <summary>
     /// 创建AI实例
     /// </summary>
     /// <typeparam name="T"></typeparam>

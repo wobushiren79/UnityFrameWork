@@ -20,7 +20,7 @@ public class CommonEditor : Editor
         }
     }
 
-    [MenuItem("Assets/复制路径", false, 25)]
+    [MenuItem("Assets/复制路径", false, 0)]
     static void CopyFilePathToClipboard()
     {
         string selectedFilePath = "";

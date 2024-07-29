@@ -11,7 +11,38 @@ public class SpineEditor : Editor
     public static string shaderName = "Universal Render Pipeline/Spine/Sprite";
 
     [MenuItem("Custom/Spine/设置所有资源")]
-    public static void SpineInit()
+    public static void SpineAllInit()
+    {
+        SpineInit(pathSkeletonData);
+    }
+
+    [MenuItem("Assets/设置Spine资源", false, 0)]
+    static void CopyFilePathToClipboard()
+    {
+        string selectedFilePath = "";
+        if (Selection.activeObject != null)
+        {
+            selectedFilePath = AssetDatabase.GetAssetPath(Selection.activeObject);
+        }
+        else
+        {
+            Object[] selectedObjects = Selection.GetFiltered(typeof(DefaultAsset), SelectionMode.Assets);
+            if (selectedObjects.Length == 0)
+            {
+                Debug.LogError("请选择一个目录");
+                return;
+            }
+            selectedFilePath = AssetDatabase.GetAssetPath(selectedObjects[0]);
+        }
+        if (string.IsNullOrEmpty(selectedFilePath))
+        {
+            Debug.LogError("路径不对");
+            return;
+        }
+        SpineInit(selectedFilePath);
+    }
+
+    public static void SpineInit(string pathSkeletonData)
     {
         FileInfo[] arrayFile = FileUtil.GetFilesByPath(pathSkeletonData);
         foreach (var item in arrayFile)
@@ -61,7 +92,6 @@ public class SpineEditor : Editor
         EditorUtil.RefreshAsset();
         LogUtil.Log($"初始化完成");
     }
-
 
     //[MenuItem("Custom/Spine/修改版号")]
     public static void SpineChangeVersion()
