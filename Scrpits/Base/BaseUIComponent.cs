@@ -10,6 +10,7 @@ using static UnityEngine.InputSystem.InputAction;
 public class BaseUIComponent : BaseUIInit
 {
     //UI管理
+    [HideInInspector]
     public BaseUIManager uiManager;
     //备注数据
     public string remarkData;

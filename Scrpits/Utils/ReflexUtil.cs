@@ -44,8 +44,18 @@ public class ReflexUtil
         for (int i = 0; i < fields.Length; i++)
         {
             var field = fields[i];
-            if (field.GetValue(obj) != null)
-                continue;
+            var fieldValue = field.GetValue(obj);
+            if (fieldValue != null)
+            {
+                if (fieldValue.ToString().Equals("null"))
+                {
+                    //如果是一些特殊类 需要通过null字符来判断
+                }
+                else
+                {
+                    continue;
+                }
+            }
             if (!field.Name.Contains(markStr))
                 continue;
             Component tmpCom = obj.GetComponentInChildren(field.Name.Replace(markStr, ""), field.FieldType, true);
