@@ -19,27 +19,22 @@ public class SpineEditor : Editor
     [MenuItem("Assets/设置Spine资源", false, 0)]
     static void CopyFilePathToClipboard()
     {
-        string selectedFilePath = "";
-        if (Selection.activeObject != null)
+        Object[] selectedObjects = Selection.GetFiltered(typeof(DefaultAsset), SelectionMode.Assets);
+        if (selectedObjects.Length == 0)
         {
-            selectedFilePath = AssetDatabase.GetAssetPath(Selection.activeObject);
-        }
-        else
-        {
-            Object[] selectedObjects = Selection.GetFiltered(typeof(DefaultAsset), SelectionMode.Assets);
-            if (selectedObjects.Length == 0)
-            {
-                Debug.LogError("请选择一个目录");
-                return;
-            }
-            selectedFilePath = AssetDatabase.GetAssetPath(selectedObjects[0]);
-        }
-        if (string.IsNullOrEmpty(selectedFilePath))
-        {
-            Debug.LogError("路径不对");
+            Debug.LogError("请选择一个目录");
             return;
         }
-        SpineInit(selectedFilePath);
+        foreach (var itemPath in selectedObjects)
+        {
+            string selectedFilePath = AssetDatabase.GetAssetPath(itemPath);
+            if (string.IsNullOrEmpty(selectedFilePath))
+            {
+                Debug.LogError("路径不对");
+                return;
+            }
+            SpineInit(selectedFilePath);
+        }
     }
 
     public static void SpineInit(string pathSkeletonData)
