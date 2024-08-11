@@ -1,12 +1,35 @@
 using Spine;
 using Spine.Unity;
 using Spine.Unity.AttachmentTools;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
 {
+    /// <summary>
+    /// 预加载数据
+    /// </summary>
+    public void PreLoadSkeletonDataAsset(List<string> listPreAssetName, Action<Dictionary<string, SkeletonDataAsset>> actionForComplete)
+    {
+        int completeNum = 0;
+        Dictionary<string, SkeletonDataAsset> dicData = new Dictionary<string, SkeletonDataAsset>();
+        for (int i = 0; i < listPreAssetName.Count; i++)
+        {
+            var itemData = listPreAssetName[i];
+            manager.GetSkeletonDataAsset(itemData, (skeletonDataAsset) =>
+            {
+                dicData.Add(itemData, skeletonDataAsset);
+                completeNum++;
+                if (completeNum == listPreAssetName.Count)
+                {
+                    actionForComplete?.Invoke(dicData);
+                }
+            });
+        }
+    }
+
     /// <summary>
     /// 增加SkeletonAnimation
     /// </summary>
@@ -24,33 +47,61 @@ public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     /// <summary>
     /// 设置骨骼数据
     /// </summary>
-    public void SetSkeletonDataAsset(SkeletonAnimation skeletonAnimation, string assetName)
+    public void SetSkeletonDataAsset(SkeletonAnimation skeletonAnimation, string assetName, bool isSync = true)
     {
-        var skeletonDataAsset = manager.GetSkeletonDataAssetSync(assetName);
-        if (skeletonAnimation != null && skeletonDataAsset != null)
+        Action<SkeletonDataAsset> actionForSetData = (skeletonDataAsset) =>
         {
-            skeletonAnimation.skeletonDataAsset = skeletonDataAsset;
-            skeletonAnimation.Initialize(true);
+            if (skeletonAnimation != null && skeletonDataAsset != null)
+            {
+                skeletonAnimation.skeletonDataAsset = skeletonDataAsset;
+                skeletonAnimation.Initialize(true);
+            }
+        };
+
+        if (isSync)
+        {
+            var skeletonDataAsset = manager.GetSkeletonDataAssetSync(assetName);
+            actionForSetData?.Invoke(skeletonDataAsset);
+        }
+        else
+        {
+            manager.GetSkeletonDataAsset(assetName, (skeletonDataAsset) =>
+            {
+                actionForSetData?.Invoke(skeletonDataAsset);
+            });
         }
     }
-    public void SetSkeletonDataAsset(SkeletonGraphic skeletonGraphic, string assetName)
+    public void SetSkeletonDataAsset(SkeletonGraphic skeletonGraphic, string assetName, bool isSync = true)
     {
-        var skeletonDataAsset = manager.GetSkeletonDataAssetSync(assetName);
-        if (skeletonGraphic != null && skeletonDataAsset != null)
+        Action<SkeletonDataAsset> actionForSetData = (skeletonDataAsset) =>
         {
-            skeletonGraphic.skeletonDataAsset = skeletonDataAsset;
-            skeletonGraphic.Initialize(true);
-
-
-            Atlas atlas = skeletonDataAsset.atlasAssets[0].GetAtlas();
-            if (atlas.Pages.Count > 1)
+            if (skeletonGraphic != null && skeletonDataAsset != null)
             {
-                skeletonGraphic.allowMultipleCanvasRenderers = true;
+                skeletonGraphic.skeletonDataAsset = skeletonDataAsset;
+                skeletonGraphic.Initialize(true);
+
+                Atlas atlas = skeletonDataAsset.atlasAssets[0].GetAtlas();
+                if (atlas.Pages.Count > 1)
+                {
+                    skeletonGraphic.allowMultipleCanvasRenderers = true;
+                }
+                else
+                {
+                    skeletonGraphic.allowMultipleCanvasRenderers = false;
+                }
             }
-            else
+        };
+        if (isSync)
+        {
+            var skeletonDataAsset = manager.GetSkeletonDataAssetSync(assetName);
+            actionForSetData?.Invoke(skeletonDataAsset);
+        }
+        else
+        {
+            manager.GetSkeletonDataAsset(assetName, (skeletonDataAsset) =>
             {
-                skeletonGraphic.allowMultipleCanvasRenderers = false;
-            }
+                actionForSetData?.Invoke(skeletonDataAsset);
+            });
         }
     }
 
