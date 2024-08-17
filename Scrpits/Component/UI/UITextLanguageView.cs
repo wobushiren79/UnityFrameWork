@@ -1,4 +1,5 @@
-﻿using UnityEditor;
+﻿using TMPro;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -12,11 +13,20 @@ public class UITextLanguageView : BaseMonoBehaviour
     {
         if (textId != 0)
         {
-            Text textUI = GetComponent<Text>();
             string textContent = TextHandler.Instance.GetTextById(textId);
-            if (textUI != null && !textContent.IsNull())
+            if (textContent.IsNull())
+                return;
+            Text textUI = GetComponent<Text>();
+            if (textUI != null)
             {
                 textUI.text = $"{textContent}";
+                return;
+            }
+            TextMeshProUGUI textMeshUI = GetComponent<TextMeshProUGUI>();
+            if (textMeshUI != null)
+            {
+                textMeshUI.text = $"{textContent}";
+                return;
             }
         }
     }
