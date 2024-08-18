@@ -52,6 +52,23 @@ public class MaskUIView : BaseMonoBehaviour
     }
 
     /// <summary>
+    /// 修改指定控件的默认颜色
+    /// </summary>
+    public void ChangeDefColor(Graphic graphic,Color changeColor)
+    {
+        if (targetGraphics == null)
+            return;
+        for (int i = 0; i < targetGraphics.Length; i++)
+        {
+            var targetGraphic = targetGraphics[i];
+            if (graphic == targetGraphic)
+            {
+                targetColors[i] = changeColor;
+            }
+        }
+    }
+
+    /// <summary>
     /// 收集所有的UI
     /// </summary>
     public void CollectAllGraphic()
