@@ -1,9 +1,25 @@
 ﻿using System;
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 
 public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
 {
+    /// <summary>
+    /// 屏幕锁定
+    /// </summary>
+    public void ShowScreenLock()
+    {
+        OpenUI<UIScreenLock>(uiType: UITypeEnum.Overlay);
+    }
+
+    /// <summary>
+    /// 取消屏幕锁定
+    /// </summary>
+    public void HideScreenLock()
+    {
+        CloseUI<UIScreenLock>();
+    }
 
     /// <summary>
     /// 获取打开的UI
@@ -49,7 +65,7 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
     /// </summary>
     /// <param name="uiName"></param>
     /// <returns></returns>
-    public T GetUI<T>(int layer = -1, string uiNameIn = null) where T : BaseUIComponent
+    public T GetUI<T>(int layer = -1, string uiNameIn = null, UITypeEnum uiType = UITypeEnum.UIBase) where T : BaseUIComponent
     {
         string uiName = uiNameIn.IsNull() ? typeof(T).Name : uiNameIn;
         if (manager.uiList == null || uiName.IsNull())
@@ -67,7 +83,7 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
                 return itemUI as T;
             }
         }
-        T uiComponent = manager.CreateUI<T>(uiName, layer);
+        T uiComponent = manager.CreateUI<T>(uiName, layer, uiType);
         if (uiComponent)
         {
             return uiComponent as T;
@@ -100,7 +116,7 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
     /// 通过UI的名字开启UI
     /// </summary>
     /// <param name="uiName"></param>
-    public T OpenUI<T>(Action<T> actionBeforeOpen = null, int layer = -1, string uiNameIn = null) where T : BaseUIComponent
+    public T OpenUI<T>(Action<T> actionBeforeOpen = null, int layer = -1, string uiNameIn = null, UITypeEnum uiType = UITypeEnum.UIBase) where T : BaseUIComponent
     {
         string uiName = uiNameIn.IsNull() ? typeof(T).Name : uiNameIn;
         if (uiName.IsNull())
@@ -120,7 +136,7 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
                 return itemUI as T;
             }
         }
-        T uiComponent = manager.CreateUI<T>(uiName, layer);
+        T uiComponent = manager.CreateUI<T>(uiName, layer, uiType);
         if (uiComponent)
         {
             actionBeforeOpen?.Invoke(uiComponent as T);

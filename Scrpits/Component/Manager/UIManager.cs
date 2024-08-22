@@ -58,13 +58,13 @@ public partial class UIManager : BaseUIManager
     /// <typeparam name="T"></typeparam>
     /// <param name="uiName"></param>
     /// <returns></returns>
-    public T CreateUI<T>(string uiName, int layer = -1) where T : BaseUIComponent
+    public T CreateUI<T>(string uiName, int layer = -1, UITypeEnum uiType = UITypeEnum.UIBase) where T : BaseUIComponent
     {
         //GameObject uiModel = LoadAssetUtil.SyncLoadAsset<GameObject>("ui/ui", uiName);
         BaseUIComponent uiModel = LoadResourcesUtil.SyncLoadData<BaseUIComponent>($"UI/{uiName}");
         if (uiModel)
         {
-            Transform tfContainer = GetUITypeContainer(UITypeEnum.UIBase);
+            Transform tfContainer = GetUITypeContainer(uiType);
             GameObject objUIComponent = Instantiate(tfContainer.gameObject, uiModel.gameObject);
             objUIComponent.SetActive(false);
             objUIComponent.name = objUIComponent.name.Replace("(Clone)", "");

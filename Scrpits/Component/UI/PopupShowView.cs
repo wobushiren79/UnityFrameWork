@@ -6,8 +6,6 @@ using UnityEngine.UI;
 
 public class PopupShowView : BaseUIView
 {
-    public RectTransform rtfContent;
-
     //鼠标位置和弹窗偏移量
     public float offsetX = 0;
     public float offsetY = 0;
@@ -16,14 +14,6 @@ public class PopupShowView : BaseUIView
     public override void Awake()
     {
         base.Awake();
-        if (rtfContent == null)
-        {
-            rtfContent = gameObject.GetComponent<RectTransform>();
-        }
-        if (rectTransform == null)
-        {
-            rectTransform = gameObject.GetComponent<RectTransform>();
-        }
     }
 
     public virtual void Update()
@@ -43,9 +33,9 @@ public class PopupShowView : BaseUIView
     public override void OnDisable()
     {
         base.OnDisable();
-        if (rtfContent != null)
+        if (rectTransform != null)
         {
-            rtfContent.anchoredPosition = new Vector2(0, 0);
+            rectTransform.anchoredPosition = new Vector2(0, 0);
         }
     }
 
@@ -86,7 +76,7 @@ public class PopupShowView : BaseUIView
             {
                 offsetTotalY = 1 + offsetPivot.y;
             }
-            rtfContent.pivot = new Vector2(offsetTotalX, offsetTotalY);
+            rectTransform.pivot = new Vector2(offsetTotalX, offsetTotalY);
         }
     }
 
@@ -95,6 +85,6 @@ public class PopupShowView : BaseUIView
     /// </summary>
     public void RefreshViewSize()
     {
-        UGUIUtil.RefreshUISize(rtfContent);
+        UGUIUtil.RefreshUISize(rectTransform);
     }
 }

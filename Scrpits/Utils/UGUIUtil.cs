@@ -8,13 +8,11 @@ using UnityEngine.UI;
 public class UGUIUtil
 {
     /// <summary>
-    /// 获取Icon在指定UIroot下的坐标
+    /// 获取TF在指定UIroot下的坐标
     /// </summary>
-    /// <param name="tfRoot"></param>
-    /// <param name="tfIcon"></param>
-    public static Vector3 GetUIRootPosForIcon(Transform tfRoot, Transform tfIcon)
+    public static Vector3 GetUIRootPos(Transform tfRoot, Transform targetTF)
     {
-        return tfRoot.InverseTransformPoint(tfIcon.position);
+        return tfRoot.InverseTransformPoint(targetTF.position);
     }
 
     /// <summary>

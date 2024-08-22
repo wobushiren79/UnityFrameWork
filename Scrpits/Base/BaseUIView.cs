@@ -4,14 +4,26 @@ using UnityEngine.UI;
 
 public class BaseUIView : BaseUIInit
 {
-    public RectTransform rectTransform;
+    public RectTransform _rectTransform;
+
+    public RectTransform rectTransform
+    {
+        get
+        {
+            if (_rectTransform == null)
+            {
+                _rectTransform = ((RectTransform)transform);
+            }
+            return _rectTransform;
+        }
+    }
+
     //原始UI大小
     protected Vector2 uiSizeOriginal;
 
     public override void Awake()
     {
         base.Awake();
-        rectTransform = ((RectTransform)transform);
         uiSizeOriginal = rectTransform.sizeDelta;
     }
 
