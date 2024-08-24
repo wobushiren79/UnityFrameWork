@@ -22,7 +22,7 @@ public class ScrollGridBaseContent : BaseMonoBehaviour
     protected int col;//克隆cell的GameObject数量的列。
 
     protected bool inited;
-    protected List<GameObject> cellList = new List<GameObject>();
+    protected List<ScrollGridCell> cellList = new List<ScrollGridCell>();
 
     protected GameObject viewport;
     protected GameObject content;
@@ -33,8 +33,7 @@ public class ScrollGridBaseContent : BaseMonoBehaviour
     /// <summary>
     /// 获取所有子控件
     /// </summary>
-    /// <returns></returns>
-    public List<GameObject> GetAllCellObj()
+    public List<ScrollGridCell> GetAllCell()
     {
         return cellList;
     }
@@ -185,9 +184,24 @@ public class ScrollGridBaseContent : BaseMonoBehaviour
     /// </summary>
     public virtual void RefreshAllCells()
     {
-        foreach (GameObject cell in this.cellList)
+        foreach (ScrollGridCell cell in this.cellList)
         {
             this.CellUpdate(cell);
+        }
+    }
+
+    /// <summary>
+    /// 刷新单个数据
+    /// </summary>
+    public virtual void RefreshCell(int index)
+    {
+        foreach (ScrollGridCell cell in this.cellList)
+        {
+            if (cell.index == index)
+            {
+                this.CellUpdate(cell);
+                return;
+            }
         }
     }
 
@@ -200,9 +214,9 @@ public class ScrollGridBaseContent : BaseMonoBehaviour
             {
                 if (this.cellList.Count <= index)
                 {
-                    GameObject newcell = GameObject.Instantiate<GameObject>(this.tempCell);
-                    newcell.SetActive(true);
-                    RectTransform cellRect = newcell.GetComponent<RectTransform>();
+                    GameObject newcellObj = GameObject.Instantiate<GameObject>(this.tempCell);
+                    newcellObj.SetActive(true);
+                    RectTransform cellRect = newcellObj.GetComponent<RectTransform>();
                     RectTransform rfTempCell = ((RectTransform)tempCell.transform);
                     cellRect.anchorMin = new Vector2(0, 1);
                     cellRect.anchorMax = new Vector2(0, 1);
@@ -214,8 +228,9 @@ public class ScrollGridBaseContent : BaseMonoBehaviour
                     cellRect.SetParent(this.scrollRect.content);
                     cellRect.localScale = new Vector3(rfTempCell.localScale.x, rfTempCell.localScale.y, rfTempCell.localScale.z);
                     cellRect.anchoredPosition3D = new Vector3(x, y, 0);
-                    newcell.AddComponent<ScrollGridCell>().SetObjIndex(index);
-                    this.cellList.Add(newcell);
+                    var cell = newcellObj.AddComponent<ScrollGridCell>();
+                    cell.SetObjIndex(index);
+                    this.cellList.Add(cell);
                 }
             }
         };
@@ -250,9 +265,9 @@ public class ScrollGridBaseContent : BaseMonoBehaviour
     {
         if (contentType == 0)
         {
-            foreach (GameObject cell in this.cellList)
+            foreach (ScrollGridCell cell in this.cellList)
             {
-                RectTransform cellRect = cell.GetComponent<RectTransform>();
+                RectTransform cellRect = (RectTransform)cell.transform;
                 float dist = this.scrollRect.content.offsetMin.x + cellRect.anchoredPosition3D.x;
                 float minLeft = -this.cellWidth / 2;
                 float maxRight = this.col * this.cellWidth + this.cellWidth / 2;
@@ -280,9 +295,9 @@ public class ScrollGridBaseContent : BaseMonoBehaviour
         }
         else
         {
-            foreach (GameObject cell in this.cellList)
+            foreach (ScrollGridCell cell in this.cellList)
             {
-                RectTransform cellRect = cell.GetComponent<RectTransform>();
+                RectTransform cellRect = (RectTransform)cell.transform;
                 float dist = this.scrollRect.content.offsetMax.y + cellRect.anchoredPosition3D.y;
                 float maxTop = this.cellHeight / 2;
                 float minBottom = -((this.row + 1) * this.cellHeight) + this.cellHeight / 2;
@@ -323,51 +338,50 @@ public class ScrollGridBaseContent : BaseMonoBehaviour
     /// <summary>
     /// cell被刷新时调用，算出cell的位置并调用监听的回调方法（Action）。
     /// </summary>
-    protected void CellUpdate(GameObject cell)
+    protected void CellUpdate(ScrollGridCell cell)
     {
         RectTransform cellRect = cell.GetComponent<RectTransform>();
-        ScrollGridCell scrollGridCell = cell.GetComponent<ScrollGridCell>();
         int x = Mathf.CeilToInt((cellRect.anchoredPosition3D.x - cellWidth / 2) / cellWidth);
         int y = Mathf.Abs(Mathf.CeilToInt((cellRect.anchoredPosition3D.y + cellHeight / 2) / cellHeight));
 
         if (contentType == 0)
         {
             int index = y * allCol + x;
-            scrollGridCell.UpdatePos(x, y, index);
+            cell.UpdatePos(x, y, index);
             if (index >= cellCount || x >= this.allCol)
             {
-                cell.SetActive(false);
+                cell.gameObject.SetActive(false);
             }
             else
             {
-                if (cell.activeSelf == false)
+                if (cell.gameObject.activeSelf == false)
                 {
-                    cell.SetActive(true);
+                    cell.gameObject.SetActive(true);
                 }
                 foreach (var call in this.onCellUpdateList)
                 {
-                    call(scrollGridCell);
+                    call(cell);
                 }
             }
         }
         else
         {
             int index = y * this.col + x;
-            scrollGridCell.UpdatePos(x, y, index);
+            cell.UpdatePos(x, y, index);
             if (index >= cellCount || y >= this.allRow)
             {
                 //超出数据范围
-                cell.SetActive(false);
+                cell.gameObject.SetActive(false);
             }
             else
             {
-                if (cell.activeSelf == false)
+                if (cell.gameObject.activeSelf == false)
                 {
-                    cell.SetActive(true);
+                    cell.gameObject.SetActive(true);
                 }
                 foreach (var call in this.onCellUpdateList)
                 {
-                    call(scrollGridCell);
+                    call(cell);
                 }
             }
         }
