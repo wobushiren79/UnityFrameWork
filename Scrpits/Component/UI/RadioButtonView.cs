@@ -2,6 +2,7 @@
 using UnityEngine.UI;
 using UnityEditor;
 using System;
+using TMPro;
 
 public class RadioButtonView : BaseMonoBehaviour
 {
@@ -19,6 +20,7 @@ public class RadioButtonView : BaseMonoBehaviour
     public Button rbButton;
     public Image rbImage;
     public Text rbText;
+    public TextMeshProUGUI rbText2;
 
     protected IRadioButtonCallBack callBackForSelect;
     protected Action<RadioButtonView, bool> actionForSelect;
@@ -53,7 +55,10 @@ public class RadioButtonView : BaseMonoBehaviour
     /// </summary>
     public void SetText(string showText)
     {
-        rbText.text = showText;
+        if(rbText != null)
+            rbText.text = showText;
+        if (rbText2 != null)
+            rbText2.text = showText;
     }
 
     /// <summary>
@@ -87,6 +92,8 @@ public class RadioButtonView : BaseMonoBehaviour
                 }
                 if (rbText)
                     rbText.color = colorTVSelected;
+                if (rbText2)
+                    rbText2.color = colorTVSelected;
                 break;
             case false:
                 if (rbImage) {
@@ -95,6 +102,8 @@ public class RadioButtonView : BaseMonoBehaviour
                 }
                 if (rbText)
                     rbText.color = colorTVUnselected;
+                if (rbText2)
+                    rbText2.color = colorTVUnselected;
                 break;
         }
     }
