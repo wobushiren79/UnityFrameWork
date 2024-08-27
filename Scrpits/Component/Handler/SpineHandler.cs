@@ -4,6 +4,9 @@ using Spine.Unity.AttachmentTools;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using Unity.VisualScripting;
+using UnityEditor.Animations;
 using UnityEngine;
 
 public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
@@ -177,4 +180,43 @@ public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     //    var atals = skeletonDataAsset.atlasAssets[0].GetAtlas();
     //    AtlasRegion atlasRegion = atals.FindRegion(SpriteName);
     //}
+
+    /// <summary>
+    /// 播放动画
+    /// </summary>
+    public TrackEntry PlayAnim(SkeletonAnimation skeletonAnimation, SpineAnimationStateEnum spineAnimationState, bool isLoop)
+    {
+        if (skeletonAnimation == null)
+        {
+            LogUtil.LogError("播放动画失败 缺少SkeletonAnimation资源");
+            return null;
+        }
+        return PlayAnim(skeletonAnimation.skeletonDataAsset, skeletonAnimation.AnimationState, spineAnimationState, isLoop);
+    }
+
+    public TrackEntry PlayAnim(SkeletonGraphic skeletonGraphic, SpineAnimationStateEnum spineAnimationState, bool isLoop)
+    {
+        if (skeletonGraphic == null)
+        {
+            LogUtil.LogError("播放动画失败 缺少SkeletonGraphic资源");
+            return null;
+        }
+        return PlayAnim(skeletonGraphic.skeletonDataAsset, skeletonGraphic.AnimationState, spineAnimationState, isLoop);
+    }
+
+    public TrackEntry PlayAnim(SkeletonDataAsset skeletonDataAsset, Spine.AnimationState animationState, SpineAnimationStateEnum spineAnimationState, bool isLoop)
+    {
+        if (skeletonDataAsset == null)
+        {
+            LogUtil.LogError("播放动画失败 缺少skeletonDataAsset资源");
+            return null;
+        }
+        var animName = manager.GetSkeletonDataAnimName(skeletonDataAsset, spineAnimationState);
+        if (animName.IsNull())
+        {
+            LogUtil.LogError("播放动画失败 缺少skeletonAnimation资源");
+            return null;
+        }
+        return animationState.SetAnimation(0, animName, isLoop);
+    }
 }

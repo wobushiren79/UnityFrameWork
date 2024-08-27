@@ -122,3 +122,26 @@ public enum AuidoTypeEnum
     Environment = 2,
 }
 
+//spine动画枚举
+public enum SpineAnimationStateEnum
+{
+    None = 0,
+    Idle = 10001,
+    Walk = 20001,
+    Walk2,
+    Walk3,
+    Attack = 30001,
+    Attack2,
+    Attack3,
+    Attack4,
+    Attack5,
+    Attack6,
+    Attack7,
+    Dead = 40001,
+    NearDead = 50001,
+    Hit = 60001,//受到攻击
+    Jump = 70001,//跳跃
+    Run = 80001,//泡
+    Dizzy = 90001,//晕眩
+}
+

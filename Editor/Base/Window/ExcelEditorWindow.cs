@@ -22,6 +22,7 @@ public class ExcelEditorWindow : EditorWindow
 
     public string excelFolderPath = "";
     public string entityFolderPath = "";
+    public string entityFolderPathForFrameWork = "";
     public string jsonFolderPath = "";
 
     public FileInfo[] queryFileInfos;
@@ -58,6 +59,7 @@ public class ExcelEditorWindow : EditorWindow
     {
         excelFolderPath = Application.dataPath + "/Data/Excel";
         entityFolderPath = Application.dataPath + "/Scrpits/Bean/MVC/Game";
+        entityFolderPathForFrameWork = Application.dataPath + "/FrameWork/Scrpits/Bean/MVC";
         //jsonFolderPath = Application.streamingAssetsPath + "/JsonText";
         jsonFolderPath = Application.dataPath + "/Resources/JsonText";
     }
@@ -308,6 +310,11 @@ public class ExcelEditorWindow : EditorWindow
             LogUtil.LogError("Entity文件目录为null");
             return;
         }
+        if (entityFolderPathForFrameWork.IsNull())
+        {
+            LogUtil.LogError("Entity FrameWork文件目录为null");
+            return;
+        }
         FileInfo[] fileInfos = FileUtil.GetFilesByPath(excelFolderPath);
         for (int i = 0; i < fileInfos.Length; i++)
         {
@@ -334,6 +341,12 @@ public class ExcelEditorWindow : EditorWindow
         }
         try
         {
+            bool isFrameWork = false;
+            if (fileInfo.Name.Contains("_FrameWork"))
+            {
+                isFrameWork = true;
+            }
+
             ExcelPackage ep = new ExcelPackage(fs);
 
             //获得所有工作表
@@ -341,8 +354,8 @@ public class ExcelEditorWindow : EditorWindow
             //遍历所有工作表
             for (int w = 1; w <= workSheets.Count; w++)
             {
-                CreateEntityPartial(workSheets[w]);
-                CreateEntity(workSheets[w]);
+                CreateEntityPartial(workSheets[w], isFrameWork);
+                CreateEntity(workSheets[w], isFrameWork);
             }
             AssetDatabase.Refresh();
             LogUtil.Log("生成完成");
@@ -357,9 +370,18 @@ public class ExcelEditorWindow : EditorWindow
         }
     }
 
-    void CreateEntityPartial(ExcelWorksheet sheet)
+    void CreateEntityPartial(ExcelWorksheet sheet,bool isFrameWork)
     {
-        string dir = entityFolderPath;
+        string dir;
+        if (isFrameWork)
+        {
+            dir = entityFolderPathForFrameWork;
+        }
+        else
+        {
+            dir = entityFolderPath;
+        }
+  
         string path = $"{dir}/{sheet.Name}BeanPartial.cs";
         StringBuilder sb = new StringBuilder();
 
@@ -393,9 +415,17 @@ public class ExcelEditorWindow : EditorWindow
         AssetDatabase.Refresh();
     }
 
-    void CreateEntity(ExcelWorksheet sheet)
+    void CreateEntity(ExcelWorksheet sheet,bool isFrameWork)
     {
-        string dir = entityFolderPath;
+        string dir;
+        if (isFrameWork)
+        {
+            dir = entityFolderPathForFrameWork;
+        }
+        else
+        {
+            dir = entityFolderPath;
+        }
         string path = $"{dir}/{sheet.Name}Bean.cs";
         StringBuilder sb = new StringBuilder();
 

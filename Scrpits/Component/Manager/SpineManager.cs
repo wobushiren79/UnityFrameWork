@@ -10,6 +10,9 @@ public class SpineManager : BaseManager
 {
     //所有的spine数据
     public Dictionary<string, SkeletonDataAsset> dicSkeletonDataAsset = new Dictionary<string, SkeletonDataAsset>();
+    //所有spine动画名字记录
+    public Dictionary<string, Dictionary<SpineAnimationStateEnum, string>> dicSkeletonAnimName = new Dictionary<string, Dictionary<SpineAnimationStateEnum, string>>();
+
     //所有的皮肤
     public Dictionary<string, Skin> dicSkeletonDataSkin = new Dictionary<string, Skin>();
     //spine数据路径
@@ -165,5 +168,45 @@ public class SpineManager : BaseManager
         return targetSkinNew;
     }
 
+    /// <summary>
+    /// 获取spine动画名字
+    /// </summary>
+    public string GetSkeletonDataAnimName(SkeletonDataAsset skeletonDataAsset, SpineAnimationStateEnum spineAnimationState)
+    {
+        if (skeletonDataAsset == null)
+            return null;
+        if (dicSkeletonAnimName.TryGetValue(skeletonDataAsset.name, out Dictionary<SpineAnimationStateEnum, string> dicAnimStatae))
+        {
+            if (dicAnimStatae.TryGetValue(spineAnimationState, out string targetAnimName))
+            {
+                return targetAnimName;
+            }
+        }
 
+        HashSet<string> listAnimName = new HashSet<string>();
+        var allAnim = skeletonDataAsset.GetSkeletonData(true).Animations;
+        allAnim.ForEach((itemData) =>
+        {
+            listAnimName.Add(itemData.Name);
+        });
+        string targetAnimNameCheck = SpineAnimationStateCfg.CheckSpineAnim(spineAnimationState, listAnimName);
+        if (targetAnimNameCheck == null)
+        {
+            LogUtil.LogError($"没有找到 skeletonDataAsset_{skeletonDataAsset.name} 里{spineAnimationState}的动作");
+            return null;
+        }
+        if (dicAnimStatae == null)
+        {
+            dicAnimStatae = new Dictionary<SpineAnimationStateEnum, string>
+            {
+                { spineAnimationState, targetAnimNameCheck }
+            };
+            dicSkeletonAnimName.Add(skeletonDataAsset.name, dicAnimStatae);
+        }
+        else
+        {
+            dicAnimStatae.Add(spineAnimationState, targetAnimNameCheck);
+        }
+        return targetAnimNameCheck;
+    }
 }
