@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.AddressableAssets.Settings;
+using UnityEditor.Rendering;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using static UnityEditor.AddressableAssets.Settings.AddressableAssetSettings;
@@ -66,6 +67,36 @@ public class AddressableWindow : EditorWindow
         else
         {
             addressableSaveData = JsonUtil.FromJsonByNet<AddressableSaveBean>(dataSave);
+        }
+
+        //容错 剔除没有的数据
+        List<string> listRemove = new List<string>();
+        foreach (var itemData in addressableSaveData.dicSaveData)
+        {
+            bool hasData = false;
+            foreach (var itemGruop in allGroup)
+            {
+                if (itemData.Key.Equals(itemGruop.Name))
+                {
+                    hasData = true;
+                    break;
+                }
+            }
+            if (!hasData) 
+            {
+                listRemove.Add(itemData.Key);
+            }
+        }
+        if (listRemove.Count > 0)
+        {
+            foreach (var itemData in listRemove)
+            {
+                addressableSaveData.dicSaveData.Remove(itemData);
+            }
+
+            string saveData = JsonUtil.ToJsonByNet(addressableSaveData);
+            FileUtil.CreateTextFile(pathSaveData, saveDataFileName, saveData);
+            EditorUtil.RefreshAsset();
         }
     }
 
