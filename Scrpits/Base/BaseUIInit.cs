@@ -57,7 +57,7 @@ public class BaseUIInit : BaseMonoBehaviour
     /// </summary>
     public void RegisterButtons()
     {
-        Button[] buttonArray = gameObject.GetComponentsInChildren<Button>();
+        Button[] buttonArray = gameObject.GetComponentsInChildren<Button>(true);
         if (buttonArray.IsNull())
             return;
         for (int i = 0; i < buttonArray.Length; i++)
