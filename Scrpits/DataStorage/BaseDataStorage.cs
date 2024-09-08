@@ -37,7 +37,7 @@ public abstract class BaseDataStorage
     /// </summary>
     /// <param name="fileName"></param>
     /// <param name="dataBean"></param>
-    public void BaseSaveData<T>(string fileName, T dataBean)
+    public void BaseSaveData<T>(string fileName, T dataBean, JsonType jsonType = JsonType.System)
     {
         if (fileName.IsNull())
         {
@@ -49,7 +49,7 @@ public abstract class BaseDataStorage
             LogUtil.Log("保存文件失败-没有数据");
             return;
         }
-        string strData = JsonUtil.ToJson(dataBean);
+        string strData = JsonUtil.ToJson(dataBean, jsonType);
         FileUtil.CreateTextFile(dataStoragePath, fileName, strData);
     }
 
@@ -72,7 +72,7 @@ public abstract class BaseDataStorage
     /// </summary>
     /// <param name="fileName"></param>
     /// <param name="dataBeanList"></param>
-    public void BaseSaveDataForList<T>(string fileName, List<T> dataBeanList)
+    public void BaseSaveDataForList<T>(string fileName, List<T> dataBeanList, JsonType jsonType = JsonType.System)
     {
         if (fileName == null)
         {
@@ -86,7 +86,7 @@ public abstract class BaseDataStorage
         }
         DataStorageListBean<T> handBean = new DataStorageListBean<T>();
         handBean.listData = dataBeanList;
-        string strData = JsonUtil.ToJson(handBean);
+        string strData = JsonUtil.ToJson(handBean, jsonType);
         FileUtil.CreateTextFile(dataStoragePath, fileName, strData);
     }
 
@@ -95,7 +95,7 @@ public abstract class BaseDataStorage
     /// </summary>
     /// <param name="fileName"></param>
     /// <returns></returns>
-    public T BaseLoadData<T>(string fileName, bool isShowLog = true)
+    public T BaseLoadData<T>(string fileName, bool isShowLog = true, JsonType jsonType = JsonType.System)
     {
         if (fileName == null)
         {
@@ -103,15 +103,15 @@ public abstract class BaseDataStorage
                 LogUtil.Log("读取文件失败-没有文件名称");
             return default;
         }
-        return BaseLoadDataByPath<T>($"{dataStoragePath}/{fileName}");
+        return BaseLoadDataByPath<T>($"{dataStoragePath}/{fileName}", jsonType);
     }
 
-    public T BaseLoadDataByPath<T>(string path)
+    public T BaseLoadDataByPath<T>(string path, JsonType jsonType = JsonType.System)
     {
         string strData = FileUtil.LoadTextFile(path);
         if (strData == null)
             return default;
-        T data = JsonUtil.FromJson<T>(strData);
+        T data = JsonUtil.FromJson<T>(strData, jsonType);
         return data;
     }
 
@@ -120,7 +120,7 @@ public abstract class BaseDataStorage
     /// </summary>
     /// <param name="fileName"></param>
     /// <returns></returns>
-    public List<T> BaseLoadDataForList<T>(string fileName)
+    public List<T> BaseLoadDataForList<T>(string fileName, JsonType jsonType = JsonType.System)
     {
         if (fileName == null)
         {
@@ -130,7 +130,7 @@ public abstract class BaseDataStorage
         string strData = FileUtil.LoadTextFile(dataStoragePath + "/" + fileName);
         if (strData == null)
             return null;
-        DataStorageListBean<T> handBean = JsonUtil.FromJson<DataStorageListBean<T>>(strData);
+        DataStorageListBean<T> handBean = JsonUtil.FromJson<DataStorageListBean<T>>(strData, jsonType);
         if (handBean == null)
             return null;
         return handBean.listData;

@@ -9,7 +9,7 @@ public class JsonUtil : ScriptableObject
     /// <summary>
     /// 修改json中单独某一项属性
     /// </summary>
-    public static string ChangeJson(string jsonStr,string propertyName,int newValue)
+    public static string ChangeJson(string jsonStr, string propertyName, int newValue)
     {
         JObject jo = JObject.Parse(jsonStr);
         jo[propertyName] = newValue;
@@ -26,21 +26,30 @@ public class JsonUtil : ScriptableObject
     /// <summary>
     /// Json转换成类
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="strData"></param>
-    /// <returns></returns>
-    public static T FromJson<T>(string strData)
+    public static T FromJson<T>(string strData, JsonType jsonType = JsonType.System)
     {
-       T dataBean = JsonUtility.FromJson<T>(strData);
+        switch (jsonType)
+        {
+            case JsonType.System:
+                return FromJsonBySystem<T>(strData);
+            case JsonType.Net:
+                return FromJsonByNet<T>(strData);
+        }
+        return default(T);
+    }
+
+    /// <summary>
+    /// Json转换成类 原生
+    /// </summary>
+    public static T FromJsonBySystem<T>(string strData)
+    {
+        T dataBean = JsonUtility.FromJson<T>(strData);
         return dataBean;
     }
 
     /// <summary>
     /// Json转换成类(相对于原生JsonUtility 慢了大概6倍)
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="strData"></param>
-    /// <returns></returns>
     public static T FromJsonByNet<T>(string strData)
     {
         T dataBean = JsonConvert.DeserializeObject<T>(strData);
@@ -50,10 +59,22 @@ public class JsonUtil : ScriptableObject
     /// <summary>
     /// 类转换成Json
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="dataBean"></param>
-    /// <returns></returns>
-    public static string ToJson<T>(T dataBean)
+    public static string ToJson<T>(T dataBean, JsonType jsonType = JsonType.System)
+    {
+        switch (jsonType)
+        {
+            case JsonType.System:
+                return ToJsonBySystem(dataBean);
+            case JsonType.Net:
+                return ToJsonByNet(dataBean);
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 类转换成Json 原生
+    /// </summary>
+    public static string ToJsonBySystem<T>(T dataBean)
     {
         string json = JsonUtility.ToJson(dataBean);
         return json;
@@ -62,9 +83,6 @@ public class JsonUtil : ScriptableObject
     /// <summary>
     /// 类转换成Json(相对于原生JsonUtility 慢了大概6倍)
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="dataBean"></param>
-    /// <returns></returns>
     public static string ToJsonByNet<T>(T dataBean)
     {
         string json = JsonConvert.SerializeObject(dataBean);
@@ -74,9 +92,6 @@ public class JsonUtil : ScriptableObject
     /// <summary>
     /// 类转换成Json 用于float 精度处理
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="dataBean"></param>
-    /// <returns></returns>
     public static string ToJsonByUnityNewtonsoftJsonSerializer<T>(T dataBean)
     {
         UnityNewtonsoftJsonSerializer unityNewtonsoftJson = new UnityNewtonsoftJsonSerializer();

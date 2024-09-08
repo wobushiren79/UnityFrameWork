@@ -145,3 +145,9 @@ public enum SpineAnimationStateEnum
     Dizzy = 90001,//晕眩
 }
 
+public enum JsonType
+{
+    System,
+    Net,
+}
+
