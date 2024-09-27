@@ -202,5 +202,20 @@ public partial class UIManager : BaseUIManager
         popupList.Add(popopData.PopupType, popup);
         return popup;
     }
+    public PopupShowView CreatePopup(PopupBean popopData)
+    {
+        string popupName = popopData.PopupType.GetEnumName();
+        GameObject objModel = GetPopupModel(popupName);
+        if (objModel == null)
+        {
+            LogUtil.LogError("没有找到指定popup：" + popupName);
+            return null;
+        }
+        Transform objPopupContainer = GetUITypeContainer(UITypeEnum.Popup);
+        GameObject objPopup = Instantiate(objPopupContainer.gameObject, objModel);
+        PopupShowView popup = objPopup.GetComponent<PopupShowView>();
+        popupList.Add(popopData.PopupType, popup);
+        return popup;
+    }
 
 }

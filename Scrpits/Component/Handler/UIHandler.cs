@@ -365,6 +365,20 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
         }
     }
 
+    public PopupShowView ShowPopup(PopupBean popupData)
+    {
+        if (manager.popupList.TryGetValue(popupData.PopupType, out PopupShowView popup))
+        {
+            popup.ShowObj(true);
+            return popup;
+        }
+        else
+        {
+            PopupShowView newPopup = manager.CreatePopup(popupData);
+            return newPopup;
+        }
+    }
+
     /// <summary>
     /// 隐藏气泡
     /// </summary>

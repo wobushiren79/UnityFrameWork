@@ -22,6 +22,15 @@ public class VectorUtil
     }
 
     /// <summary>
+    ///  计算直线AB相对于X轴的倾斜角度
+    /// </summary>
+    public static float GetAngleForXLine(Vector2 pointA, Vector2 pointB)
+    {
+        float angle = Mathf.Atan2(pointB.y - pointA.y, pointB.x - pointA.x) * Mathf.Rad2Deg;
+        return angle;
+    }
+
+    /// <summary>
     /// 获取圆上一点 逆时针
     /// </summary>
     /// <param name="startPosition"></param>
