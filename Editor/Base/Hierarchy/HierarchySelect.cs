@@ -16,7 +16,7 @@ public class HierarchySelect
     }
 
     //选择列表
-    public static Dictionary<string, Component> dicSelectObj = new Dictionary<string, Component>();
+    public static Dictionary<string, List<Component>> dicSelectObj = new Dictionary<string, List<Component>>();
     public static BaseUIComponent baseUIComponent = null;
     public static BaseUIView baseUIView = null;
     /// <summary>
@@ -49,7 +49,7 @@ public class HierarchySelect
             Type itemValue = itemData.Value;
             if (itemKey.Contains("ui_"))
             {
-                string componentName = itemKey.Replace("ui_", "");
+                string componentName = itemKey.Replace("ui_", "").Replace($"_{itemValue.Name}","");
                 if (itemValue != null)
                 {
                     Component[] listRootComponent = root.GetComponentsInChildren(itemValue,true);
@@ -59,7 +59,11 @@ public class HierarchySelect
                         {
                             if (!dicSelectObj.ContainsKey(componentName))
                             {
-                                dicSelectObj.Add(componentName, itemRootComponent);
+                                dicSelectObj.Add(componentName, new List<Component>() { itemRootComponent });
+                            }
+                            else
+                            {
+                                dicSelectObj[componentName].Add(itemRootComponent);
                             }
                         }
                     }
@@ -99,24 +103,25 @@ public class HierarchySelect
         {
             baseUIView = go.GetComponent<BaseUIView>();
         }
-
         //控制开关
         var selectBox = new Rect(selectionrect);
         selectBox.x = selectBox.xMax - 30;
         selectBox.width = 10;
         //检测是否选中
         bool hasGo = false;
-        Component selectComonent = null;
-        if (dicSelectObj.TryGetValue(go.name, out selectComonent))
+        List<Component> selectComponentList = null;
+        if (dicSelectObj.TryGetValue(go.name, out selectComponentList))
         {
             hasGo = true;
         }
         hasGo = GUI.Toggle(selectBox, hasGo, string.Empty);
+        //容错处理
         if (hasGo)
         {
             if (!dicSelectObj.ContainsKey(go.name))
             {
-                dicSelectObj.Add(go.name, null);
+                selectComponentList = new List<Component>();
+                dicSelectObj.Add(go.name, selectComponentList);
             }
         }
         else
@@ -135,44 +140,75 @@ public class HierarchySelect
             selectType.width = 150;
             //获取该obj下所拥有的所有comnponent
             Component[] componentList = go.GetComponents<Component>();
-            string[] listData = new string[componentList.Length];
-            int selectComonentIndex = 0;
+            //所有选择的控件下表
+            HashSet<int> selectComponentIndex = new HashSet<int>();
             //初始化所有可选component;
             for (int i = 0; i < componentList.Length; i++)
             {
-                listData[i] = componentList[i].GetType().Name;
-                if (selectComonent != null && selectComonent.GetType().Name.Equals(listData[i]))
+                var itemComponentName = componentList[i].GetType().Name;
+                if (selectComponentList != null && selectComponentList.Count > 0)
                 {
-                    selectComonentIndex = i;
+                    for (int f = 0; f < selectComponentList.Count; f++)
+                    {
+                        if (selectComponentList[f].GetType().Name.Equals(itemComponentName))
+                        {
+                            if(!selectComponentIndex.Contains(i))
+                                selectComponentIndex.Add(i);
+                            break;
+                        }
+                    }
                 }
             }
             //默认选择
-            if (selectComonent == null)
+            if (selectComponentIndex == null || selectComponentIndex.Count == 0)
             {
                 //如果有设置控件
-                if (listData.Length > 2)
+                if (componentList.Length >= 1)
                 {
-                    selectComonentIndex = componentList.Length - 1;
+                    selectComponentIndex.Add(componentList.Length - 1);
+                    if (dicSelectObj.ContainsKey(go.name))
+                    {
+                        dicSelectObj[go.name].Clear();
+                        dicSelectObj[go.name].Add(componentList[componentList.Length - 1]);
+                    }
+                    else
+                    {
+                        dicSelectObj.Add(go.name, new List<Component>() { componentList[componentList.Length - 1] });
+                    }
                 }
-                dicSelectObj[go.name] = componentList[selectComonentIndex];
             }
-            //设置下拉数据 使用此方法需要连续点2次
-            //int newSelectComonentIndex = EditorGUI.Popup(selectType,selectComonentIndex, listData);
-            //int newSelectComonentIndex = GUI.Toolbar(selectType, selectComonentIndex, listData);
-            //如果下拉数据改变
-            //dicSelectObj[go.name] = componentList[selectComonentIndex];
-            
+            string buttonText = "";
+            foreach (var item in selectComponentIndex)
+            {
+                var itemComponent = componentList[item];
+                buttonText += $"{itemComponent.GetType().Name} ";
+            }
+
             //自定义弹窗
-            if (GUI.Button(selectType,listData[selectComonentIndex]))
+            if (GUI.Button(selectType, buttonText))
             {
                 Rect popupRect = GUILayoutUtility.GetLastRect();
                 popupRect.x = selectType.x;
                 popupRect.y = selectType.y + selectType.height;
-                PopupWindow.Show(popupRect, new HierarchySelectPopupSelect((popupSelectIndex) => 
+                PopupWindow.Show(popupRect, new HierarchySelectPopupSelect((selectComonentIndexCB) =>
                 {
-                    dicSelectObj[go.name] = componentList[popupSelectIndex];
+                    dicSelectObj[go.name].Clear();
+                    //没有选择任意一个
+                    if (selectComonentIndexCB == null || selectComonentIndexCB.Count == 0)
+                    {
+                     
+                    }
+                    else
+                    {
+                        foreach (var item in  selectComonentIndexCB)
+                        {
+                            var itemComponent = componentList[item];
+                            dicSelectObj[go.name].Add(itemComponent);
+                        }
+                    }
+                    //UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
                 },
-                listData));
+                componentList, selectComponentIndex));
             }
         }
     }

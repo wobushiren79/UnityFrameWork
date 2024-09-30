@@ -18,6 +18,7 @@ public class InspectorBaseUIComponent : Editor
             return;
         }
         GUILayout.Space(50);
+        GUILayout.BeginHorizontal();
         if (EditorUI.GUIButton("生成UICompont脚本", 200))
         {
             HandleForCreateUIComponent();
@@ -26,6 +27,7 @@ public class InspectorBaseUIComponent : Editor
         {
             HandleForSetUICompontData();
         }
+        GUILayout.EndHorizontal();
     }
 
     ////Hierarchy视图
@@ -37,7 +39,7 @@ public class InspectorBaseUIComponent : Editor
         GameObject objSelect = Selection.activeGameObject;
         string createfileName = GetCreateScriptFileName(objSelect);
         string currentFileName = GetCurrentScriptFileName(objSelect);
-        string templatesPath = Application.dataPath + scrpitsTemplatesPath;   
+        string templatesPath = Application.dataPath + scrpitsTemplatesPath;
 
         if (!EditorUtil.CheckIsPrefabMode(out var prefabStage))
         {
@@ -49,7 +51,7 @@ public class InspectorBaseUIComponent : Editor
         //获取最后一个/的索引
         if (path.Length == 0)
         {
-            LogUtil.Log("没有名字为"+ currentFileName + "的类,请先创建");
+            LogUtil.Log("没有名字为" + currentFileName + "的类,请先创建");
             return;
         }
         //规则替换
@@ -71,19 +73,28 @@ public class InspectorBaseUIComponent : Editor
         if (objSelect == null)
             return;
         BaseMonoBehaviour uiComponent = objSelect.GetComponent<BaseMonoBehaviour>();
-        Dictionary<string, object> dicData = ReflexUtil.GetAllNameAndValue(uiComponent);
+        Dictionary<string, Type> dicData = ReflexUtil.GetAllNameAndType(uiComponent);
         foreach (var itemData in dicData)
         {
             string itemKey = itemData.Key;
-            object itemValue = itemData.Value;
+            Type itemValue = itemData.Value;
             if (itemKey.Contains("ui_"))
             {
                 //获取选中的控件
-                Dictionary<string, Component> dicSelect = HierarchySelect.dicSelectObj;
+                Dictionary<string, List<Component>> dicSelect = HierarchySelect.dicSelectObj;
                 //对比选中的控件和属性名字是否一样
-                if (dicSelect.TryGetValue(itemKey.Replace("ui_",""),out Component itemComponent))
+                if (dicSelect.TryGetValue(itemKey.Replace("ui_", "").Replace($"_{itemValue.Name}",""), out List<Component> listSelectComponent))
                 {
-                    ReflexUtil.SetValueByName(uiComponent, itemKey, itemComponent);
+                    if (listSelectComponent != null && listSelectComponent.Count > 0)
+                    {
+                        foreach (var itemComponent in listSelectComponent)
+                        {
+                            if(itemComponent.GetType().Name == itemValue.Name)
+                            {
+                                ReflexUtil.SetValueByName(uiComponent, itemKey, itemComponent);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -104,7 +115,7 @@ public class InspectorBaseUIComponent : Editor
         //这里实现自定义的一些规则  
         Dictionary<string, string> dicReplaceData = new Dictionary<string, string>();
 
-        Dictionary<string, Component> dicSelect = HierarchySelect.dicSelectObj;
+        Dictionary<string, List<Component>> dicSelect = HierarchySelect.dicSelectObj;
         StringBuilder content = new StringBuilder();
         //获取基类
         GameObject objSelect = Selection.activeGameObject;
@@ -118,14 +129,28 @@ public class InspectorBaseUIComponent : Editor
         //添加属性---------------------------
         foreach (var itemSelect in dicSelect)
         {
-            if (itemSelect.Value == null)
+            List<Component> listSelectItem = itemSelect.Value;
+            if (listSelectItem == null || listSelectItem.Count == 0)
                 continue;
-            Type type = itemSelect.Value.GetType();
+            foreach (var itemComponent in listSelectItem)
+            {
+                Type type = itemComponent.GetType();
 
-            //如果基类里面已经有了这个属性，则不再添加
-            if(dicBaseTypes.ContainsKey($"ui_{itemSelect.Key}"))
-                continue;
-            content.Append($"    public {type.Name} ui_{itemSelect.Key};\r\n\r\n");
+                //如果基类里面已经有了这个属性，则不再添加
+                string uiViewName = "";
+                if (listSelectItem.Count == 1)
+                {
+                    //如果只有一个 不需要加类型后缀
+                    uiViewName = $"ui_{itemSelect.Key}";
+                }
+                else
+                {
+                    uiViewName = $"ui_{itemSelect.Key}_{type.Name}";
+                }
+                if (dicBaseTypes.ContainsKey(uiViewName))
+                    continue;
+                content.Append($"    public {type.Name} {uiViewName};\r\n\r\n");
+            }
         }
         dicReplaceData.Add("#PropertyList#", content.ToString());
         //------------------------------------
@@ -135,14 +160,18 @@ public class InspectorBaseUIComponent : Editor
         List<string> listUsing = new List<string>();
         foreach (var itemSelect in dicSelect)
         {
-            if (itemSelect.Value == null)
+            List<Component> listSelectItem = itemSelect.Value;
+            if (listSelectItem == null || listSelectItem.Count == 0)
                 continue;
-            Type type = itemSelect.Value.GetType();
-            if (type.Namespace.IsNull())
-                continue;
-            if (!listUsing.Contains(type.Namespace))
+            foreach (var itemComponent in listSelectItem)
             {
-                listUsing.Add(type.Namespace);
+                Type type = itemComponent.GetType();
+                if (type.Namespace.IsNull())
+                    continue;
+                if (!listUsing.Contains(type.Namespace))
+                {
+                    listUsing.Add(type.Namespace);
+                }
             }
         }
         foreach (var itemUsing in listUsing)
