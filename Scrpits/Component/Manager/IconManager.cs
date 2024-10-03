@@ -16,7 +16,7 @@ public partial class IconManager : BaseManager
     public Dictionary<string, Sprite> dicItems = new Dictionary<string, Sprite>();
     public Dictionary<string, Sprite> dicSky = new Dictionary<string, Sprite>();
 
-    public static string PathSpriteAtlas = "Assets/Texture/SpriteAtlas";
+    public static string PathSpriteAtlas = "Assets/LoadResources/Textures/SpriteAtlas";
 
     public string PathSpriteAtlasForUI = $"{PathSpriteAtlas}/AtlasForUI.spriteatlas";
     public string PathSpriteAtlasForItems = $"{PathSpriteAtlas}/AtlasForItems.spriteatlas";
