@@ -44,13 +44,13 @@ public class ExcelEditorWindow : EditorWindow
             CreateWindows();
         };
 
-        var m_TextElement = refresh.Q<TextElement>(className: "unity-editor-toolbar-element__label");
-        var ArrowElement = refresh.Q(className: "unity-icon-arrow");
+        //var m_TextElement = refresh.Q<TextElement>(className: "unity-editor-toolbar-element__label");
+        //var ArrowElement = refresh.Q(className: "unity-icon-arrow");
 
-        m_TextElement.style.width = 100;
-        m_TextElement.style.textOverflow = TextOverflow.Clip;
-        m_TextElement.style.unityTextAlign = TextAnchor.MiddleCenter;
-        ArrowElement.style.display = DisplayStyle.None;
+        //m_TextElement.style.width = 100;
+        //m_TextElement.style.textOverflow = TextOverflow.Clip;
+        //m_TextElement.style.unityTextAlign = TextAnchor.MiddleCenter;
+        //ArrowElement.style.display = DisplayStyle.None;
 
         rootVisualElement.Add(refresh);
     }

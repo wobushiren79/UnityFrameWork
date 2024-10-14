@@ -341,19 +341,30 @@ public class ReflexUtil
     /// <returns></returns>
     public static T CreateInstance<T>(string fullName, string assemblyName)
     {
+        var target = CreateInstance(fullName, assemblyName);
+        if (target != null)
+        {
+            return (T)target;
+        }
+        return default(T);
+    }
+
+    public static object CreateInstance(string fullName, string assemblyName)
+    {
         try
         {
             string path = fullName + "," + assemblyName;//命名空间.类型名,程序集
             Type o = Type.GetType(path);//加载类型
             object obj = Activator.CreateInstance(o, true);//根据类型创建实例
-            return (T)obj;//类型转换并返回
+            return obj;//类型转换并返回
         }
         catch (Exception e)
         {
             LogUtil.LogError("实例化失败，缺少 " + fullName + "," + assemblyName + " 。" + e.Message);
-            return default(T);
+            return null;
         }
     }
+
 
     /// <summary>
     /// 创建对象实例
@@ -363,6 +374,16 @@ public class ReflexUtil
     /// <param name="assemblyName">程序集</param>
     /// <returns></returns>
     public static T CreateInstance<T>(string className, object[] data = null)
+    {
+        var target = CreateInstance(className, data);
+        if (target != null)
+        {
+            return (T)target;
+        }
+        return default(T);
+    }
+
+    public static object CreateInstance(string className, object[] data = null)
     {
         try
         {
@@ -376,11 +397,11 @@ public class ReflexUtil
             {
                 obj = Activator.CreateInstance(o, data);//根据类型创建实例
             }
-            return (T)obj;//类型转换并返回
+            return obj;//类型转换并返回
         }
         catch
         {
-            return default(T);
+            return null;
         }
     }
 
