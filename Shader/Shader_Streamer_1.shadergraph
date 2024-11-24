@@ -64,9 +64,6 @@
             "m_Id": "d2f7d6ee7a3c4a6495eec0dd6b6aa256"
         },
         {
-            "m_Id": "e647a4b4d4774a1aa0f2829d3065194b"
-        },
-        {
             "m_Id": "49a0da26b4124c9b9d000d2464ae69c8"
         },
         {
@@ -487,9 +484,6 @@
             },
             {
                 "m_Id": "4c88d091a2df47719ce171c0a3440dae"
-            },
-            {
-                "m_Id": "e647a4b4d4774a1aa0f2829d3065194b"
             }
         ]
     },
@@ -1250,21 +1244,6 @@
     },
     "m_Labels": [],
     "m_Space": 0
-}
-
-{
-    "m_SGVersion": 0,
-    "m_Type": "UnityEditor.ShaderGraph.Vector1MaterialSlot",
-    "m_ObjectId": "38a52f007e0e467bba58b639196e55cb",
-    "m_Id": 0,
-    "m_DisplayName": "Alpha",
-    "m_SlotType": 0,
-    "m_Hidden": false,
-    "m_ShaderOutputName": "Alpha",
-    "m_StageCapability": 2,
-    "m_Value": 1.0,
-    "m_DefaultValue": 1.0,
-    "m_Labels": []
 }
 
 {
@@ -2298,7 +2277,7 @@
         "m_Id": "65251d8d6d794e908f2a20c2680abade"
     },
     "m_AllowMaterialOverride": false,
-    "m_SurfaceType": 1,
+    "m_SurfaceType": 0,
     "m_ZTestMode": 4,
     "m_ZWriteControl": 0,
     "m_AlphaMode": 0,
@@ -3241,40 +3220,6 @@
         "z": 0.0
     },
     "m_Labels": []
-}
-
-{
-    "m_SGVersion": 0,
-    "m_Type": "UnityEditor.ShaderGraph.BlockNode",
-    "m_ObjectId": "e647a4b4d4774a1aa0f2829d3065194b",
-    "m_Group": {
-        "m_Id": ""
-    },
-    "m_Name": "SurfaceDescription.Alpha",
-    "m_DrawState": {
-        "m_Expanded": true,
-        "m_Position": {
-            "serializedVersion": "2",
-            "x": 0.0,
-            "y": 0.0,
-            "width": 0.0,
-            "height": 0.0
-        }
-    },
-    "m_Slots": [
-        {
-            "m_Id": "38a52f007e0e467bba58b639196e55cb"
-        }
-    ],
-    "synonyms": [],
-    "m_Precision": 0,
-    "m_PreviewExpanded": true,
-    "m_DismissedVersion": 0,
-    "m_PreviewMode": 0,
-    "m_CustomColors": {
-        "m_SerializableColors": []
-    },
-    "m_SerializedDescriptor": "SurfaceDescription.Alpha"
 }
 
 {
