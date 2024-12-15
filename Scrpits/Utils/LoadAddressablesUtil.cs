@@ -72,4 +72,13 @@ public class LoadAddressablesUtil
     {
         Addressables.ReleaseInstance(obj);
     }
+
+    /// <summary>
+    /// 销毁对象
+    /// </summary>
+    /// <param name="obj"></param>
+    public static void Release<T>(T target)
+    {
+        Addressables.Release(target);
+    }
 }
