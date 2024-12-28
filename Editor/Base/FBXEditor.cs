@@ -8,6 +8,18 @@ public class FBXEditor : Editor
     /// <summary>
     /// 修改材质
     /// </summary>
+    /// <param name="targetObj"></param>
+    /// <param name="targetMat"></param>
+    public static void ChangeMaterial(GameObject targetObj, Material targetMat)
+    {
+        string fbxPath = EditorUtil.GetSelectionPathByObj(targetObj);
+        string matPath = EditorUtil.GetSelectionPathByObj(targetMat);
+        ChangeMaterial(fbxPath, matPath);
+    }
+
+    /// <summary>
+    /// 修改材质
+    /// </summary>
     /// <param name="FBXPath">FBX的路径</param>
     /// <param name="expectedMaterialPath">替换材质的路径</param>
     public static void ChangeMaterial(string FBXPath, string expectedMaterialPath)

@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Codice.Utils;
+using DG.Tweening.Plugins.Core.PathCore;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -112,6 +114,48 @@ public static class EditorUtil
         if (obj == null)
             return null;
         return PrefabUtility.GetCorrespondingObjectFromSource(obj);
+    }
+
+    /// <summary>
+    /// 获取选中文件夹里的所有指定类型obj
+    /// </summary>
+    public static List<T> GetSelection<T>(string folderPath, bool isContainChild)
+    {
+        string[] guids = AssetDatabase.FindAssets("", new string[] { folderPath });
+        List<T> listData = new List<T>();
+        foreach (string guid in guids)
+        {
+            string assetPath = AssetDatabase.GUIDToAssetPath(guid);
+            UnityEngine.Object obj = AssetDatabase.LoadAssetAtPath(assetPath, typeof(UnityEngine.Object));
+            if (obj is T targetObj)
+            {
+                LogUtil.Log($"GetSelectionGameobjects name_{obj.name}");
+                listData.Add(targetObj);
+            }
+            else if (isContainChild && AssetDatabase.IsValidFolder(assetPath))
+            {
+                List<T> listChildData = GetSelection<T>(assetPath, isContainChild);
+                listData.AddRange(listChildData);
+            }
+        }
+        return listData;
+    }
+
+    /// <summary>
+    /// 获取所有选中物体
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public static List<T> GetSelectionAll<T>()
+    {
+        string[] guids = Selection.assetGUIDs;//获取当前选中的asset的GUID
+        List<T> listData = new List<T>();
+        for (int i = 0; i < guids.Length; i++)
+        {
+            string assetPath = AssetDatabase.GUIDToAssetPath(guids[i]);//通过GUID获取路径
+            listData.AddRange(GetSelection<T>(assetPath, true));
+        }     
+        return listData;      
     }
 
     /// <summary>
