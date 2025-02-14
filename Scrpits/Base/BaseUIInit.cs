@@ -9,7 +9,7 @@ using static UnityEngine.InputSystem.InputAction;
 
 public class BaseUIInit : BaseMonoBehaviour
 {
-    protected List<string> listEvents = new List<string>();
+    protected BaseEvent baseEvent = new BaseEvent();
 
     public virtual void Awake()
     {
@@ -20,7 +20,7 @@ public class BaseUIInit : BaseMonoBehaviour
     public virtual void OnDestroy()
     {
         UnRegisterInputAction();
-        UnRegisterUIAllEvent();
+        UnRegisterAllEvent();
     }
 
     public virtual void OnDisable()
@@ -41,7 +41,7 @@ public class BaseUIInit : BaseMonoBehaviour
     public virtual void CloseUI()
     {
         gameObject.ShowObj(false);
-        UnRegisterUIAllEvent();
+        UnRegisterAllEvent();
     }
 
     /// <summary>
@@ -148,75 +148,53 @@ public class BaseUIInit : BaseMonoBehaviour
     #region 注册事件
     public virtual void RegisterEvent(string eventName, Action action)
     {
-        EventHandler.Instance.RegisterEvent(eventName, action);
-        listEvents.Add(eventName);
+        baseEvent.RegisterEvent( eventName,  action);
     }
 
     public virtual void RegisterEvent<A>(string eventName, Action<A> action)
     {
-        EventHandler.Instance.RegisterEvent(eventName, action);
-        listEvents.Add(eventName);
+        baseEvent.RegisterEvent(eventName, action);
     }
     public virtual void RegisterEvent<A, B>(string eventName, Action<A, B> action)
     {
-        EventHandler.Instance.RegisterEvent(eventName, action);
-        listEvents.Add(eventName);
+        baseEvent.RegisterEvent(eventName, action);
     }
     public virtual void RegisterEvent<A, B, C>(string eventName, Action<A, B, C> action)
     {
-        EventHandler.Instance.RegisterEvent(eventName, action);
-        listEvents.Add(eventName);
+        baseEvent.RegisterEvent(eventName, action);
     }
     public virtual void RegisterEvent<A, B, C, D>(string eventName, Action<A, B, C, D> action)
     {
-        EventHandler.Instance.RegisterEvent(eventName, action);
-        listEvents.Add(eventName);
+        baseEvent.RegisterEvent(eventName, action);
     }
     public virtual void UnRegisterEvent(string eventName)
     {
-        EventHandler.Instance.UnRegisterEvent(eventName);
-        listEvents.Remove(eventName);
+        baseEvent.UnRegisterEvent(eventName);
     }
-    public virtual void UnRegisterUIAllEvent()
+    public virtual void UnRegisterAllEvent()
     {
-        //注销所有事件
-        for (int i = 0; i < listEvents.Count; i++)
-        {
-            string itemEvent = listEvents[i];
-            EventHandler.Instance.UnRegisterEvent(itemEvent);
-        }
-        listEvents.Clear();
+        baseEvent.UnRegisterAllEvent();
     }
 
     public virtual void TriggerEvent(string eventName)
     {
-        EventHandler.Instance.TriggerEvent(eventName);
-        eventName += "_UI";
-        EventHandler.Instance.TriggerEvent(eventName);
+        baseEvent.TriggerEvent(eventName);
     }
     public virtual void TriggerEvent<A>(string eventName, A data)
     {
-        EventHandler.Instance.TriggerEvent(eventName, data);
-        eventName += "_UI";
-        EventHandler.Instance.TriggerEvent(eventName, data);
+        baseEvent.TriggerEvent(eventName, data);
     }
     public virtual void TriggerEvent<A, B>(string eventName, A dataA, B dataB)
     {
-        EventHandler.Instance.TriggerEvent(eventName, dataA, dataB);
-        eventName += "_UI";
-        EventHandler.Instance.TriggerEvent(eventName, dataA, dataB);
+        baseEvent.TriggerEvent(eventName, dataA, dataB);
     }
     public virtual void TriggerEvent<A, B, C>(string eventName, A dataA, B dataB, C dataC)
     {
-        EventHandler.Instance.TriggerEvent(eventName, dataA, dataB, dataC);
-        eventName += "_UI";
-        EventHandler.Instance.TriggerEvent(eventName, dataA, dataB, dataC);
+        baseEvent.TriggerEvent(eventName, dataA, dataB, dataC);
     }
     public virtual void TriggerEvent<A, B, C, D>(string eventName, A dataA, B dataB, C dataC, D dataD)
     {
-        EventHandler.Instance.TriggerEvent(eventName, dataA, dataB, dataC, dataD);
-        eventName += "_UI";
-        EventHandler.Instance.TriggerEvent(eventName, dataA, dataB, dataC, dataD);
+        baseEvent.TriggerEvent(eventName, dataA, dataB, dataC, dataD);
     }
     #endregion
 }

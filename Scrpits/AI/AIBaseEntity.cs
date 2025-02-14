@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
-public abstract class AIBaseEntity
+public abstract class AIBaseEntity : BaseEvent
 {
     //意图列表
     public List<AIIntentEnum> listIntentEnum = new List<AIIntentEnum>();
@@ -130,6 +130,14 @@ public abstract class AIBaseEntity
     }
 
     /// <summary>
+    /// 清理数据
+    /// </summary>
+    public virtual void ClearData()
+    {
+        UnRegisterAllEvent();
+    }
+
+    /// <summary>
     /// 启动AI实例
     /// </summary>
     public abstract void StartAIEntity();
@@ -143,9 +151,4 @@ public abstract class AIBaseEntity
     /// 初始化所有意图
     /// </summary>
     public abstract void InitIntentEnum(List<AIIntentEnum> listIntentEnum);
-
-    /// <summary>
-    /// 清理数据
-    /// </summary>
-    public abstract void ClearData();
 }
