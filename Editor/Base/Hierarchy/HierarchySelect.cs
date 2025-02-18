@@ -22,7 +22,7 @@ public class HierarchySelect
     /// <summary>
     /// 视窗改变
     /// </summary>
-    private static void OnHierarchyChanged()
+    public static void OnHierarchyChanged()
     {
         if (!EditorUtil.CheckIsPrefabMode(out var prefabStage))
         {
@@ -78,7 +78,7 @@ public class HierarchySelect
     /// </summary>
     /// <param name="instanceid"></param>
     /// <param name="selectionrect"></param>
-    private static void OnHierarchyShowSelect(int instanceid, Rect selectionrect)
+    public static void OnHierarchyShowSelect(int instanceid, Rect selectionrect)
     {
         //如果不是编辑模式则不进行操作
         if (!EditorUtil.CheckIsPrefabMode(out var prefabStage))

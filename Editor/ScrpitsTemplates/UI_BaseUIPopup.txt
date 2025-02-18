@@ -1,0 +1,12 @@
+#Using#
+
+public partial class #ClassName# : PopupShowCommonView
+{
+    /// <summary>
+    /// …Ë÷√ ˝æ›
+    /// </summary>
+    public override void SetData(object data)
+    {
+
+    }
+}

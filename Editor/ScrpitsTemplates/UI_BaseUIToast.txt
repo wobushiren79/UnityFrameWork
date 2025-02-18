@@ -1,0 +1,6 @@
+#Using#
+
+public partial class #ClassName# : ToastView
+{
+
+}

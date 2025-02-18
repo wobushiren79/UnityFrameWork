@@ -10,6 +10,23 @@ public class InspectorBaseUIComponent : Editor
 {
     protected readonly static string scrpitsTemplatesPath = "/FrameWork/Editor/ScrpitsTemplates/UI_BaseUIComponent.txt";
     protected readonly static string classSuffix = "Component";
+    protected readonly static string keyEditorPrefs = "InspectorBaseUIComponent";
+    [InitializeOnLoadMethod]
+    public static void Init()
+    {
+        AssemblyReloadEvents.afterAssemblyReload += OnAfterAssemblyReload;
+    }
+    private static void OnAfterAssemblyReload()
+    {
+        bool isAutoAdd = EditorPrefs.GetBool(keyEditorPrefs, false);
+        if (isAutoAdd)
+        {
+            HierarchySelect.OnHierarchyChanged();
+            HandleForSetUICompontData();
+            EditorPrefs.SetBool(keyEditorPrefs, false);
+        }
+    }
+
     public override void OnInspectorGUI()
     {
         base.OnInspectorGUI();
@@ -22,6 +39,7 @@ public class InspectorBaseUIComponent : Editor
         if (EditorUI.GUIButton("生成UICompont脚本", 200))
         {
             HandleForCreateUIComponent();
+            EditorPrefs.SetBool(keyEditorPrefs, true);
         }
         if (EditorUI.GUIButton("设置UICompont数据", 200))
         {
@@ -67,7 +85,7 @@ public class InspectorBaseUIComponent : Editor
     /// <summary>
     /// 处理 设置UI的值
     /// </summary>
-    public void HandleForSetUICompontData()
+    public static void HandleForSetUICompontData()
     {
         GameObject objSelect = Selection.activeGameObject;
         if (objSelect == null)
@@ -110,7 +128,7 @@ public class InspectorBaseUIComponent : Editor
     /// <param name="scripteContent"></param>
     /// <param name="fileName"></param>
     /// <returns></returns>
-    protected static Dictionary<string, string> ReplaceRole(string className)
+    public static Dictionary<string, string> ReplaceRole(string className)
     {
         //这里实现自定义的一些规则  
         Dictionary<string, string> dicReplaceData = new Dictionary<string, string>();
@@ -119,8 +137,13 @@ public class InspectorBaseUIComponent : Editor
         StringBuilder content = new StringBuilder();
         //获取基类
         GameObject objSelect = Selection.activeGameObject;
+        Dictionary<string, Type> dicBaseTypes = new Dictionary<string, Type>();
+
         BaseMonoBehaviour uiComponent = objSelect.GetComponent<BaseMonoBehaviour>();
-        Dictionary<string, Type> dicBaseTypes = ReflexUtil.GetAllNameAndTypeFromBase(uiComponent);
+        if (uiComponent != null)
+        {
+            dicBaseTypes = ReflexUtil.GetAllNameAndTypeFromBase(uiComponent);
+        }
 
         //添加类名---------------------------
         dicReplaceData.Add("#ClassName#", className);
