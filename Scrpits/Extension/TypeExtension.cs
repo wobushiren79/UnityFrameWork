@@ -434,4 +434,58 @@ public static class TypeExtension
         }
         return listData;
     }
+
+
+    /// <summary>
+    /// 转换成List 只添加Value
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <typeparam name="V"></typeparam>
+    /// <param name="self"></param>
+    /// <returns></returns>
+    public static List<V> ToListForValue<T,V>(this Dictionary<T,V> self)
+    {
+        List<V> listData = new List<V>();
+        foreach (var itemData in self)
+        {
+            listData.Add(itemData.Value);
+        }
+        return listData;
+    }
+
+    /// <summary>
+    /// 转换成List 只添加Key
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <typeparam name="V"></typeparam>
+    /// <param name="self"></param>
+    /// <returns></returns>
+    public static List<T> ToListForKey<T, V>(this Dictionary<T, V> self)
+    {
+        List<T> listData = new List<T>();
+        foreach (var itemData in self)
+        {
+            listData.Add(itemData.Key);
+        }
+        return listData;
+    }
+
+    /// <summary>
+    /// 转换成List
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <typeparam name="V"></typeparam>
+    /// <param name="self"></param>
+    /// <param name="listDataKey"></param>
+    /// <param name="listDataValue"></param>
+    public static void ToListForKeyAndValue<T, V>(this Dictionary<T, V> self, out List<T> listDataKey, out List<V> listDataValue)
+    {
+        listDataKey = new List<T>();
+        listDataValue = new List<V>();
+        foreach (var itemData in self)
+        {
+            listDataKey.Add(itemData.Key);
+            listDataValue.Add(itemData.Value);
+        }
+    }
 }
