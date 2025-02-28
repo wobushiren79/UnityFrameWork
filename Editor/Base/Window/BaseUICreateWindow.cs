@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DG.DOTweenEditor;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
@@ -74,8 +75,7 @@ public class BaseUICreateWindow : EditorWindow
         }
         if (EditorUI.GUIButton("刷新", 200))
         {
-            GameObject objSelect = Selection.activeGameObject;
-            modelName = GetOriginTargetName(objSelect.name);
+            HandleForRefresh();
         }
 
         GUILayout.BeginHorizontal();
@@ -137,6 +137,22 @@ public class BaseUICreateWindow : EditorWindow
             targetName = targetName.Remove(targetName.Length - 4, 4);
         }
         return targetName;
+    }
+
+    public void HandleForRefresh()
+    {
+        GameObject objSelect = Selection.activeGameObject;
+        modelName = GetOriginTargetName(objSelect.name);
+        var directoryInfos = FileUtil.GetDirectoriesByPath(pathCreateGame);
+        foreach (var itemDirectory in directoryInfos)
+        {
+            //LogUtil.Log($"HandleForRefresh itemDirectory_{itemDirectory.Name}");
+            if (modelName.Contains(itemDirectory.Name))
+            {
+                modelName = itemDirectory.Name;
+                return;
+            }
+        }
     }
 
     public void HandleForCreate(int typeCreate)

@@ -199,13 +199,29 @@ public class FileUtil
     /// </summary>
     /// <param name="fullPath"> "Assets/Models/21/21000001/"; </param>
     /// <returns></returns>
-    public static FileInfo[] GetFilesByPath(string fullPath)
+    public static FileInfo[] GetFilesByPath(string fullPath, SearchOption searchOption = SearchOption.AllDirectories)
     {
         if (Directory.Exists(fullPath))
         {
             DirectoryInfo direction = new DirectoryInfo(fullPath);
-            FileInfo[] files = direction.GetFiles("*", SearchOption.AllDirectories);
+            FileInfo[] files = direction.GetFiles("*", searchOption);
             return files;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 获取指定路径下的所有文件夹
+    /// </summary>
+    /// <param name="fullPath">"Assets/Models/21/21000001/"; </param>
+    /// <returns></returns>
+    public static DirectoryInfo[] GetDirectoriesByPath(string fullPath, SearchOption searchOption = SearchOption.AllDirectories)
+    {
+        if (Directory.Exists(fullPath))
+        {
+            DirectoryInfo directory = new DirectoryInfo(fullPath);
+            DirectoryInfo[] directories = directory.GetDirectories("*", searchOption);
+            return directories;
         }
         return null;
     }
