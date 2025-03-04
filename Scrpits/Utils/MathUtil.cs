@@ -5,6 +5,18 @@ using UnityEngine;
 public class MathUtil
 {
     /// <summary>
+    /// 获取百分比整数 
+    /// </summary>
+    /// <param name="value"></param>
+    /// <param name="num">保留多少位小数</param>
+    /// <returns></returns>
+    public static int GetPercentage(float value,int num)
+    {
+        int percentage = (int)Math.Round(value * 100, num); // 转换为百分比并保留num位小数
+        return percentage;
+    }
+
+    /// <summary>
     /// 重置
     /// </summary>
     /// <param name="In"></param>
