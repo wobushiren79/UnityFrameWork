@@ -4,6 +4,7 @@ using OfficeOpenXml;
 using System.IO;
 using System.Collections.Generic;
 using Unity.VisualScripting;
+using System;
 public static class ExcelUtil
 {
     public struct ExcelChangeData
@@ -21,6 +22,44 @@ public static class ExcelUtil
     }
 
     /// <summary>
+    /// 获取ExcelPackage
+    /// </summary>
+    public static void GetExcelPackage(FileInfo fileInfo, Action<ExcelPackage> actionDo)
+    {
+        if (fileInfo.Name.Contains(".meta"))
+            return;
+        string filePath = fileInfo.FullName;
+        if (filePath.Contains(".meta"))
+            return;
+        if (filePath.Contains("~$"))
+            return;
+        LogUtil.Log($"filePath:{filePath}");
+        FileStream fs;
+        try
+        {
+            fs = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+        }
+        catch
+        {
+            LogUtil.LogError("请先关闭对应的Excel文档");
+            return;
+        }
+        try
+        {
+            ExcelPackage ep = new ExcelPackage(fs);
+            actionDo?.Invoke(ep);
+        }
+        catch (Exception e)
+        {
+            LogUtil.LogError(e.ToString());
+        }
+        finally
+        {
+            fs.Close();
+        }
+    }
+
+    /// <summary>
     /// 设置表格数据
     /// </summary>
     /// <param name="excelPath">文件路径</param>
@@ -33,7 +72,7 @@ public static class ExcelUtil
         {
             ExcelWorksheet worksheet = pack.Workbook.Worksheets[workSheetName];
             for (int i = 0; i < listChangeData.Count; i++)
-            {            
+            {
                 //横排
                 int columnCount = worksheet.Dimension.End.Column;
                 //竖排

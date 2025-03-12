@@ -17,9 +17,10 @@ public class ExcelEditorWindow : EditorWindow
     [MenuItem("Custom/工具弹窗/处理Excel")]
     static void CreateWindows()
     {
-        EditorWindow.GetWindowWithRect(typeof(ExcelEditorWindow),new Rect(0,0,600,800));
+        EditorWindow.GetWindowWithRect(typeof(ExcelEditorWindow), new Rect(0, 0, 600, 800));
     }
 
+    public string queryStr;//查询
     public string excelFolderPath = "";
     public string entityFolderPath = "";
     public string entityFolderPathForFrameWork = "";
@@ -39,7 +40,7 @@ public class ExcelEditorWindow : EditorWindow
     {
         var refresh = new EditorToolbarDropdown();
         refresh.text = "处理Excel";
-        refresh.clicked += () => 
+        refresh.clicked += () =>
         {
             CreateWindows();
         };
@@ -128,16 +129,56 @@ public class ExcelEditorWindow : EditorWindow
     /// </summary>
     public void UIForListExcel()
     {
-        if (EditorUI.GUIButton("刷新Excel",500))
+        if (EditorUI.GUIButton("刷新Excel", 500))
         {
             queryFileInfos = FileUtil.GetFilesByPath(excelFolderPath);
+            if (!queryStr.IsNull())
+            {
+                List<FileInfo> listQueryData = new List<FileInfo>();
+                for (int i = 0; i < queryFileInfos.Length; i++)
+                {
+                    var itemInfo = queryFileInfos[i];
+                    if (itemInfo.Name.ToLower().Contains(queryStr.ToLower()))
+                    {
+                        listQueryData.Add(itemInfo);
+                    }
+                    else
+                    {
+                        ExcelUtil.GetExcelPackage(itemInfo, (ep) =>
+                        {
+                            //获得所有工作表
+                            ExcelWorksheets workSheets = ep.Workbook.Worksheets;
+                            //workSheets.Add("IgnoreErrors");
+                            List<object> lst = new List<object>();
+                            //遍历所有工作表
+                            for (int w = 1; w <= workSheets.Count; w++)
+                            {
+                                //当前工作表 
+                                ExcelWorksheet sheet = workSheets[w];
+                                if(sheet.Name.ToLower().Contains(queryStr.ToLower()) || sheet.Name.ToLower().Contains(queryStr.Replace("Cfg","").ToLower()))
+                                {
+                                    listQueryData.Add(itemInfo);
+                                    break;
+                                }
+                            }
+                        });
+                    }
+                }
+                queryFileInfos = listQueryData.ToArray();
+            }
             queryFileInfos = queryFileInfos.OrderByDescending(f => f.LastWriteTime).ToArray();
         }
+
+        GUILayout.BeginHorizontal();
+        EditorUI.GUIText("搜索", 50);
+        queryStr = EditorUI.GUIEditorText(queryStr, 500);
         if (queryFileInfos == null)
         {
             queryFileInfos = FileUtil.GetFilesByPath(excelFolderPath);
             queryFileInfos = queryFileInfos.OrderByDescending(f => f.LastWriteTime).ToArray();
         }
+        GUILayout.EndHorizontal();
+
         GUILayout.Space(10);
         if (queryFileInfos != null)
         {
@@ -161,7 +202,7 @@ public class ExcelEditorWindow : EditorWindow
                 {
                     ExcelToJsonItem(fileInfo);
                 }
-                if (EditorUI.GUIButton($"{fileInfo.Name}",300))
+                if (EditorUI.GUIButton($"{fileInfo.Name}", 400))
                 {
                     EditorUI.OpenFolder(fileInfo.FullName);
                 }
@@ -198,27 +239,8 @@ public class ExcelEditorWindow : EditorWindow
 
     public void ExcelToJsonItem(FileInfo fileInfo)
     {
-        if (fileInfo.Name.Contains(".meta"))
-            return;
-        string filePath = fileInfo.FullName;
-        if (filePath.Contains(".meta"))
-            return;
-        if (filePath.Contains("~$"))
-            return;
-        LogUtil.Log($"filePath:{filePath}");
-        FileStream fs;
-        try
+        ExcelUtil.GetExcelPackage(fileInfo, (ep) =>
         {
-            fs = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-        }
-        catch
-        {
-            LogUtil.LogError("请先关闭对应的Excel文档");
-            return;
-        }
-        try
-        {
-            ExcelPackage ep = new ExcelPackage(fs);
             //获得所有工作表
             ExcelWorksheets workSheets = ep.Workbook.Worksheets;
             //workSheets.Add("IgnoreErrors");
@@ -283,16 +305,8 @@ public class ExcelEditorWindow : EditorWindow
                 string jsonData = JsonUtil.ToJsonByNet(lst.ToArray());
                 File.WriteAllText(jsonPath, jsonData);
             }
-            LogUtil.Log($"转换完成 {filePath}");
-        }
-        catch (Exception e)
-        {
-            LogUtil.LogError(e.ToString());
-        }
-        finally
-        {
-            fs.Close();
-        }
+            LogUtil.Log($"转换完成 {fileInfo.FullName}");
+        });
     }
 
     /// <summary>
@@ -319,36 +333,20 @@ public class ExcelEditorWindow : EditorWindow
         for (int i = 0; i < fileInfos.Length; i++)
         {
             FileInfo fileInfo = fileInfos[i];
-            CreateEntitiesItem( fileInfo);
+            CreateEntitiesItem(fileInfo);
         }
         AssetDatabase.Refresh();
     }
 
     public void CreateEntitiesItem(FileInfo fileInfo)
     {
-        if (fileInfo.Name.Contains(".meta"))
-            return;
-        string filePath = fileInfo.FullName;
-        FileStream fs;
-        try
-        {
-            fs = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-        }
-        catch
-        {
-            LogUtil.LogError("请先关闭对应的Excel文档");
-            return;
-        }
-        try
+        ExcelUtil.GetExcelPackage(fileInfo, (ep) =>
         {
             bool isFrameWork = false;
             if (fileInfo.Name.Contains("_FrameWork"))
             {
                 isFrameWork = true;
             }
-
-            ExcelPackage ep = new ExcelPackage(fs);
-
             //获得所有工作表
             ExcelWorksheets workSheets = ep.Workbook.Worksheets;
             //遍历所有工作表
@@ -359,18 +357,10 @@ public class ExcelEditorWindow : EditorWindow
             }
             AssetDatabase.Refresh();
             LogUtil.Log("生成完成");
-        }
-        catch
-        {
-
-        }
-        finally
-        {
-            fs.Close();
-        }
+        });
     }
 
-    void CreateEntityPartial(ExcelWorksheet sheet,bool isFrameWork)
+    void CreateEntityPartial(ExcelWorksheet sheet, bool isFrameWork)
     {
         string dir;
         if (isFrameWork)
@@ -381,7 +371,7 @@ public class ExcelEditorWindow : EditorWindow
         {
             dir = entityFolderPath;
         }
-  
+
         string path = $"{dir}/{sheet.Name}BeanPartial.cs";
         StringBuilder sb = new StringBuilder();
 
@@ -415,7 +405,7 @@ public class ExcelEditorWindow : EditorWindow
         AssetDatabase.Refresh();
     }
 
-    void CreateEntity(ExcelWorksheet sheet,bool isFrameWork)
+    void CreateEntity(ExcelWorksheet sheet, bool isFrameWork)
     {
         string dir;
         if (isFrameWork)
@@ -448,7 +438,7 @@ public class ExcelEditorWindow : EditorWindow
             if (remarkName.Contains("(key)"))
             {
                 keyName = cellName;
-                keyTypeName = typeName;   
+                keyTypeName = typeName;
             }
 
             if (cellName.Equals("id")
@@ -465,7 +455,7 @@ public class ExcelEditorWindow : EditorWindow
         //创建cfg
         sb.AppendLine($"public partial class {sheet.Name}Cfg : BaseCfg<{keyTypeName}, {sheet.Name}Bean>");
         sb.AppendLine("{");
-            
+
         sb.AppendLine($"\tpublic static string fileName = \"{sheet.Name}\";");
         sb.AppendLine($"\tprotected static Dictionary<{keyTypeName}, {sheet.Name}Bean> dicData = null;");
 
@@ -490,7 +480,7 @@ public class ExcelEditorWindow : EditorWindow
         sb.AppendLine("\t}");
 
         sb.AppendLine($"\tpublic static void InitData({sheet.Name}Bean[] arrayData)");
-        sb.AppendLine("\t{");  
+        sb.AppendLine("\t{");
         sb.AppendLine($"\t\tdicData = new Dictionary<long, {sheet.Name}Bean>();");
         sb.AppendLine($"\t\tfor (int i = 0; i < arrayData.Length; i++)");
         sb.AppendLine("\t\t{");
