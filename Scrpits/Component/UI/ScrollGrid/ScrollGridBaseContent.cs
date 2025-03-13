@@ -209,7 +209,7 @@ public class ScrollGridBaseContent : BaseMonoBehaviour
     {
         Action<int,int> actionForItem = (r,l) =>
         {
-            int index = r * (this.col + 1) + l;
+            int index = r * this.col + l;
             if (index < this.cellCount)
             {
                 if (this.cellList.Count <= index)

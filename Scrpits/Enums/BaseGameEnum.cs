@@ -8,6 +8,12 @@
     Model3D,
 }
 
+public enum UIOpenAnimEnum
+{
+    None = 0,//没有动画
+    ScaleAnim = 1,//缩放动画
+}
+
 /// <summary>
 /// 有效值
 /// </summary>

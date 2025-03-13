@@ -6,10 +6,14 @@ using UnityEngine.Events;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using static UnityEngine.InputSystem.InputAction;
+using DG.Tweening;
 
 public class BaseUIInit : BaseMonoBehaviour
 {
     protected BaseEvent baseEvent = new BaseEvent();
+
+    public UIOpenAnimEnum uiOpenAnimType = UIOpenAnimEnum.None;
+    public Transform uiOpenAnimTarget;
 
     public virtual void Awake()
     {
@@ -18,14 +22,15 @@ public class BaseUIInit : BaseMonoBehaviour
     }
 
     public virtual void OnDestroy()
-    {
+    {        
+        ClearOpenUIAnim();
         UnRegisterInputAction();
         UnRegisterAllEvent();
     }
 
     public virtual void OnDisable()
     {
-
+        ClearOpenUIAnim();
     }
     public virtual void OnEnable()
     {
@@ -36,10 +41,12 @@ public class BaseUIInit : BaseMonoBehaviour
     {
         gameObject.ShowObj(true);
         RefreshUI(true);
+        HandleOpenUIAnim();
     }
 
     public virtual void CloseUI()
-    {
+    {        
+        ClearOpenUIAnim();
         gameObject.ShowObj(false);
         UnRegisterAllEvent();
     }
@@ -143,12 +150,43 @@ public class BaseUIInit : BaseMonoBehaviour
 
     }
 
+    /// <summary>
+    /// 处理UI打开动画
+    /// </summary>
+    public virtual void HandleOpenUIAnim()
+    {
+        if (uiOpenAnimTarget == null)
+            return;
+        ClearOpenUIAnim();
+        switch (uiOpenAnimType)
+        {
+            case UIOpenAnimEnum.ScaleAnim:
+                uiOpenAnimTarget.localScale = Vector3.zero;
+                uiOpenAnimTarget
+                    .DOScale(Vector3.one, 0.2f)
+                    .SetEase(Ease.OutBack);
+                break;
+            default:
+                uiOpenAnimTarget.localScale = Vector3.one;
+                break;
+        }
+    }
 
+    /// <summary>
+    /// 清理UI打开动画
+    /// </summary>
+    public virtual void ClearOpenUIAnim()
+    {
+        if (uiOpenAnimTarget == null)
+            return;
+        uiOpenAnimTarget.DOKill();
+        uiOpenAnimTarget.localScale = Vector3.one;
+    }
 
     #region 注册事件
     public virtual void RegisterEvent(string eventName, Action action)
     {
-        baseEvent.RegisterEvent( eventName,  action);
+        baseEvent.RegisterEvent(eventName, action);
     }
 
     public virtual void RegisterEvent<A>(string eventName, Action<A> action)

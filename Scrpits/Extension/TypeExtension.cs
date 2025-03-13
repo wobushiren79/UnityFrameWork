@@ -195,12 +195,12 @@ public static class TypeExtension
     /// <summary>
     /// string[] 强转 List<long>
     /// </summary>
-public static List<long> ToListLong(this string[] arrayStr)
-{
-    if (arrayStr == null)
-        return null;
-    return arrayStr.Select(long.Parse).ToList();
-}
+    public static List<long> ToListLong(this string[] arrayStr)
+    {
+        if (arrayStr == null)
+            return null;
+        return arrayStr.Select(long.Parse).ToList();
+    }
 
     /// <summary>
     ///  string[] 强转 long[]
@@ -366,10 +366,10 @@ public static List<long> ToListLong(this string[] arrayStr)
     public static Vector3[] ToVector3(this Vector2[] self)
     {
         Vector3[] listData = new Vector3[self.Length];
-        for (int i = 0; i < self.Length;i++)
+        for (int i = 0; i < self.Length; i++)
         {
             Vector2 itemData = self[i];
-            listData[i] = new Vector3(itemData.x, itemData.y,0);
+            listData[i] = new Vector3(itemData.x, itemData.y, 0);
         }
         return listData;
     }
@@ -399,7 +399,7 @@ public static List<long> ToListLong(this string[] arrayStr)
     /// <typeparam name="V"></typeparam>
     /// <param name="self"></param>
     /// <returns></returns>
-    public static List<V> ToListForValue<T,V>(this Dictionary<T,V> self)
+    public static List<V> ToListForValue<T, V>(this Dictionary<T, V> self)
     {
         List<V> listData = new List<V>();
         foreach (var itemData in self)

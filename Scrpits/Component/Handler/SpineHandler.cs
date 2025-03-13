@@ -2,20 +2,19 @@ using Spine;
 using Spine.Unity;
 using Spine.Unity.AttachmentTools;
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
-using Unity.VisualScripting;
-using UnityEditor.Animations;
 using UnityEngine;
 
 public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
 {
     /// <summary>
-    /// Ô¤¼ÓÔØÊı¾İ
+    /// é¢„åŠ è½½æ•°æ®
     /// </summary>
     public void PreLoadSkeletonDataAsset(List<string> listPreAssetName, Action<Dictionary<string, SkeletonDataAsset>> actionForComplete)
     {
+        //å®¹é”™ åšä¸€ä¸ªå»é‡æ“ä½œ é‡å¤çš„èµ„æºæ²¡å¿…è¦é¢„åŠ è½½å¤šæ¬¡
+        listPreAssetName = listPreAssetName.DistinctEx();  
+
         int completeNum = 0;
         Dictionary<string, SkeletonDataAsset> dicData = new Dictionary<string, SkeletonDataAsset>();
         for (int i = 0; i < listPreAssetName.Count; i++)
@@ -34,7 +33,7 @@ public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     }
 
     /// <summary>
-    /// Ôö¼ÓSkeletonAnimation
+    /// å¢åŠ SkeletonAnimation
     /// </summary>
     public SkeletonAnimation AddSkeletonAnimation(GameObject targetObj, string assetName, string[] skinArray = null)
     {
@@ -48,7 +47,7 @@ public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     }
 
     /// <summary>
-    /// ÉèÖÃ¹Ç÷ÀÊı¾İ
+    /// è®¾ç½®éª¨éª¼æ•°æ®
     /// </summary>
     public void SetSkeletonDataAsset(SkeletonAnimation skeletonAnimation, string assetName, bool isSync = true)
     {
@@ -109,7 +108,7 @@ public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     }
 
     /// <summary>
-    /// Ôö¼ÓskeletonDataAsset
+    /// å¢åŠ skeletonDataAsset
     /// </summary>
     /// <returns></returns>
     public SkeletonGraphic AddSkeletonGraphic(GameObject targetObj, string assetName, string[] skinArray, Material material)
@@ -121,7 +120,7 @@ public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     }
 
     /// <summary>
-    /// ¸Ä±äÆ¤·ô
+    /// æ”¹å˜çš®è‚¤
     /// </summary>
     public void ChangeSkeletonSkin(Skeleton skeleton, string[] skinArray)
     {
@@ -145,7 +144,7 @@ public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     }
 
     /// <summary>
-    /// ÒÆ³ıÆ¤·ô
+    /// ç§»é™¤çš®è‚¤
     /// </summary>
     public void RemoveSkeletonSkin(Skeleton skeleton, string slotName)
     {
@@ -153,7 +152,7 @@ public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     }
 
     /// <summary>
-    /// ÓÅ»¯Æ¤·ô
+    /// ä¼˜åŒ–çš®è‚¤
     /// </summary>
     public void OptimizeSkeletonAnimationSkin(SkeletonAnimation skeletonAnimation, Material oldMat, Texture2D oldTex, out Material newMat, out Texture2D newTex)
     {
@@ -182,13 +181,13 @@ public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     //}
 
     /// <summary>
-    /// ²¥·Å¶¯»­
+    /// æ’­æ”¾åŠ¨ç”»
     /// </summary>
     public TrackEntry PlayAnim(SkeletonAnimation skeletonAnimation, SpineAnimationStateEnum spineAnimationState, bool isLoop)
     {
         if (skeletonAnimation == null)
         {
-            LogUtil.LogError("²¥·Å¶¯»­Ê§°Ü È±ÉÙSkeletonAnimation×ÊÔ´");
+            LogUtil.LogError("æ’­æ”¾åŠ¨ç”»å¤±è´¥ ç¼ºå°‘SkeletonAnimationèµ„æº");
             return null;
         }
         return PlayAnim(skeletonAnimation.skeletonDataAsset, skeletonAnimation.AnimationState, spineAnimationState, isLoop);
@@ -198,7 +197,7 @@ public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     {
         if (skeletonGraphic == null)
         {
-            LogUtil.LogError("²¥·Å¶¯»­Ê§°Ü È±ÉÙSkeletonGraphic×ÊÔ´");
+            LogUtil.LogError("æ’­æ”¾åŠ¨ç”»å¤±è´¥ ç¼ºå°‘SkeletonGraphicèµ„æº");
             return null;
         }
         return PlayAnim(skeletonGraphic.skeletonDataAsset, skeletonGraphic.AnimationState, spineAnimationState, isLoop);
@@ -208,13 +207,13 @@ public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     {
         if (skeletonDataAsset == null)
         {
-            LogUtil.LogError("²¥·Å¶¯»­Ê§°Ü È±ÉÙskeletonDataAsset×ÊÔ´");
+            LogUtil.LogError("æ’­æ”¾åŠ¨ç”»å¤±è´¥ ç¼ºå°‘skeletonDataAssetèµ„æº");
             return null;
         }
         var animName = manager.GetSkeletonDataAnimName(skeletonDataAsset, spineAnimationState);
         if (animName.IsNull())
         {
-            LogUtil.LogError("²¥·Å¶¯»­Ê§°Ü È±ÉÙskeletonAnimation×ÊÔ´");
+            LogUtil.LogError("æ’­æ”¾åŠ¨ç”»å¤±è´¥ ç¼ºå°‘skeletonAnimationèµ„æº");
             return null;
         }
         return animationState.SetAnimation(0, animName, isLoop);
