@@ -31,27 +31,27 @@ public class AIHandler : BaseHandler<AIHandler, AIManager>
     }
 
     /// <summary>
-    /// 创建AI
+    /// 鍒涘缓AI
     /// </summary>
     public T CreateAIEntity<T>(Action<T> actionBeforeStart = null) where T : AIBaseEntity
     {
         T targetAIEntity = manager.CreateAIEntity<T>();
         actionBeforeStart?.Invoke(targetAIEntity);
-        //开启AI实例
+        //寮�鍚疉I瀹炰緥
         targetAIEntity.StartAIEntity();
         return targetAIEntity;
     }
 
     /// <summary>
-    /// 移除AI实例
+    /// 绉婚櫎AI瀹炰緥
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <param name="targetAIEntity"></param>
     public void RemoveAIEntity<T>(T targetAIEntity) where T : AIBaseEntity
     {
-        //关闭AI实例
+        //鍏抽棴AI瀹炰緥
         targetAIEntity.CloseAIEntity();
-        //清空数据
+        //娓呯┖鏁版嵁
         targetAIEntity.ClearData();
         manager.RemoveAIEntity(targetAIEntity);
     }

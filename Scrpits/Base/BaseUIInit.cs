@@ -205,10 +205,7 @@ public class BaseUIInit : BaseMonoBehaviour
     {
         baseEvent.RegisterEvent(eventName, action);
     }
-    public virtual void UnRegisterEvent(string eventName)
-    {
-        baseEvent.UnRegisterEvent(eventName);
-    }
+    
     public virtual void UnRegisterAllEvent()
     {
         baseEvent.UnRegisterAllEvent();

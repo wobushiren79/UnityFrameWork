@@ -5,7 +5,7 @@ using UnityEngine;
 
 public class EventHandler : BaseSingleton<EventHandler>
 {
-    //ÊÂ¼ş¼¯ºÏ
+    //äº‹ä»¶é›†åˆ
     private Dictionary<string, EventEntity> _DicEvent;
 
     public Dictionary<string, EventEntity> DicEvent
@@ -18,7 +18,7 @@ public class EventHandler : BaseSingleton<EventHandler>
         }
     }
 
-    #region ×¢²áÊÂ¼ş
+    #region æ³¨å†Œäº‹ä»¶
     public void RegisterEvent(string eventName, Action handler)
     {
         if (!DicEvent.TryGetValue(eventName, out EventEntity eventEntity))
@@ -26,7 +26,7 @@ public class EventHandler : BaseSingleton<EventHandler>
             eventEntity = new EventSignal();
             DicEvent.Add(eventName, eventEntity);
         }
-               ((EventSignal)eventEntity).Subscribe(handler);
+        ((EventSignal)eventEntity).Subscribe(handler);
     }
 
     public void RegisterEvent<T>(string eventName, Action<T> handler)
@@ -42,7 +42,7 @@ public class EventHandler : BaseSingleton<EventHandler>
         }
         else
         {
-            Debug.LogError($"{eventName} ¶ÔÓ¦µÄÀàĞÍ´íÎó :{handler.GetType().FullName} ");
+            Debug.LogError($"{eventName} å¯¹åº”çš„ç±»å‹é”™è¯¯ :{handler.GetType().FullName} ");
         }
     }
 
@@ -59,7 +59,7 @@ public class EventHandler : BaseSingleton<EventHandler>
         }
         else
         {
-            Debug.LogError($"{eventName} ¶ÔÓ¦µÄÀàĞÍ´íÎó :{handler.GetType().FullName} ");
+            Debug.LogError($"{eventName} å¯¹åº”çš„ç±»å‹é”™è¯¯ :{handler.GetType().FullName} ");
         }
     }
 
@@ -76,7 +76,7 @@ public class EventHandler : BaseSingleton<EventHandler>
         }
         else
         {
-            Debug.LogError($"{eventName} ¶ÔÓ¦µÄÀàĞÍ´íÎó :{handler.GetType().FullName} ");
+            Debug.LogError($"{eventName} å¯¹åº”çš„ç±»å‹é”™è¯¯ :{handler.GetType().FullName} ");
         }
     }
 
@@ -93,12 +93,12 @@ public class EventHandler : BaseSingleton<EventHandler>
         }
         else
         {
-            Debug.LogError($"{eventName} ¶ÔÓ¦µÄÀàĞÍ´íÎó :{handler.GetType().FullName} ");
+            Debug.LogError($"{eventName} å¯¹åº”çš„ç±»å‹é”™è¯¯ :{handler.GetType().FullName} ");
         }
     }
     #endregion
 
-    #region ×¢ÏúÊÂ¼ş
+    #region æ³¨é”€äº‹ä»¶
     public void UnRegisterEvent(string eventName, Action handler)
     {
         if (!DicEvent.TryGetValue(eventName, out EventEntity eventEntity))
@@ -120,7 +120,7 @@ public class EventHandler : BaseSingleton<EventHandler>
         }
         else
         {
-            Debug.LogError($"{eventName} ¶ÔÓ¦µÄÀàĞÍ´íÎó :{handler.GetType().FullName} ");
+            Debug.LogError($"{eventName} å¯¹åº”çš„ç±»å‹é”™è¯¯ :{handler.GetType().FullName} ");
         }
     }
 
@@ -136,7 +136,7 @@ public class EventHandler : BaseSingleton<EventHandler>
         }
         else
         {
-            Debug.LogError($"{eventName} ¶ÔÓ¦µÄÀàĞÍ´íÎó :{handler.GetType().FullName} ");
+            Debug.LogError($"{eventName} å¯¹åº”çš„ç±»å‹é”™è¯¯ :{handler.GetType().FullName} ");
         }
     }
 
@@ -152,7 +152,7 @@ public class EventHandler : BaseSingleton<EventHandler>
         }
         else
         {
-            Debug.LogError($"{eventName} ¶ÔÓ¦µÄÀàĞÍ´íÎó :{handler.GetType().FullName} ");
+            Debug.LogError($"{eventName} å¯¹åº”çš„ç±»å‹é”™è¯¯ :{handler.GetType().FullName} ");
         }
     }
 
@@ -168,7 +168,7 @@ public class EventHandler : BaseSingleton<EventHandler>
         }
         else
         {
-            Debug.LogError($"{eventName} ¶ÔÓ¦µÄÀàĞÍ´íÎó :{handler.GetType().FullName} ");
+            Debug.LogError($"{eventName} å¯¹åº”çš„ç±»å‹é”™è¯¯ :{handler.GetType().FullName} ");
         }
     }
 
@@ -182,12 +182,12 @@ public class EventHandler : BaseSingleton<EventHandler>
     }
     #endregion
 
-    #region ´¥·¢ÊÂ¼ş
+    #region è§¦å‘äº‹ä»¶
     public void TriggerEvent(string eventName)
     {
         if (!DicEvent.TryGetValue(eventName, out EventEntity eventEntity))
         {
-            //LogUtil.Log($"Ã»ÓĞÃû×ÖÎª{eventName}µÄÊÂ¼ş");
+            //LogUtil.Log($"æ²¡æœ‰åå­—ä¸º{eventName}çš„äº‹ä»¶");
             return;
         }
         if (eventEntity is EventSignal t)
@@ -200,7 +200,7 @@ public class EventHandler : BaseSingleton<EventHandler>
     {
         if (!DicEvent.TryGetValue(eventName, out EventEntity eventEntity))
         {
-            //LogUtil.Log($"Ã»ÓĞÃû×ÖÎª{eventName}µÄÊÂ¼ş");
+            //LogUtil.Log($"æ²¡æœ‰åå­—ä¸º{eventName}çš„äº‹ä»¶");
             return;
         }
         if (eventEntity is EventSignal<T> t)
@@ -213,7 +213,7 @@ public class EventHandler : BaseSingleton<EventHandler>
     {
         if (!DicEvent.TryGetValue(eventName, out EventEntity eventEntity))
         {
-            // LogUtil.Log($"Ã»ÓĞÃû×ÖÎª{eventName}µÄÊÂ¼ş");
+            // LogUtil.Log($"æ²¡æœ‰åå­—ä¸º{eventName}çš„äº‹ä»¶");
             return;
         }
         if (eventEntity is EventSignal<T, U> t)
@@ -226,7 +226,7 @@ public class EventHandler : BaseSingleton<EventHandler>
     {
         if (!DicEvent.TryGetValue(eventName, out EventEntity eventEntity))
         {
-            //LogUtil.Log($"Ã»ÓĞÃû×ÖÎª{eventName}µÄÊÂ¼ş");
+            //LogUtil.Log($"æ²¡æœ‰åå­—ä¸º{eventName}çš„äº‹ä»¶");
             return;
         }
         if (eventEntity is EventSignal<T, U, V> t)
@@ -239,7 +239,7 @@ public class EventHandler : BaseSingleton<EventHandler>
     {
         if (!DicEvent.TryGetValue(eventName, out EventEntity eventEntity))
         {
-            //LogUtil.Log($"Ã»ÓĞÃû×ÖÎª{eventName}µÄÊÂ¼ş");
+            //LogUtil.Log($"æ²¡æœ‰åå­—ä¸º{eventName}çš„äº‹ä»¶");
             return;
         }
         if (eventEntity is EventSignal<T, U, V, W> t)
@@ -249,7 +249,7 @@ public class EventHandler : BaseSingleton<EventHandler>
     }
     #endregion
 
-    #region ÇåÀí
+    #region æ¸…ç†
     public void Clear()
     {
         foreach (var item in DicEvent)
