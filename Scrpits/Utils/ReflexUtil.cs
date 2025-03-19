@@ -58,7 +58,7 @@ public class ReflexUtil
             }
             if (!field.Name.Contains(markStr))
                 continue;
-            Component tmpCom = obj.GetComponentInChildren(field.Name.Replace(markStr, ""), field.FieldType, true);
+            Component tmpCom = obj.GetComponentInChildren(field.Name.Replace(markStr, "").Replace($"_{field.FieldType.Name}",""), field.FieldType, true);
             if (tmpCom == null)
             {
                 //Debug.LogWarning("window " + trueType.Name + ",can not find：" + field.Name.Replace(markStr, ""));
@@ -79,7 +79,7 @@ public class ReflexUtil
                 continue;
             if (!field.Name.Contains(markStr))
                 continue;
-            Component tmpCom = obj.Find(field.Name.Replace(markStr, ""), field.FieldType);
+            Component tmpCom = obj.Find(field.Name.Replace(markStr, "").Replace($"_{field.FieldType.Name}",""), field.FieldType);
             if (tmpCom == null)
             {
                 //Debug.LogWarning("window " + trueType.Name + ",can not find：" + field.Name.Replace(markStr, ""));

@@ -22,7 +22,7 @@ public class FileUtil
         try
         {
             DeleteFile(filePathName);
-            writer = new StreamWriter(filePathName, false, Encoding.Default);
+            writer = new StreamWriter(filePathName, false, Encoding.UTF8);
             writer.Write(strData);
         }
         catch (Exception e)

@@ -6,13 +6,13 @@ public class DGEaseUtil
 {
 
     /// <summary>
-    /// 重力影响的Ease
+    /// 閲嶅姏褰卞搷鐨凟ase
     /// </summary>
     public float EaseGravity(float time, float duration, float overshootOrAmplitude, float period)
     {
         float t = time / duration;
         float gravity = Physics.gravity.y;
-        // 模拟重力影响，使用二次函数来定义动画曲线
+        // 妯℃嫙閲嶅姏褰卞搷锛屼娇鐢ㄤ簩娆″嚱鏁版潵瀹氫箟鍔ㄧ敾鏇茬嚎
         float y = -0.5f * gravity * t * t + t;
         return y;
     }
