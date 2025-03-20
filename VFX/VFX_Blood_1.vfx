@@ -20,7 +20,7 @@ MonoBehaviour:
     x: 519
     y: -411
     width: 2030
-    height: 3231
+    height: 3242
 --- !u!114 &114350483966674976
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -7017,7 +7017,7 @@ MonoBehaviour:
     linkedSlots:
     - outputSlot: {fileID: 8926484042661615091}
       inputSlot: {fileID: 8926484042661614959}
-    position: {x: 1806, y: 1318}
+    position: {x: 1816, y: 1255}
     expandedSlots: []
     expanded: 0
     supecollapsed: 0
@@ -7790,7 +7790,7 @@ MonoBehaviour:
   - {fileID: 8926484042661615175}
   - {fileID: 8926484042661615179}
   m_UIPosition: {x: 0, y: 0}
-  m_UICollapsed: 1
+  m_UICollapsed: 0
   m_UISuperCollapsed: 0
   m_MasterSlot: {fileID: 8926484042661615174}
   m_MasterData:
@@ -7799,7 +7799,7 @@ MonoBehaviour:
       m_Type:
         m_SerializableType: UnityEditor.VFX.Plane, Unity.VisualEffectGraph.Editor,
           Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-      m_SerializableObject: '{"position":{"x":0.0,"y":0.0,"z":0.0},"normal":{"x":0.0,"y":1.0,"z":0.0}}'
+      m_SerializableObject: '{"position":{"x":0.0,"y":0.0010000000474974514,"z":0.0},"normal":{"x":0.0,"y":1.0,"z":0.0}}'
     m_Space: 1
   m_Property:
     name: Plane
