@@ -5,23 +5,27 @@ using UnityEngine;
 
 public class AIManager : BaseManager
 {
-    //µ±Ç°µÄËùÓĞAIÊµÀı
+    //å½“å‰çš„æ‰€æœ‰AIå®ä¾‹
     public List<AIBaseEntity> listAIEntity = new List<AIBaseEntity>();
 
-    //AI»º´æ³Ø
+    //AIç¼“å­˜æ± 
     public Dictionary<string, Queue<AIBaseEntity>> poolAIEntity = new Dictionary<string, Queue<AIBaseEntity>>();
 
     /// <summary>
-    /// ÇåÀíÊı¾İ
+    /// æ¸…ç†æ•°æ®
     /// </summary>
     public void Clear()
     {
+        listAIEntity.ForEach((index,itemData) => 
+        {
+            ClearAIEntity(itemData);
+        });
         listAIEntity.Clear();
         poolAIEntity.Clear();
     }
 
     /// <summary>
-    /// ´´½¨AIÊµÀı
+    /// åˆ›å»ºAIå®ä¾‹
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
@@ -46,12 +50,13 @@ public class AIManager : BaseManager
     }
 
     /// <summary>
-    /// ÒÆ³ıAIÊµÀı
+    /// ç§»é™¤AIå®ä¾‹ ä¼šæŠŠå®ä¾‹ç§»åˆ°ç¼“å­˜æ±  å¹¶ä¸”æ¸…é™¤å®ä¾‹çš„æ•°æ®
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <param name="targetAIEntity"></param>
     public void RemoveAIEntity<T>(T targetAIEntity) where T : AIBaseEntity
     {
+        ClearAIEntity(targetAIEntity);
         listAIEntity.Remove(targetAIEntity);
         Type targetType = targetAIEntity.GetType();
         string nameAIEntity = targetType.Name;
@@ -65,5 +70,18 @@ public class AIManager : BaseManager
             newItemPool.Enqueue(targetAIEntity);
             poolAIEntity.Add(nameAIEntity, newItemPool);
         }
+    }
+
+    /// <summary>
+    /// æ¸…æ¥šAIå®ä¾‹
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="targetAIEntity"></param>
+    public void ClearAIEntity<T>(T targetAIEntity) where T : AIBaseEntity
+    {
+        //å…³é—­AIå®ä¾‹
+        targetAIEntity.CloseAIEntity();
+        //æ¸…ç©ºæ•°æ®
+        targetAIEntity.ClearData();
     }
 }

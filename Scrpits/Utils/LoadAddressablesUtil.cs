@@ -74,7 +74,7 @@ public class LoadAddressablesUtil
     }
 
     /// <summary>
-    /// 销毁对象
+    /// 销毁对象 例子：只能释放句柄AsyncOperationHandle<Material> 
     /// </summary>
     /// <param name="obj"></param>
     public static void Release<T>(T target)

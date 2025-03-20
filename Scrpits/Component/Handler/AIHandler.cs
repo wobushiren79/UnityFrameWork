@@ -49,10 +49,6 @@ public class AIHandler : BaseHandler<AIHandler, AIManager>
     /// <param name="targetAIEntity"></param>
     public void RemoveAIEntity<T>(T targetAIEntity) where T : AIBaseEntity
     {
-        //关闭AI实例
-        targetAIEntity.CloseAIEntity();
-        //清空数据
-        targetAIEntity.ClearData();
         manager.RemoveAIEntity(targetAIEntity);
     }
 }
