@@ -54,6 +54,11 @@ public static class StringExtension
         return listData;
     }
 
+    public static List<T> SplitForListEnum<T>(this string selfData, char substring)
+    {
+        return SplitForArrayEnum<T>(selfData, substring).ToList();
+    }
+
     /// <summary>
     /// string通过指定字符拆分成数组
     /// </summary>
