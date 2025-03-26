@@ -200,7 +200,8 @@ public class BaseUICreateWindow : EditorWindow
         string pathCreateFinal;
         if (modelName.IsNull())
         {
-            pathCreateFinal = $"{pathCreateBase}";
+            LogUtil.LogError("还未输入模块名字");
+            return;
         }
         else if (modelName.Equals("Common")
             || modelName.Equals("Dialog") 
@@ -214,6 +215,7 @@ public class BaseUICreateWindow : EditorWindow
         {
             pathCreateFinal = $"{pathCreateGame}/{modelName}";
         }
+
 
         EditorUtil.CreateClass(dicReplace, templatesPath, createfileName, pathCreateFinal);
         //使用EditorPrefs保存数据 因为脚本重新编译之后参数会还原

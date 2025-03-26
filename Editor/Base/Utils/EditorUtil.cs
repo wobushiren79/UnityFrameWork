@@ -239,6 +239,8 @@ public static class EditorUtil
         {
             viewScriptContent = viewScriptContent.Replace(itemData.Key, itemData.Value);
         }
+        //先创建文件夹
+        FileUtil.CreateDirectory(createPath);
         //创建文件
         FileUtil.CreateTextFile(createPath, fileName + ".cs", viewScriptContent);
     }
