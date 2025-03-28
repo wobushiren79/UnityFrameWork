@@ -45,7 +45,24 @@ public partial class IconHandler : BaseHandler<IconHandler, IconManager>
     public void GetIconSprite(string spriteData, Action<Sprite> callBack)
     {
         string[] spriteArrayData = spriteData.SplitForArrayStr(',');
+        SpriteAtlasType spriteAtlasType = SpriteAtlasType.UI;
+        if (spriteArrayData[0].Equals("0"))
+        {
+            spriteAtlasType = SpriteAtlasType.UI;
+        }
+        else if (spriteArrayData[0].Equals("1"))
+        {
+            spriteAtlasType = SpriteAtlasType.Items;
+        }
+        else if (spriteArrayData[0].Equals("2"))
+        {
+            spriteAtlasType = SpriteAtlasType.Sky;
+        }
+        GetIconSprite(spriteAtlasType, spriteArrayData[1], callBack);
+    }
 
+    public void GetIconSprite(SpriteAtlasType spriteAtlasType, string spriteName, Action<Sprite> callBack)
+    {
         Action<Sprite> callBackForComplete = (sprite) =>
         {
             if (sprite == null)
@@ -57,17 +74,17 @@ public partial class IconHandler : BaseHandler<IconHandler, IconManager>
                 callBack?.Invoke(sprite);
             }
         };
-        if (spriteArrayData[0].Equals("0"))
+        switch (spriteAtlasType)
         {
-            manager.GetUISpriteByName(spriteArrayData[1], callBackForComplete);
-        }
-        else if (spriteArrayData[0].Equals("1"))
-        {
-            manager.GetItemsSpriteByName(spriteArrayData[1], callBackForComplete);
-        }
-        else if (spriteArrayData[0].Equals("2"))
-        {
-            manager.GetSkySpriteByName(spriteArrayData[1], callBackForComplete);
+            case SpriteAtlasType.UI:
+                manager.GetUISpriteByName(spriteName, callBackForComplete);
+                break;
+            case SpriteAtlasType.Items:
+                manager.GetItemsSpriteByName(spriteName, callBackForComplete);
+                break;
+            case SpriteAtlasType.Sky:
+                manager.GetSkySpriteByName(spriteName, callBackForComplete);
+                break;
         }
     }
 }

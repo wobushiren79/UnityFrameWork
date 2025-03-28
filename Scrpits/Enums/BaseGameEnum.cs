@@ -157,3 +157,10 @@ public enum JsonType
     Net,
 }
 
+public enum SpriteAtlasType
+{
+    UI,//ui
+    Items,//道具
+    Sky,//天空
+}
+
