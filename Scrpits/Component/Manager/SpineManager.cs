@@ -8,18 +8,18 @@ using System;
 using OfficeOpenXml.FormulaParsing.Excel.Functions.Text;
 public class SpineManager : BaseManager
 {
-    //ËùÓĞµÄspineÊı¾İ
+    //æ‰€æœ‰çš„spineæ•°æ®
     public Dictionary<string, SkeletonDataAsset> dicSkeletonDataAsset = new Dictionary<string, SkeletonDataAsset>();
-    //ËùÓĞspine¶¯»­Ãû×Ö¼ÇÂ¼
+    //æ‰€æœ‰spineåŠ¨ç”»åå­—è®°å½•
     public Dictionary<string, Dictionary<SpineAnimationStateEnum, string>> dicSkeletonAnimName = new Dictionary<string, Dictionary<SpineAnimationStateEnum, string>>();
 
-    //ËùÓĞµÄÆ¤·ô
+    //æ‰€æœ‰çš„çš®è‚¤
     public Dictionary<string, Skin> dicSkeletonDataSkin = new Dictionary<string, Skin>();
-    //spineÊı¾İÂ·¾¶
+    //spineæ•°æ®è·¯å¾„
     public string pathSkeletonData = "Assets/LoadResources/Spine";
 
     /// <summary>
-    /// »ñÈ¡spine×ÊÔ´ Í¬²½
+    /// è·å–spineèµ„æº åŒæ­¥
     /// </summary>
     public SkeletonDataAsset GetSkeletonDataAssetSync(string assetName)
     {
@@ -29,7 +29,7 @@ public class SpineManager : BaseManager
     }
 
     /// <summary>
-    /// »ñÈ¡spine×ÊÔ´ Òì²½
+    /// è·å–spineèµ„æº å¼‚æ­¥
     /// </summary>
     public void GetSkeletonDataAsset(string assetName, Action<SkeletonDataAsset> actionForComplete)
     {
@@ -42,7 +42,7 @@ public class SpineManager : BaseManager
     }
 
     /// <summary>
-    /// »ñÈ¡SkeletonData Í¬²½
+    /// è·å–SkeletonData åŒæ­¥
     /// </summary>
     /// <param name="assetName"></param>
     /// <returns></returns>
@@ -53,7 +53,7 @@ public class SpineManager : BaseManager
         {
             return null;
         }
-        //falseÎªÏÔÊ¾´íÎóÈÕÖ¾ tureÎª²»ÏÔÊ¾´íÎóÈÕÖ¾
+        //falseä¸ºæ˜¾ç¤ºé”™è¯¯æ—¥å¿— tureä¸ºä¸æ˜¾ç¤ºé”™è¯¯æ—¥å¿—
         var skeletonData = skeletonDataAsset.GetSkeletonData(false);
         if (skeletonData == null)
         {
@@ -63,7 +63,7 @@ public class SpineManager : BaseManager
     }
 
     /// <summary>
-    /// »ñÈ¡SkeletonData Òì²½
+    /// è·å–SkeletonData å¼‚æ­¥
     /// </summary>
     /// <param name="assetName"></param>
     /// <returns></returns>
@@ -76,7 +76,7 @@ public class SpineManager : BaseManager
                 actionForComplete?.Invoke(null);
                 return;
             }
-            //falseÎªÏÔÊ¾´íÎóÈÕÖ¾ tureÎª²»ÏÔÊ¾´íÎóÈÕÖ¾
+            //falseä¸ºæ˜¾ç¤ºé”™è¯¯æ—¥å¿— tureä¸ºä¸æ˜¾ç¤ºé”™è¯¯æ—¥å¿—
             var skeletonData = skeletonDataAsset.GetSkeletonData(false);
             if (skeletonData == null)
             {
@@ -88,7 +88,7 @@ public class SpineManager : BaseManager
     }
 
     /// <summary>
-    /// »ñÈ¡Æ¤·ô Í¬²½
+    /// è·å–çš®è‚¤ åŒæ­¥
     /// </summary>
     public Skin GetSkeletonDataSkinSync(string skinName, string assetName)
     {
@@ -107,7 +107,7 @@ public class SpineManager : BaseManager
             Skin targetSkinNew = skeletonData.FindSkin(skinName);
             if (targetSkinNew == null)
             {
-                LogUtil.LogError($"Ã»ÓĞÕÒµ½Ö¸¶¨Æ¤·ô assetName£º{assetName} skinName£º{skinName}");
+                LogUtil.LogError($"æ²¡æœ‰æ‰¾åˆ°æŒ‡å®šçš®è‚¤ assetNameï¼š{assetName} skinNameï¼š{skinName}");
                 return null;
             }
             dicSkeletonDataSkin.Add(keyName, targetSkinNew);
@@ -116,7 +116,7 @@ public class SpineManager : BaseManager
     }
 
     /// <summary>
-    /// »ñÈ¡Æ¤·ô Òì²½
+    /// è·å–çš®è‚¤ å¼‚æ­¥
     /// </summary>
     public void GetSkeletonDataSkin(string skinName, string assetName, Action<Skin> actitonForComplete)
     {
@@ -138,7 +138,7 @@ public class SpineManager : BaseManager
                 Skin targetSkinNew = skeletonData.FindSkin(skinName);
                 if (targetSkinNew == null)
                 {
-                    LogUtil.LogError($"Ã»ÓĞÕÒµ½Ö¸¶¨Æ¤·ô assetName£º{assetName} skinName£º{skinName}");
+                    LogUtil.LogError($"æ²¡æœ‰æ‰¾åˆ°æŒ‡å®šçš®è‚¤ assetNameï¼š{assetName} skinNameï¼š{skinName}");
                     actitonForComplete?.Invoke(null);
                     return;
                 }
@@ -149,7 +149,7 @@ public class SpineManager : BaseManager
     }
 
     /// <summary>
-    /// »ñÈ¡Æ¤·ô
+    /// è·å–çš®è‚¤
     /// </summary>
     /// <param name="skeleton"></param>
     /// <param name="skinName"></param>
@@ -162,14 +162,14 @@ public class SpineManager : BaseManager
         Skin targetSkinNew = skeletonData.FindSkin(skinName);
         if (targetSkinNew == null)
         {
-            LogUtil.LogError($"Ã»ÓĞÕÒµ½Ö¸¶¨Æ¤·ô skeletonData.Name£º{skeletonData.Name} skinName£º{skinName}");
+            LogUtil.LogError($"æ²¡æœ‰æ‰¾åˆ°æŒ‡å®šçš®è‚¤ skeletonData.Nameï¼š{skeletonData.Name} skinNameï¼š{skinName}");
             return null;
         }
         return targetSkinNew;
     }
 
     /// <summary>
-    /// »ñÈ¡spine¶¯»­Ãû×Ö
+    /// è·å–spineåŠ¨ç”»åå­—
     /// </summary>
     public string GetSkeletonDataAnimName(SkeletonDataAsset skeletonDataAsset, SpineAnimationStateEnum spineAnimationState)
     {
@@ -192,7 +192,7 @@ public class SpineManager : BaseManager
         string targetAnimNameCheck = SpineAnimationStateCfg.CheckSpineAnim(spineAnimationState, listAnimName);
         if (targetAnimNameCheck == null)
         {
-            LogUtil.LogError($"Ã»ÓĞÕÒµ½ skeletonDataAsset_{skeletonDataAsset.name} Àï{spineAnimationState}µÄ¶¯×÷");
+            LogUtil.LogError($"æ²¡æœ‰æ‰¾åˆ° skeletonDataAsset_{skeletonDataAsset.name} é‡Œ{spineAnimationState}çš„åŠ¨ä½œ");
             return null;
         }
         if (dicAnimStatae == null)

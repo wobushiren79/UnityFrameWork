@@ -6,23 +6,23 @@ using UnityEngine.Rendering;
 
 public class SpineEditor : Editor
 {
-    //spineÊı¾İÂ·¾¶
+    //spineæ•°æ®è·¯å¾„
     public static string pathSkeletonData = "Assets/LoadResources/Spine";
     public static string shaderName = "Universal Render Pipeline/Spine/Sprite";
 
-    [MenuItem("Custom/Spine/ÉèÖÃËùÓĞ×ÊÔ´")]
+    [MenuItem("Custom/Spine/è®¾ç½®æ‰€æœ‰èµ„æº")]
     public static void SpineAllInit()
     {
         SpineInit(pathSkeletonData);
     }
 
-    [MenuItem("Assets/ÉèÖÃSpine×ÊÔ´", false, 0)]
+    [MenuItem("Assets/è®¾ç½®Spineèµ„æº", false, 0)]
     static void CopyFilePathToClipboard()
     {
         Object[] selectedObjects = Selection.GetFiltered(typeof(DefaultAsset), SelectionMode.Assets);
         if (selectedObjects.Length == 0)
         {
-            Debug.LogError("ÇëÑ¡ÔñÒ»¸öÄ¿Â¼");
+            Debug.LogError("è¯·é€‰æ‹©ä¸€ä¸ªç›®å½•");
             return;
         }
         foreach (var itemPath in selectedObjects)
@@ -30,7 +30,7 @@ public class SpineEditor : Editor
             string selectedFilePath = AssetDatabase.GetAssetPath(itemPath);
             if (string.IsNullOrEmpty(selectedFilePath))
             {
-                Debug.LogError("Â·¾¶²»¶Ô");
+                Debug.LogError("è·¯å¾„ä¸å¯¹");
                 return;
             }
             SpineInit(selectedFilePath);
@@ -85,10 +85,10 @@ public class SpineEditor : Editor
             }
         }
         EditorUtil.RefreshAsset();
-        LogUtil.Log($"³õÊ¼»¯Íê³É");
+        LogUtil.Log($"åˆå§‹åŒ–å®Œæˆ");
     }
 
-    //[MenuItem("Custom/Spine/ĞŞ¸Ä°æºÅ")]
+    //[MenuItem("Custom/Spine/ä¿®æ”¹ç‰ˆå·")]
     public static void SpineChangeVersion()
     {
         Object obj = Selection.activeObject;
