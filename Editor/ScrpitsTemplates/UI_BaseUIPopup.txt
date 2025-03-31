@@ -3,7 +3,7 @@
 public partial class #ClassName# : PopupShowCommonView
 {
     /// <summary>
-    /// ÉèÖÃÊı¾İ
+    /// è®¾ç½®æ•°æ®
     /// </summary>
     public override void SetData(object data)
     {

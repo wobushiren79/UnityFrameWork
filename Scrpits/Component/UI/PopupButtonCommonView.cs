@@ -55,7 +55,14 @@ public class PopupButtonCommonView : BaseUIView, IPointerEnterHandler, IPointerE
     {
         if(targetData == null)
             return;
-        timeDelayShowStart = true;
+        if(timeDelayShow == 0)
+        {
+            ShowPopupUI();
+        }
+        else
+        {
+            timeDelayShowStart = true;
+        }
     }
 
     public void OnPointerExit(PointerEventData eventData)
