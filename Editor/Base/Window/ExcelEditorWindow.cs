@@ -236,7 +236,7 @@ public class ExcelEditorWindow : EditorWindow
         }
         EditorUtil.RefreshAsset();
     }
-
+    
     public void ExcelToJsonItem(FileInfo fileInfo)
     {
         ExcelUtil.GetExcelPackage(fileInfo, (ep) =>
@@ -286,7 +286,8 @@ public class ExcelEditorWindow : EditorWindow
                         {
                             if (fieldInfo.FieldType == typeof(int)
                                 || fieldInfo.FieldType == typeof(float)
-                                || fieldInfo.FieldType == typeof(double))
+                                || fieldInfo.FieldType == typeof(double)
+                                || fieldInfo.FieldType == typeof(long))
                             {
                                 textData = "0";
                             }

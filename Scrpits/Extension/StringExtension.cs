@@ -7,6 +7,7 @@ using Unity.VisualScripting;
 
 public static class StringExtension 
 {
+
     /// <summary>
     /// 计算字符串中指定字符出现次数
     /// </summary>
@@ -57,6 +58,33 @@ public static class StringExtension
     public static List<T> SplitForListEnum<T>(this string selfData, char substring)
     {
         return SplitForArrayEnum<T>(selfData, substring).ToList();
+    }
+
+    public static Dictionary<string, string> SplitForDictionary(this string selfData,char keyValueSeparator = ':',char pairSeparator = '&')
+    {
+        if (string.IsNullOrEmpty(selfData))
+        {
+            return new Dictionary<string, string>();
+        }
+        return selfData.Split(new[] { pairSeparator }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => part.Split(new[] { keyValueSeparator }, 2))
+            .Where(parts => parts.Length == 2)
+            .ToDictionary(parts => parts[0], parts => parts[1]);
+    }
+
+    public static Dictionary<T, string> SplitForDictionary<T>(this string selfData, char keyValueSeparator = ':', char pairSeparator = '&') where T : struct, Enum
+    {
+        if (string.IsNullOrEmpty(selfData))
+        {
+            return new Dictionary<T, string>();
+        }
+        return selfData.Split(new[] { pairSeparator }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => part.Split(new[] { keyValueSeparator }, 2))
+            .Where(parts => parts.Length == 2)
+            .ToDictionary(
+                parts => Enum.Parse<T>(parts[0]),
+                parts => parts[1]
+            );
     }
 
     /// <summary>

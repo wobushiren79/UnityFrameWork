@@ -20,7 +20,7 @@ MonoBehaviour:
     x: 519
     y: -411
     width: 2030
-    height: 3231
+    height: 3242
 --- !u!114 &114350483966674976
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -31,7 +31,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7d4c867f6b72b714dbb5fd1780afe208, type: 3}
-  m_Name: VFX_Blood_1
+  m_Name: VFX_Fire_1
   m_EditorClassIdentifier: 
   m_UIIgnoredErrors: []
   m_Parent: {fileID: 0}
@@ -387,7 +387,7 @@ VisualEffectResource:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: VFX_Blood_1
+  m_Name: VFX_Fire_1
   m_Graph: {fileID: 114350483966674976}
   m_Infos:
     m_RendererSettings:
@@ -7017,7 +7017,7 @@ MonoBehaviour:
     linkedSlots:
     - outputSlot: {fileID: 8926484042661615091}
       inputSlot: {fileID: 8926484042661614959}
-    position: {x: 1806, y: 1318}
+    position: {x: 1809, y: 1301}
     expandedSlots: []
     expanded: 0
     supecollapsed: 0
