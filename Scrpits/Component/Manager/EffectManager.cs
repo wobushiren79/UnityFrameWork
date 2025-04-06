@@ -46,14 +46,26 @@ public partial class EffectManager : BaseManager
     /// </summary>
     /// <param name="effectName"></param>
     /// <param name="actionForGet"></param>
-    public void GetEffectForEnduring(string effectName,Action<EffectBase> actionForGet)
+    public void GetEffectForEnduring(string effectName, Action<EffectBase> actionForGet)
     {
-        if (dicEffectForEnduring.TryGetValue(effectName,out EffectBase targetEffect))
+        if (dicEffectForEnduring.TryGetValue(effectName, out EffectBase targetEffect))
         {
             actionForGet?.Invoke(targetEffect);
             return;
         }
-        actionForGet?.Invoke(null);
+        else
+        {
+            EffectBean effectData = new EffectBean();
+            effectData.effectName = effectName;
+            effectData.effectType = EffectTypeEnum.Visual;
+            effectData.effectShowType = EffectShowTypeEnum.Enduring;
+            effectData.isPlayInShow = false;
+            effectData.timeForShow = -1;
+            GetEffect(gameObject, effectData, (effectBase) =>
+            {
+                actionForGet?.Invoke(effectBase);
+            });
+        }
     }
 
     /// <summary>

@@ -98,14 +98,14 @@ public class RayUtil
     }
 
     /// <summary>
-    /// 射线-方块
+    /// 方块
     /// </summary>
     /// <param name="centerPosition"></param>
     /// <param name="halfEx"></param>
     /// <param name="quaternion"></param>
     /// <param name="layer"></param>
     /// <returns></returns>
-    public static Collider[] RayToBox(Vector3 centerPosition, Vector3 halfEx, Quaternion quaternion, int layer)
+    public static Collider[] OverlapToBox(Vector3 centerPosition, Vector3 halfEx, Quaternion quaternion, int layer)
     {
         return Physics.OverlapBox(centerPosition, halfEx, quaternion, layer);
     }

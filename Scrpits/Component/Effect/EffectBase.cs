@@ -16,7 +16,7 @@ public class EffectBase : BaseMonoBehaviour
     /// </summary>
     public void Clear()
     {
-        if(gameObject != null)
+        if (gameObject != null)
             Destroy(gameObject);
     }
 
@@ -56,7 +56,7 @@ public class EffectBase : BaseMonoBehaviour
     /// <summary>
     /// 播放粒子
     /// </summary>
-    public virtual void PlayEffect()
+    public virtual void PlayEffect(string sendEvent = "OnPlay")
     {
         if (!listPS.IsNull())
         {
@@ -71,7 +71,7 @@ public class EffectBase : BaseMonoBehaviour
             for (int i = 0; i < listVE.Count; i++)
             {
                 VisualEffect itemVE = listVE[i];
-                itemVE.SendEvent("OnPlay");
+                itemVE.SendEvent(sendEvent);
             }
         }
     }
@@ -79,7 +79,7 @@ public class EffectBase : BaseMonoBehaviour
     /// <summary>
     /// 停止粒子
     /// </summary>
-    public virtual void StopEffect()
+    public virtual void StopEffect(string sendEvent = "OnStop")
     {
         if (!listPS.IsNull())
         {
@@ -94,7 +94,7 @@ public class EffectBase : BaseMonoBehaviour
             for (int i = 0; i < listVE.Count; i++)
             {
                 VisualEffect itemVE = listVE[i];
-                itemVE.SendEvent("OnStop");
+                itemVE.SendEvent(sendEvent);
             }
         }
 
