@@ -517,11 +517,12 @@ public class SpineWindow : EditorWindow
             Debug.LogError("没有贴图");
             return null;
         }
+
         int offsetX = Mathf.FloorToInt(posX * 100);
         int offsetY = Mathf.FloorToInt(posY * 100);
 
         int newTextSizeX = (Mathf.CeilToInt(textureNew.width / 2f) + Mathf.Abs(offsetX)) * 2;
-        int newTextSizeY = textureNew.height + Mathf.Abs(offsetY);
+        int newTextSizeY = (Mathf.CeilToInt(textureNew.height / 2f) + Mathf.Abs(offsetY)) * 2;
 
         int mergeTexSizeX = textureOld.width;
         int mergeTexSizeY = textureOld.height;
@@ -550,7 +551,7 @@ public class SpineWindow : EditorWindow
             for (int y = 0; y < textureOld.height; y++)
             {
                 Color oldColor = textureOld.GetPixel(x, y);
-                mergedResult.SetPixel(x + (mergeTexSizeX / 2) - (textureOld.width / 2), y, oldColor);
+                mergedResult.SetPixel(x + (mergeTexSizeX / 2) - (textureOld.width / 2), y + (mergeTexSizeY / 2) - (textureOld.height / 2), oldColor);
             }
         }
         //设置新贴图
@@ -561,7 +562,7 @@ public class SpineWindow : EditorWindow
                 Color newColor = textureNew.GetPixel(x, y);
                 if (newColor.a > 0.01f)
                 {
-                    mergedResult.SetPixel(x - (textureNew.width / 2) + (mergeTexSizeX / 2) + offsetX, y + offsetY, newColor);
+                    mergedResult.SetPixel(x - (textureNew.width / 2) + (mergeTexSizeX / 2) + offsetX, y - (textureNew.height / 2) + (mergeTexSizeY / 2) + offsetY, newColor);
                 }
             }
         }
