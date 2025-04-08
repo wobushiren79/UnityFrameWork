@@ -86,7 +86,7 @@ public class SpineWindow : EditorWindow
         EditorGUILayout.EndHorizontal();
 
         EditorGUILayout.BeginHorizontal();
-        EditorUI.GUIText("筛选名字 ,分割", 150);
+        EditorUI.GUIText("筛选名字 ,分割(只提取包含)", 150);
         filterSkinName = EditorUI.GUIEditorText(filterSkinName, 500);
         EditorGUILayout.EndHorizontal();
 
@@ -130,7 +130,7 @@ public class SpineWindow : EditorWindow
         try
         {
             List<SkeletonDataAsset> listSkeletonDataAsset = new List<SkeletonDataAsset>();
-            if (inputPath.IsNull())
+            if (selectSkeletonDataAsset != null)
             {
                 // 获取骨架数据
                 SkeletonData skeletonData = selectSkeletonDataAsset.GetSkeletonData(true);
@@ -251,7 +251,8 @@ public class SpineWindow : EditorWindow
     public static void ExtractAndSaveTextures(SkeletonDataAsset skeletonDataAsset, Skin skin, string outputPath, string filterSkinName)
     {
         // 收集所有使用的图集区域
-        var targetRegions = CollectUsedRegions(skin, skeletonDataAsset.GetSkeletonData(true));
+        var skeletonData = skeletonDataAsset.GetSkeletonData(true);
+        var targetRegions = CollectUsedRegions(skin, skeletonData);
         // 确保目录存在
         Directory.CreateDirectory(outputPath);
 
@@ -270,34 +271,71 @@ public class SpineWindow : EditorWindow
 
             // 准备纹理读取
             TextureImporter texImporter = PrepareTextureForRead(sourceTexture);
-
             // 遍历图集区域
             // 如果不止1张图片 需要进行合并
             if (targetRegions.Count > 1)
             {
-                // 暂时不生成 在
-                // var attachments = skin.Attachments;
-                // List<RegionAttachment> listData = new List<RegionAttachment>();
-                // foreach (var itemAttachment in attachments)
-                // {
-                //     Attachment attachment = itemAttachment.Value;
-                //     // 处理区域附件
-                //     if (attachment is RegionAttachment regionAttachment)
-                //     {
-                //         if (regionAttachment.GetRegion() != null)
-                //         {
-                //             listData.Add(regionAttachment);
-                //         }
-                //     
-                //     // 处理网格附件
-                //     else if (attachment is MeshAttachment meshAttachment)
-                //     {
-                //         if (meshAttachment.GetRegion() != null)
-                //         {
+                Texture2D originTex = null;
+                foreach (var itemTemp in targetRegions)
+                {
+                    foreach (AtlasRegion region in atlas.Regions)
+                    {
+                        if (itemTemp.Equals(region.name))
+                        {
+                            System.Action actionStartMerge = () =>
+                            {
+                                var attachments = skin.Attachments;
+                                RegionAttachment targetAttachment = null;
+                                foreach (var itemAttachment in attachments)
+                                {
+                                    if (itemAttachment.Value.Name.Equals(region.name))
+                                    {
+                                        targetAttachment = (RegionAttachment)itemAttachment.Value;
+                                    }
+                                }
+                                // 2. 创建临时的 Skeleton 实例
+                                Skeleton skeleton = new Skeleton(skeletonData);
+                                // 3. 应用默认姿势（初始变换）
+                                skeleton.SetToSetupPose(); // 应用默认骨骼和插槽的初始位置
+                                skeleton.UpdateWorldTransform(); // 计算世界变换
+                                                                 // 4. 查找插槽
+                                Slot slot = skeleton.FindSlot(region.name);
+                                // 5. 获取插槽的父骨骼
+                                Bone bone = slot.Bone;
+                                // 6. 计算世界坐标
+                                // 将附件的本地偏移转换为世界坐标
+                                bone.LocalToWorld(targetAttachment.X, targetAttachment.Y, out float worldX, out float worldY);
 
-                //         }
-                //     }
-                // }
+                                Texture2D newTex = CreateRegionTexture(region, sourceTexture);
+                                originTex = MergeTexturesForOverlay(originTex, newTex, worldX, worldY);
+                            };
+
+
+                            if (filterSkinName.IsNull())
+                            {
+                                actionStartMerge?.Invoke();
+                            }
+                            else
+                            {
+                                List<string> listFilter = filterSkinName.SplitForListStr(',');
+                                foreach (var itemFilter in listFilter)
+                                {
+                                    if (region.name.Contains(itemFilter))
+                                    {
+                                        actionStartMerge?.Invoke();
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (originTex != null)
+                {
+                    originTex = CropTransparentEdges(originTex);
+                    SaveRegionTexture(spineAtlas, skin, originTex, outputPath);
+                }
 
             }
             else
@@ -308,7 +346,8 @@ public class SpineWindow : EditorWindow
                     {
                         if (filterSkinName.IsNull())
                         {
-                            SaveRegionTexture(spineAtlas, skin, sourceTexture, region, outputPath);
+                            Texture2D newTex = CreateRegionTexture(region, sourceTexture);
+                            SaveRegionTexture(spineAtlas, skin, newTex, outputPath);
                         }
                         else
                         {
@@ -317,7 +356,8 @@ public class SpineWindow : EditorWindow
                             {
                                 if (region.name.Contains(itemFilter))
                                 {
-                                    SaveRegionTexture(spineAtlas, skin, sourceTexture, region, outputPath);
+                                    Texture2D newTex = CreateRegionTexture(region, sourceTexture);
+                                    SaveRegionTexture(spineAtlas, skin, newTex, outputPath);
                                     break;
                                 }
                             }
@@ -365,39 +405,12 @@ public class SpineWindow : EditorWindow
     /// <summary>
     /// 保存区域纹理
     /// </summary>
-    public static void SaveRegionTexture(SpineAtlasAsset spineAtlasAsset, Skin skin, Texture2D source, AtlasRegion region, string outputPath)
+    public static void SaveRegionTexture(SpineAtlasAsset spineAtlasAsset, Skin skin, Texture2D newTex, string outputPath)
     {
-        bool isRotated = region.rotate;
-
-        // 计算实际提取尺寸（旋转时需要交换宽高）
-        int extractWidth = isRotated ? region.height : region.width;
-        int extractHeight = isRotated ? region.width : region.height;
-
-        // 坐标转换（y坐标计算要使用实际提取高度）
-        int x = region.x;
-        int y = source.height - region.y - extractHeight; // 关键修改点
-
-        // 边界检查（使用实际提取尺寸）
-        if (x < 0 || y < 0 || x + extractWidth > source.width || y + extractHeight > source.height)
+        if (newTex == null)
         {
-            Debug.LogError($"Region {region.name} exceeds source texture bounds.");
+            LogUtil.LogError($"创建贴图失败 skin_{skin.Name} spineAtlasAsset_{spineAtlasAsset.name}");
             return;
-        }
-
-        // 提取像素（使用调整后的尺寸）
-        Color[] pixels = source.GetPixels(x, y, extractWidth, extractHeight);
-
-        // 创建临时纹理（尺寸为实际提取的尺寸）
-        Texture2D tempTex = new Texture2D(extractWidth, extractHeight, TextureFormat.RGBA32, false);
-        tempTex.SetPixels(pixels);
-        tempTex.Apply();
-
-        Texture2D newTex = tempTex;
-
-        // 执行旋转（自动处理宽高交换）
-        if (isRotated)
-        {
-            newTex = RotateTextureCW(tempTex);
         }
 
         // 确保输出目录存在
@@ -407,6 +420,7 @@ public class SpineWindow : EditorWindow
         // 保存文件
         string fileName = $"{spineAtlasAsset.name}_{skin.Name.Replace("/", "_")}.png";
         string fullPath = Path.Combine(outputPath, fileName);
+
         File.WriteAllBytes(fullPath, newTex.EncodeToPNG());
 
         // 刷新资源数据库
@@ -435,8 +449,173 @@ public class SpineWindow : EditorWindow
         }
         else
         {
-            Debug.LogError($"Failed to load importer for: {assetPath}");
+            Debug.LogError($"Failed to load importer for: {fullPath}");
         }
+    }
+
+    /// <summary>
+    /// 创建一个贴图
+    /// </summary>
+    public static Texture2D CreateRegionTexture(AtlasRegion region, Texture2D source)
+    {
+        bool isRotated = region.rotate;
+
+        // 计算实际提取尺寸（旋转时需要交换宽高）
+        int extractWidth = isRotated ? region.height : region.width;
+        int extractHeight = isRotated ? region.width : region.height;
+
+        // 坐标转换（y坐标计算要使用实际提取高度）
+        int x = region.x;
+        int y = source.height - region.y - extractHeight; // 关键修改点
+
+        // 边界检查（使用实际提取尺寸）
+        if (x < 0 || y < 0 || x + extractWidth > source.width || y + extractHeight > source.height)
+        {
+            Debug.LogError($"Region {region.name} exceeds source texture bounds.");
+            return null;
+        }
+
+        // 提取像素（使用调整后的尺寸）
+        Color[] pixels = source.GetPixels(x, y, extractWidth, extractHeight);
+
+        // 创建临时纹理（尺寸为实际提取的尺寸）
+        Texture2D tempTex = new Texture2D(extractWidth, extractHeight, TextureFormat.RGBA32, false);
+        tempTex.SetPixels(pixels);
+        tempTex.Apply();
+
+        Texture2D newTex = tempTex;
+
+        // 执行旋转（自动处理宽高交换）
+        if (isRotated)
+        {
+            newTex = RotateTextureCW(tempTex);
+        }
+        return newTex;
+    }
+
+    /// <summary>
+    /// 合并2个贴图
+    /// </summary>
+    public static Texture2D MergeTexturesForOverlay(Texture2D textureOld, Texture2D textureNew, float posX, float posY)
+    {
+        //如果原始贴图为null 说明是第一次 需要先创建一个透明的底子------------
+        int startSize = 1;
+        Color colorNull = new Color(0, 0, 0, 0);
+        if (textureOld == null)
+        {
+            textureOld = new Texture2D(startSize, startSize, TextureFormat.RGBA32, false);
+            Color[] colors = new Color[startSize * startSize];
+            for (int i = 0; i < colors.Length; i++)
+            {
+                colors[i] = colorNull;
+            }
+            textureOld.SetPixels(colors);
+        }
+        //----------------------------------------------------------------
+        if (textureOld == null || textureNew == null)
+        {
+            Debug.LogError("没有贴图");
+            return null;
+        }
+        int offsetX = Mathf.FloorToInt(posX * 100);
+        int offsetY = Mathf.FloorToInt(posY * 100);
+
+        int newTextSizeX = (Mathf.CeilToInt(textureNew.width / 2f) + Mathf.Abs(offsetX)) * 2;
+        int newTextSizeY = textureNew.height + Mathf.Abs(offsetY);
+
+        int mergeTexSizeX = textureOld.width;
+        int mergeTexSizeY = textureOld.height;
+
+        //使用最大的
+        if (mergeTexSizeX < newTextSizeX)
+        {
+            mergeTexSizeX = newTextSizeX;
+        }
+        if (mergeTexSizeY < newTextSizeY)
+        {
+            mergeTexSizeY = newTextSizeY;
+        }
+
+        // 创建新贴图
+        Texture2D mergedResult = new Texture2D(mergeTexSizeX, mergeTexSizeY, TextureFormat.RGBA32, false);
+        Color[] colorsMergedResult = new Color[mergeTexSizeX * mergeTexSizeY];
+        for (int i = 0; i < colorsMergedResult.Length; i++)
+        {
+            colorsMergedResult[i] = colorNull;
+        }
+        mergedResult.SetPixels(colorsMergedResult);
+        //设置老贴图
+        for (int x = 0; x < textureOld.width; x++)
+        {
+            for (int y = 0; y < textureOld.height; y++)
+            {
+                Color oldColor = textureOld.GetPixel(x, y);
+                mergedResult.SetPixel(x + (mergeTexSizeX / 2) - (textureOld.width / 2), y, oldColor);
+            }
+        }
+        //设置新贴图
+        for (int x = 0; x < textureNew.width; x++)
+        {
+            for (int y = 0; y < textureNew.height; y++)
+            {
+                Color newColor = textureNew.GetPixel(x, y);
+                if (newColor.a > 0.01f)
+                {
+                    mergedResult.SetPixel(x - (textureNew.width / 2) + (mergeTexSizeX / 2) + offsetX, y + offsetY, newColor);
+                }
+            }
+        }
+
+        mergedResult.Apply(); // 应用更改
+        return mergedResult;
+    }
+
+    /// <summary>
+    /// 裁切边缘透明部分
+    /// </summary>
+    public static Texture2D CropTransparentEdges(Texture2D targetTex)
+    {
+        // 获取像素数据
+        Color32[] pixels = targetTex.GetPixels32();
+        int width = targetTex.width;
+        int height = targetTex.height;
+
+        // 查找有效区域边界
+        int xMin = width, xMax = 0;
+        int yMin = height, yMax = 0;
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (pixels[x + y * width].a > 0)
+                {
+                    xMin = Mathf.Min(xMin, x);
+                    xMax = Mathf.Max(xMax, x);
+                    yMin = Mathf.Min(yMin, y);
+                    yMax = Mathf.Max(yMax, y);
+                }
+            }
+        }
+
+        // 创建新纹理
+        int newWidth = xMax - xMin + 1;
+        int newHeight = yMax - yMin + 1;
+        Texture2D croppedTexture = new Texture2D(newWidth, newHeight);
+
+        // 复制有效像素
+        Color32[] newPixels = new Color32[newWidth * newHeight];
+        for (int y = 0; y < newHeight; y++)
+        {
+            for (int x = 0; x < newWidth; x++)
+            {
+                newPixels[x + y * newWidth] = pixels[(x + xMin) + (y + yMin) * width];
+            }
+        }
+
+        croppedTexture.SetPixels32(newPixels);
+        croppedTexture.Apply();
+        return croppedTexture;
     }
 
     public static Texture2D RotateTextureCW(Texture2D original)
