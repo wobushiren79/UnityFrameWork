@@ -10,9 +10,9 @@ public class MathUtil
     /// <param name="value"></param>
     /// <param name="num">保留多少位小数</param>
     /// <returns></returns>
-    public static int GetPercentage(float value,int num)
+    public static float GetPercentage(float value,int num)
     {
-        int percentage = (int)Math.Round(value * 100, num); // 转换为百分比并保留num位小数
+        float percentage = (float)Math.Round(value * 100, num); // 转换为百分比并保留num位小数
         return percentage;
     }
 
