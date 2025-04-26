@@ -10,6 +10,8 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
     /// </summary>
     public void ShowScreenLock()
     {
+        manager.CanClickUIButtons = false;
+        manager.CanInputActionStarted = false;
         OpenUI<UIScreenLock>(uiType: UITypeEnum.Overlay);
     }
 
@@ -18,6 +20,8 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
     /// </summary>
     public void HideScreenLock()
     {
+        manager.CanClickUIButtons = true;
+        manager.CanInputActionStarted = true;
         CloseUI<UIScreenLock>();
     }
 

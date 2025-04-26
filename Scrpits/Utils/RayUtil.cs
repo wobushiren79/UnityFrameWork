@@ -109,6 +109,10 @@ public class RayUtil
     {
         return Physics.OverlapBox(centerPosition, halfEx, quaternion, layer);
     }
+    public static Collider[] OverlapToBox(Vector3 centerPosition, Vector3 halfEx, int layer)
+    {
+        return Physics.OverlapBox(centerPosition, halfEx, Quaternion.identity, layer);
+    }
 
     /// <summary>
     /// 射线
