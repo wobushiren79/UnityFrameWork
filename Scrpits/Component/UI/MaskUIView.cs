@@ -9,13 +9,14 @@ public class MaskUIView : BaseMonoBehaviour
     [SerializeField]
     public Color defaultColor = new Color(0.78f, 0.78f, 0.78f);
 
-    [Header("Ä¿±êUI")]
+    [SerializeField]
+    public Material grayMat;
     public Graphic[] targetGraphics;
-    [Header("Ô­Ê¼Color")]
+    [Header("åŸå§‹Color")]
     public Color[] targetColors;
 
     /// <summary>
-    ///  Õ¹Ê¾ÕÚÕÖ
+    ///  å±•ç¤ºé®ç½©
     /// </summary>
     public void ShowMask()
     {
@@ -29,13 +30,20 @@ public class MaskUIView : BaseMonoBehaviour
             var targetColor = targetColors[i];
             if (targetGraphic == null || targetColor == null)
                 continue;
-            //Èç¹ûÊÇÎÄ±¾ ÔòÔÙÔ­À´µÄÑÕÉ«ÉÏµş¼Ó¶ø²»ÊÇÌæ»»
-            targetGraphic.color = targetColor * defaultColor;
+            if (grayMat != null && targetGraphic is Image targetImage)
+            {
+                targetGraphic.color = Color.white;
+                targetImage.material = grayMat;
+            }
+            else
+            {
+                targetGraphic.color = targetColor * defaultColor;
+            }
         }
     }
 
     /// <summary>
-    /// Òş²ØÕÚÕÖ
+    /// éšè—é®ç½©
     /// </summary>
     public void HideMask()
     {
@@ -47,12 +55,16 @@ public class MaskUIView : BaseMonoBehaviour
             var targetColor = targetColors[i];
             if (targetGraphic == null || targetColor == null)
                 continue;
+            if (grayMat != null && targetGraphic is Image targetImage)
+            {
+                targetImage.material = null;
+            }
             targetGraphic.color = targetColor;
         }
     }
 
     /// <summary>
-    /// ĞŞ¸ÄÖ¸¶¨¿Ø¼şµÄÄ¬ÈÏÑÕÉ«
+    /// ä¿®æ”¹æŒ‡å®šæ§ä»¶çš„é»˜è®¤é¢œè‰²
     /// </summary>
     public void ChangeDefColor(Graphic graphic,Color changeColor)
     {
@@ -69,7 +81,7 @@ public class MaskUIView : BaseMonoBehaviour
     }
 
     /// <summary>
-    /// ÊÕ¼¯ËùÓĞµÄUI
+    /// æ”¶é›†æ‰€æœ‰çš„UI
     /// </summary>
     public void CollectAllGraphic()
     {
