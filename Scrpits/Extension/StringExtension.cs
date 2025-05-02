@@ -255,4 +255,64 @@ public static class StringExtension
         }
         return arrayData.GetRandomData();
     }
+
+    /// <summary>
+    /// 拆分成Vector4
+    /// </summary>
+    public static Vector4 SplitForVector4(this string selfData, char substring)
+    {
+        if (selfData.IsNull())
+            return Vector4.zero;
+        float[] postionArray = selfData.SplitForArrayFloat(substring);
+        if (postionArray.Length != 4)
+        {
+            LogUtil.LogError($"SplitForVector4 失败 selfData_{selfData}");
+            return Vector4.zero;
+        }
+        else
+        {
+            Vector4 data = new Vector4(postionArray[0], postionArray[1], postionArray[2], postionArray[3]);
+            return data;
+        }
+    }
+
+    /// <summary>
+    /// 拆分成Vector3
+    /// </summary>
+    public static Vector3 SplitForVector3(this string selfData, char substring)
+    {
+        if (selfData.IsNull())
+            return Vector3.zero;
+        float[] postionArray = selfData.SplitForArrayFloat(substring);
+        if (postionArray.Length != 3)
+        {
+            LogUtil.LogError($"SplitForVector3 失败 selfData_{selfData}");
+            return Vector3.zero;
+        }
+        else
+        {
+            Vector3 data = new Vector3(postionArray[0], postionArray[1], postionArray[2]);
+            return data;
+        }
+    }
+
+    /// <summary>
+    /// 拆分成Vector2
+    /// </summary>
+    public static Vector2 SplitForVector2(this string selfData, char substring)
+    {
+        if (selfData.IsNull())
+            return Vector2.zero;
+        float[] postionArray = selfData.SplitForArrayFloat(substring);
+        if (postionArray.Length != 2)
+        {
+            LogUtil.LogError($"SplitForVector2 失败 selfData_{selfData}");
+            return Vector2.zero;
+        }
+        else
+        {
+            Vector2 data = new Vector3(postionArray[0], postionArray[1]);
+            return data;
+        }
+    }
 }
