@@ -16,7 +16,8 @@ public class BaseSingletonMonoBehaviour<T> : BaseMonoBehaviour where T : BaseMon
                 {
                     if (instance == null)
                     {
-                        T[] instances = FindObjectsOfType<T>();
+                        //T[] instances = FindObjectsOfType<T>();
+                        T[] instances = FindObjectsByType<T>(FindObjectsSortMode.None);
                         if (!instances.IsNull())
                         {
                             for (var i = 0; i < instances.Length; i++)

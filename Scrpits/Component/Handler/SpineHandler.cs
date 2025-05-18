@@ -115,7 +115,10 @@ public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     {
         var skeletonDataAsset = manager.GetSkeletonDataAssetSync(assetName);
         SkeletonGraphic skeletonGraphic = SkeletonGraphic.AddSkeletonGraphicComponent(targetObj, skeletonDataAsset, material);
-        ChangeSkeletonSkin(skeletonGraphic.Skeleton, skinArray);
+        if (skinArray != null)
+        {
+            ChangeSkeletonSkin(skeletonGraphic.Skeleton, skinArray);
+        }
         return skeletonGraphic;
     }
 
@@ -125,19 +128,22 @@ public class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     public void ChangeSkeletonSkin(Skeleton skeleton, string[] skinArray)
     {
         Skin newSkin = new Skin($"skin_{skeleton.Data.Name}");
-        for (int i = 0; i < skinArray.Length; i++)
+        if (skinArray != null)
         {
-            var itemSkinName = skinArray[i];
-            if (itemSkinName.IsNull())
+            for (int i = 0; i < skinArray.Length; i++)
             {
-                continue;
+                var itemSkinName = skinArray[i];
+                if (itemSkinName.IsNull())
+                {
+                    continue;
+                }
+                var itemSkin = manager.GetSkeletonDataSkin(skeleton, itemSkinName);
+                if (itemSkin == null)
+                {
+                    continue;
+                }
+                newSkin.AddSkin(itemSkin);
             }
-            var itemSkin = manager.GetSkeletonDataSkin(skeleton, itemSkinName);
-            if (itemSkin == null)
-            {
-                continue;
-            }
-            newSkin.AddSkin(itemSkin);
         }
         skeleton.SetSkin(newSkin);
         skeleton.SetSlotsToSetupPose();
