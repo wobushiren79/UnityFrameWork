@@ -5,8 +5,10 @@ using UnityEngine.VFX;
 
 public class EffectBase : BaseMonoBehaviour
 {
+    public ParticleSystem mainPS;
     public List<ParticleSystem> listPS = new List<ParticleSystem>();
     public List<VisualEffect> listVE = new List<VisualEffect>();
+    protected float[] originEffectSize;
 
     [HideInInspector]
     public EffectBean effectData;
@@ -42,15 +44,19 @@ public class EffectBase : BaseMonoBehaviour
     /// </summary>
     public VisualEffect GetVisualEffect(int index = 0)
     {
-        return listVE[0];
+        if(listVE.IsNull())
+            return null;
+        return listVE[index];
     }
 
     /// <summary>
     /// 获取特定的粒子特效
     /// </summary>
     public ParticleSystem GetParticleSystem(int index = 0)
-    {
-        return listPS[0];
+    {        
+        if(listPS.IsNull())
+            return null;
+        return listPS[index];
     }
 
     /// <summary>
@@ -60,10 +66,18 @@ public class EffectBase : BaseMonoBehaviour
     {
         if (!listPS.IsNull())
         {
-            for (int i = 0; i < listPS.Count; i++)
+            //如果有主粒子 播放主粒子就行
+            if (mainPS != null)
             {
-                ParticleSystem itemPS = listPS[i];
-                itemPS.Play();
+                mainPS.Play();
+            }
+            else
+            {
+                for (int i = 0; i < listPS.Count; i++)
+                {
+                    ParticleSystem itemPS = listPS[i];
+                    itemPS.Play();
+                }
             }
         }
         if (!listVE.IsNull())
@@ -98,5 +112,46 @@ public class EffectBase : BaseMonoBehaviour
             }
         }
 
+    }
+
+    /// <summary>
+    /// 设置PS系统的起始位置
+    /// </summary>
+    /// <param name="position"></param>
+    public void SetParticleSystemStartPosition(Vector3 position)
+    {
+        if (listPS.IsNull())
+            return;
+        for (int i = 0; i < listPS.Count; i++)
+        {
+            ParticleSystem itemPS = listPS[i];
+            var shapeModule = itemPS.shape;
+            shapeModule.position = position;
+        }
+    }
+
+    /// <summary>
+    /// 设置PS系统的起始大小
+    /// </summary>
+    public void SetParticleSystemSize(float size)
+    {
+        if (listPS.IsNull())
+            return;
+        if (originEffectSize == null)
+        {
+            originEffectSize = new float[listPS.Count];
+            for (int i = 0; i < listPS.Count; i++)
+            {
+                ParticleSystem itemPS = listPS[i];
+                var mainModule = itemPS.main;
+                originEffectSize[i] = mainModule.startSize.constant;
+            } 
+        }
+        for (int i = 0; i < listPS.Count; i++)
+        {
+            ParticleSystem itemPS = listPS[i];
+            var mainModule = itemPS.main;
+            mainModule.startSize = size * originEffectSize[i];
+        }
     }
 }
