@@ -144,14 +144,20 @@ public class EffectBase : BaseMonoBehaviour
             {
                 ParticleSystem itemPS = listPS[i];
                 var mainModule = itemPS.main;
-                originEffectSize[i] = mainModule.startSize.constant;
+                if (mainModule.startSize.mode == ParticleSystemCurveMode.Constant)
+                {
+                    originEffectSize[i] = mainModule.startSize.constant;
+                }
             } 
         }
         for (int i = 0; i < listPS.Count; i++)
         {
             ParticleSystem itemPS = listPS[i];
             var mainModule = itemPS.main;
-            mainModule.startSize = size * originEffectSize[i];
+            if (mainModule.startSize.mode == ParticleSystemCurveMode.Constant)
+            {
+                mainModule.startSize = size * originEffectSize[i];
+            }
         }
     }
 }
