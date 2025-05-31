@@ -71,6 +71,66 @@ public static class StringExtension
             .Where(parts => parts.Length == 2)
             .ToDictionary(parts => parts[0], parts => parts[1]);
     }
+    
+    public static Dictionary<string, float> SplitForDictionaryFloat(this string selfData, char keyValueSeparator = ':', char pairSeparator = '&')
+    {
+        if (string.IsNullOrEmpty(selfData))
+        {
+            return new Dictionary<string, float>();
+        }
+        return selfData.Split(new[] { pairSeparator }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => part.Split(new[] { keyValueSeparator }, 2))
+            .Where(parts => parts.Length == 2)
+            .ToDictionary(
+                parts => parts[0],
+                parts => float.Parse(parts[1])
+            );
+    }
+
+    public static Dictionary<string, int> SplitForDictionaryInt(this string selfData, char keyValueSeparator = ':', char pairSeparator = '&')
+    {
+        if (string.IsNullOrEmpty(selfData))
+        {
+            return new Dictionary<string, int>();
+        }
+        return selfData.Split(new[] { pairSeparator }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => part.Split(new[] { keyValueSeparator }, 2))
+            .Where(parts => parts.Length == 2)
+            .ToDictionary(
+                parts => parts[0],
+                parts => int.Parse(parts[1])
+            );
+    }
+
+    public static Dictionary<int, float> SplitForDictionaryIntFloat(this string selfData, char keyValueSeparator = ':', char pairSeparator = '&')
+    {
+        if (string.IsNullOrEmpty(selfData))
+        {
+            return new Dictionary<int, float>();
+        }
+        return selfData.Split(new[] { pairSeparator }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => part.Split(new[] { keyValueSeparator }, 2))
+            .Where(parts => parts.Length == 2)
+            .ToDictionary(
+                parts => int.Parse(parts[0]),
+                parts => float.Parse(parts[1])
+            );
+    }
+    
+    public static Dictionary<long, float> SplitForDictionaryLongFloat(this string selfData, char keyValueSeparator = ':', char pairSeparator = '&')
+    {
+        if (string.IsNullOrEmpty(selfData))
+        {
+            return new Dictionary<long, float>();
+        }
+        return selfData.Split(new[] { pairSeparator }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => part.Split(new[] { keyValueSeparator }, 2))
+            .Where(parts => parts.Length == 2)
+            .ToDictionary(
+                parts => long.Parse(parts[0]),
+                parts => float.Parse(parts[1])
+            );
+    }
 
     public static Dictionary<T, string> SplitForDictionary<T>(this string selfData, char keyValueSeparator = ':', char pairSeparator = '&') where T : struct, Enum
     {
