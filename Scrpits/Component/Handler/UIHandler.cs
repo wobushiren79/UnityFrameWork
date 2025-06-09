@@ -2,9 +2,60 @@
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
 {
+    public Action<GameObject> actionForUIOnClick;
+
+    public void Update()
+    {
+        if (actionForUIOnClick != null)
+        {
+            // 检测鼠标点击
+            if (Input.GetMouseButtonDown(0))
+            {
+                HandleForClick(Input.mousePosition);
+            }
+            // 检测触摸
+            else if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
+            {
+                HandleForClick(Input.GetTouch(0).position);
+            }
+        }
+    }
+
+    private void HandleForClick(Vector2 screenPosition)
+    {
+        // 创建事件数据
+        PointerEventData eventData = new PointerEventData(EventSystem.current)
+        {
+            position = screenPosition
+        };
+
+        // 收集射线检测结果
+        List<RaycastResult> results = new List<RaycastResult>();
+        EventSystem.current.RaycastAll(eventData, results);
+
+        // 处理所有被点击的UI元素
+        if (results.Count > 0)
+        {
+            foreach (RaycastResult result in results)
+            {
+                GameObject clickedObject = result.gameObject;
+                actionForUIOnClick?.Invoke(clickedObject);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 添加按钮点击事件回调
+    /// </summary>
+    public void AddOnClickAction(Action<GameObject> action)
+    {
+        actionForUIOnClick += action;
+    }
+
     /// <summary>
     /// 屏幕锁定
     /// </summary>

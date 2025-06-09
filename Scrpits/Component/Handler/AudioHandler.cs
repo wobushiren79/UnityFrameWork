@@ -8,6 +8,9 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
 {
     //重复播放时间检测
     protected float timeUpdateForRepeatPlay = 0;
+    //重复音乐列表
+    protected List<int> listMusicLoop = new List<int>();
+    protected Coroutine coroutineForMusicLoop;
 
     public void Update()
     {
@@ -32,10 +35,10 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
         manager.audioSourceForEnvironment.volume = gameConfig.environmentVolume;
     }
 
+    #region  音乐播放
     /// <summary>
-    ///  循环播放音乐
+    ///  循环播放音乐-单曲
     /// </summary>
-    /// <param name="audioMusic"></param>
     public void PlayMusicForLoop(int musicId)
     {
         GameConfigBean gameConfig = GameDataHandler.Instance.manager.GetGameConfig();
@@ -49,10 +52,11 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     /// <param name="volumeScale"></param>
     public void PlayMusicForLoop(int musicId, float volumeScale)
     {
+        StopMusicListLoop();
         AudioInfoBean audioInfo = AudioInfoCfg.GetItemData(musicId);
         if (audioInfo == null)
             return;
-        manager.GetMusicClip(audioInfo.name_res, (audioClip) => 
+        manager.GetMusicClip(audioInfo.name_res, (audioClip) =>
         {
             if (audioClip != null)
             {
@@ -64,6 +68,52 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
         });
     }
 
+    /// <summary>
+    /// 循环播放音乐-列表
+    /// </summary>
+    public void PlayMusicListForLoop(List<int> musicIds)
+    {
+        StopMusicListLoop();
+        listMusicLoop = musicIds;
+        PlayMusicListForLoop();
+    }
+
+    private void PlayMusicListForLoop()
+    {
+        int musicIdRandomIndex = UnityEngine.Random.Range(0, listMusicLoop.Count);
+        int musicIdRandom = listMusicLoop[musicIdRandomIndex];
+        AudioInfoBean audioInfo = AudioInfoCfg.GetItemData(musicIdRandom);
+        if (audioInfo == null)
+        {
+            LogUtil.LogError($"循环播放音乐失败 没有找到ID {musicIdRandom}的音乐");
+            return;
+        }
+        manager.GetMusicClip(audioInfo.name_res, (audioClip) =>
+        {
+            if (audioClip != null)
+            {
+                manager.audioSourceForMusic.clip = audioClip;
+                manager.audioSourceForMusic.loop = false;
+                manager.audioSourceForMusic.Play();
+                coroutineForMusicLoop = StartCoroutine(CheckMusicForLoopListProgress(audioClip.length));
+            }
+        });
+    }
+
+    /// <summary>
+    /// 携程-音乐列表循环
+    /// </summary>
+    /// <param name="musicLength"></param>
+    /// <returns></returns>
+    IEnumerator CheckMusicForLoopListProgress(float musicLength)
+    {
+        yield return new WaitForSeconds(musicLength);
+        PlayMusicListForLoop();
+    }
+
+    #endregion
+
+    #region  音效播放
     protected int lastPlaySoundId;//上一个播放的音效
 
     /// <summary>
@@ -77,14 +127,14 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
         if (volumeScale == 0)
             return;
         //如果上一个音效和这次播放的音效一样，并且间隔再 0.1s内，则不播放
-        if(lastPlaySoundId == soundId && timeUpdateForRepeatPlay > 0)
+        if (lastPlaySoundId == soundId && timeUpdateForRepeatPlay > 0)
             return;
         AudioInfoBean audioInfo = AudioInfoCfg.GetItemData(soundId);
         if (audioInfo == null)
             return;
-        manager.GetSoundClip(audioInfo.name_res, (audioClip) => 
+        manager.GetSoundClip(audioInfo.name_res, (audioClip) =>
         {
-            if (audioClip != null)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+            if (audioClip != null)
             {
                 StartCoroutine(CoroutineForPlayOneShot(audioSource, audioClip, volumeScale, soundPosition));
             }
@@ -92,7 +142,7 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
             {
                 Debug.LogError($"没有名字为:{audioInfo.name_res} 的音效资源");
             }
-        }); 
+        });
         timeUpdateForRepeatPlay = 0.1f;
         lastPlaySoundId = soundId;
     }
@@ -136,6 +186,9 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
         yield return new WaitForSeconds(audioClip.length);
     }
 
+    #endregion
+
+    #region  环境音效 
     /// <summary>
     /// 播放环境音乐
     /// </summary>
@@ -162,8 +215,9 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
         GameConfigBean gameConfig = GameDataHandler.Instance.manager.GetGameConfig();
         PlayEnvironment(environmentId, gameConfig.environmentVolume);
     }
+    #endregion
 
-
+    #region 停止相关
     /// <summary>
     /// 停止播放
     /// </summary>
@@ -177,6 +231,16 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     {
         manager.audioSourceForMusic.clip = null;
         manager.audioSourceForMusic.Stop();
+        StopMusicListLoop();
+    }
+
+    /// <summary>
+    /// 停止音乐列表循环
+    /// </summary>
+    public void StopMusicListLoop()
+    {
+        if (coroutineForMusicLoop != null)
+            StopCoroutine(coroutineForMusicLoop);
     }
 
     /// <summary>
@@ -192,6 +256,7 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     /// </summary>
     public void PauseMusic()
     {
+        StopMusicListLoop();
         manager.audioSourceForMusic.Pause();
     }
 
@@ -208,7 +273,8 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     /// </summary>
     public void RestoreMusic()
     {
+        StopMusicListLoop();
         manager.audioSourceForMusic.Play();
     }
-
+    #endregion
 }

@@ -70,9 +70,9 @@ public partial class AudioManager : BaseManager
     protected Dictionary<string, AudioClip> dicSoundData = new Dictionary<string, AudioClip>();
     protected Dictionary<string, AudioClip> dicEnvironmentData = new Dictionary<string, AudioClip>();
 
-    protected static string PathMusic = "Assets/Audio/Music";
-    protected static string PathSound = "Assets/Audio/Sound";
-    protected static string PathEnvironment = "Assets/Audio/Environment";
+    protected static string PathMusic = "Assets/LoadResources/Audio/Music";
+    protected static string PathSound = "Assets/LoadResources/Audio/Sound";
+    protected static string PathEnvironment = "Assets/LoadResources/Audio/Environment";
 
     /// <summary>
     /// 根据名字获取音乐
