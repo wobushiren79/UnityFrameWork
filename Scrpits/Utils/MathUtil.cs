@@ -1,16 +1,50 @@
 ﻿
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class MathUtil
 {
+
+    /// <summary>
+    /// 获取int数值中每一位的数字0-9 例：输入345，输出3,4,5
+    /// </summary>
+    /// <returns></returns>
+    public static List<int> GetDigits(int number)
+    {
+        List<int> digits = new List<int>();
+
+        // 处理负数情况（取其绝对值）
+        number = Math.Abs(number);
+
+        // 计算数字的位数
+        int temp = number;
+        int divisor = 1;
+        while (temp >= 10)
+        {
+            temp /= 10;
+            divisor *= 10;
+        }
+
+        // 依次提取每一位数字
+        while (divisor > 0)
+        {
+            int digit = number / divisor;
+            digits.Add(digit);
+            number %= divisor;
+            divisor /= 10;
+        }
+
+        return digits;
+    }
+
     /// <summary>
     /// 获取百分比整数 
     /// </summary>
     /// <param name="value"></param>
     /// <param name="num">保留多少位小数</param>
     /// <returns></returns>
-    public static float GetPercentage(float value,int num)
+    public static float GetPercentage(float value, int num)
     {
         float percentage = (float)Math.Round(value * 100, num); // 转换为百分比并保留num位小数
         return percentage;
