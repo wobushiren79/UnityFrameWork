@@ -319,7 +319,7 @@ MonoBehaviour:
   particlePerStripCount: 16
   needsComputeBounds: 0
   boundsMode: 0
-  m_Space: 1
+  m_Space: 0
 --- !u!114 &114512514798047786
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -7589,7 +7589,7 @@ MonoBehaviour:
   m_ActivationSlot: {fileID: 8926484042661614813}
   attribute: color
   Composition: 0
-  AlphaComposition: 0
+  AlphaComposition: 2
   SampleMode: 0
   Mode: 1
   ColorMode: 2

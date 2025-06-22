@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 683707df6eb00344f819ba423eec6271
+timeCreated: 1489707278
+licenseType: Store
+ShaderImporter:
+  defaultTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 103506
+  packageName: LightRays 2D effect
+  packageVersion: 1.03
+  assetPath: Assets/LightRays2D/Shaders/LightRays.shader
+  uploadId: 247169

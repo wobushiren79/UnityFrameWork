@@ -282,13 +282,16 @@ VisualEffect:
       - m_Value: 100
         m_Name: SwirlRotationSpeed
         m_Overridden: 1
+      - m_Value: 10
+        m_Name: SwirlSize
+        m_Overridden: 1
     m_Vector2f:
       m_Array: []
     m_Vector3f:
       m_Array: []
     m_Vector4f:
       m_Array:
-      - m_Value: {x: 0.9056604, y: 0, z: 0.7918599, w: 0.7019608}
+      - m_Value: {x: 0.5127635, y: 0, z: 1.245283, w: 0.7019608}
         m_Name: SwirlColor
         m_Overridden: 1
     m_Uint:
