@@ -108,6 +108,10 @@ public class BaseUICreateWindow : EditorWindow
         {
             HandleForCreate(5);
         }
+        if (EditorUI.GUIButton("生成Common脚本", 200))
+        {
+            HandleForCreate(6);
+        }
     }
 
     public string GetOriginTargetName(string targetName)
@@ -167,6 +171,7 @@ public class BaseUICreateWindow : EditorWindow
                 scrpitsTemplatesPath = scrpitsTemplatesPath_UI;
                 break;
             case 2:
+            case 6:
                 scrpitsTemplatesPath = scrpitsTemplatesPath_UIView;
                 break;
             case 3:
@@ -203,13 +208,25 @@ public class BaseUICreateWindow : EditorWindow
             LogUtil.LogError("还未输入模块名字");
             return;
         }
-        else if (modelName.Equals("Common")
-            || modelName.Equals("Dialog") 
-            || modelName.Equals("Toast") 
-            || modelName.Equals("Popup")
-            || modelName.Equals("Test"))
+        //Dialog
+        else if (typeCreate == 3)
         {
-            pathCreateFinal = $"{pathCreateBase}/{modelName}";
+            pathCreateFinal = $"{pathCreateBase}/Dialog";
+        }
+        //Popup
+        else if (typeCreate == 4)
+        {
+            pathCreateFinal = $"{pathCreateBase}/Popup";
+        }
+        //Toast
+        else if (typeCreate == 5)
+        {
+            pathCreateFinal = $"{pathCreateBase}/Toast";
+        }
+        //Toast
+        else if (typeCreate == 6)
+        {
+            pathCreateFinal = $"{pathCreateBase}/Common";
         }
         else
         {

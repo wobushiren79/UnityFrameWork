@@ -139,8 +139,8 @@ MonoBehaviour:
   m_UIInfos: {fileID: 114340500867371532}
   m_CustomAttributes: []
   m_ParameterInfo:
-  - name: ProtalSize
-    path: ProtalSize
+  - name: PortalSize
+    path: PortalSize
     tooltip: 
     space: -1
     spaceable: 0
@@ -155,8 +155,8 @@ MonoBehaviour:
     max: Infinity
     enumValues: []
     descendantCount: 0
-  - name: ProtalRotationSpeed
-    path: ProtalRotationSpeed
+  - name: PortalRotationSpeed
+    path: PortalRotationSpeed
     tooltip: 
     space: -1
     spaceable: 0
@@ -1129,7 +1129,7 @@ MonoBehaviour:
   m_InputSlots: []
   m_OutputSlots:
   - {fileID: 8926484042661614552}
-  m_ExposedName: ProtalSize
+  m_ExposedName: PortalSize
   m_Exposed: 1
   m_Order: 0
   m_Category: 
@@ -1237,7 +1237,7 @@ MonoBehaviour:
   m_InputSlots: []
   m_OutputSlots:
   - {fileID: 8926484042661614566}
-  m_ExposedName: ProtalRotationSpeed
+  m_ExposedName: PortalRotationSpeed
   m_Exposed: 1
   m_Order: 1
   m_Category: 

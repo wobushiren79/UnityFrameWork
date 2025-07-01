@@ -1,4 +1,5 @@
-﻿using OfficeOpenXml.FormulaParsing.Excel.Functions.Text;
+﻿using System;
+using OfficeOpenXml.FormulaParsing.Excel.Functions.Text;
 using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
@@ -16,6 +17,11 @@ public class PopupButtonCommonView : BaseUIView, IPointerEnterHandler, IPointerE
     protected PopupEnum popupEnum;
 
     protected object targetData;
+
+    //回调进入
+    protected Action<PopupButtonCommonView> actionForEnter;
+    //回调离开
+    protected Action<PopupButtonCommonView> actionForExit;
 
     public void Start()
     {
@@ -51,11 +57,35 @@ public class PopupButtonCommonView : BaseUIView, IPointerEnterHandler, IPointerE
         popupShowCommonView.SetData(targetData);
     }
 
+    #region 监听相关
+    public void AddListenerForEnter(Action<PopupButtonCommonView> actionForEnter)
+    {
+        this.actionForEnter += actionForEnter;
+    }
+     public void ClearListenerForEnter(Action<PopupButtonCommonView> actionForEnter)
+    {
+        this.actionForEnter -= actionForEnter;
+    }
+
+    public void AddListenerForExit(Action<PopupButtonCommonView> actionForExit)
+    {
+        this.actionForExit += actionForExit;
+    }
+
+    public void ClearListenerForExit(Action<PopupButtonCommonView> actionForExit)
+    {
+        this.actionForExit -= actionForExit;
+    }
+    #endregion
+
     public void OnPointerEnter(PointerEventData eventData)
     {
-        if(targetData == null)
+        if (targetData == null)
+        {
+            actionForEnter?.Invoke(this);
             return;
-        if(timeDelayShow == 0)
+        }
+        if (timeDelayShow == 0)
         {
             ShowPopupUI();
         }
@@ -63,11 +93,13 @@ public class PopupButtonCommonView : BaseUIView, IPointerEnterHandler, IPointerE
         {
             timeDelayShowStart = true;
         }
+        actionForEnter?.Invoke(this);
     }
 
     public void OnPointerExit(PointerEventData eventData)
     {
         ClearData();
+        actionForExit?.Invoke(this);
     }
 
     public void OnClickForTarget()
