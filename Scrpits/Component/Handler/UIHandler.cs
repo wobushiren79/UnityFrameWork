@@ -27,6 +27,8 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
 
     private void HandleForClick(Vector2 screenPosition)
     {
+        if (EventSystem.current == null)
+            return;
         // 创建事件数据
         PointerEventData eventData = new PointerEventData(EventSystem.current)
         {
