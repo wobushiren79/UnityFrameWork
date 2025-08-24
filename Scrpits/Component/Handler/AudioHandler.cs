@@ -123,6 +123,8 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     /// <param name="volumeScale">音量大小</param>
     public void PlaySound(int soundId, Vector3 soundPosition, float volumeScale, AudioSource audioSource = null)
     {
+        if (soundId == 0)
+            return;
         //如果音效为0 则不播放
         if (volumeScale == 0)
             return;
