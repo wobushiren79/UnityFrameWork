@@ -10,23 +10,15 @@ public partial class TextManager : BaseManager
     /// <returns></returns>
     public string GetTextById(long id)
     {
-        UITextBean uiText = UITextCfg.GetItemData(id);
-        if (uiText != null)
+        LanguageBean languageCfg = LanguageCfg.GetItemData(id);
+        if (languageCfg != null && !languageCfg.content.IsNull())
         {
-            GameConfigBean gameConfig = GameDataHandler.Instance.manager.GetGameConfig();
-            switch (gameConfig.GetLanguage())
-            {
-                case LanguageEnum.cn:
-                    return uiText.content_cn;
-                case LanguageEnum.en:
-                    return uiText.content_en;
-            }
-            return null;
+            return languageCfg.content;
         }
         else
         {
             LogUtil.LogError("没有找到ID为" + id + "的UI内容");
-            return null;
+            return $"Error:{id}";
         }
     }
 }

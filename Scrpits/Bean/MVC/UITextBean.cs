@@ -4,17 +4,17 @@ using System.Collections.Generic;
 public partial class UITextBean : BaseBean
 {
 	/// <summary>
+	///内容id
+	/// </summary>
+	public long content_id;
+	/// <summary>
 	///内容
 	/// </summary>
-	public string content_cn;
+	public string remark_content;
 	/// <summary>
 	///备注
 	/// </summary>
-	public string content_en;
-	/// <summary>
-	///用处
-	/// </summary>
-	public string name;
+	public string remark;
 }
 public partial class UITextCfg : BaseCfg<long, UITextBean>
 {

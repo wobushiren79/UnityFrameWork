@@ -236,7 +236,7 @@ public class ExcelEditorWindow : EditorWindow
         }
         EditorUtil.RefreshAsset();
     }
-    
+
     public void ExcelToJsonItem(FileInfo fileInfo)
     {
         ExcelUtil.GetExcelPackage(fileInfo, (ep) =>
@@ -259,52 +259,122 @@ public class ExcelEditorWindow : EditorWindow
 
                 Assembly ab = Assembly.Load("Assembly-CSharp");
                 Type type = ab.GetType(sheet.Name + "Bean");
-
-                //从第四行开始，前3行分别是属性名字，属性字段，属性描述
-                for (int row = 4; row <= rowCount; row++)
+                if (type == null)
                 {
-
-                    if (type == null)
+                    LogUtil.LogError("你还没有创建对应的实体类!");
+                    return;
+                }
+                if (!Directory.Exists(jsonFolderPath))
+                    Directory.CreateDirectory(jsonFolderPath);
+                //如果是多语言表 特殊处理----------------------------------------------------------------------------------------------------------
+                if (fileInfo.Name.Contains("excel_language"))
+                {
+                    string[] languageNames = EnumExtension.GetEnumNames<LanguageEnum>();
+                    for (int l = 0; l < languageNames.Length; l++)
                     {
-                        LogUtil.LogError("你还没有创建对应的实体类!");
-                        return;
-                    }
-                    if (!Directory.Exists(jsonFolderPath))
-                        Directory.CreateDirectory(jsonFolderPath);
-                    object o = ab.CreateInstance(type.ToString());
-                    for (int column = 1; column <= columnCount; column++)
-                    {
-                        string sheetCellName = sheet.Cells[w, column].Text;
-                        FieldInfo fieldInfo = type.GetField(sheetCellName); //先获得字段信息，方便获得字段类型
-                        if (fieldInfo == null)
+                        bool hasLanguageData = false;
+                        //初始化集合
+                        lst.Clear();
+                        //横排
+                        columnCount = sheet.Dimension.End.Column;
+                        //竖排
+                        rowCount = sheet.Dimension.End.Row;
+                        var languageName = languageNames[l];
+                        //从第四行开始，前3行分别是属性名字，属性字段，属性描述
+                        for (int row = 4; row <= rowCount; row++)
                         {
-                            LogUtil.LogError($"没有找到 第{column}竖排：{sheetCellName}的字段信息");
-                            continue;
-                        }
-                        string textData = sheet.Cells[row, column].Text;
-                        if (textData.IsNull())
-                        {
-                            if (fieldInfo.FieldType == typeof(int)
-                                || fieldInfo.FieldType == typeof(float)
-                                || fieldInfo.FieldType == typeof(double)
-                                || fieldInfo.FieldType == typeof(long))
+                            object o = ab.CreateInstance(type.ToString());
+                            for (int column = 1; column <= columnCount; column++)
                             {
-                                textData = "0";
+                                string sheetCellName = sheet.Cells[1, column].Text;
+                                if (sheetCellName.Equals("remark"))
+                                {
+                                    continue;
+                                }
+                                if (sheetCellName.Contains("content_"))
+                                {
+                                    if (!languageName.Equals(sheetCellName.Substring("content_".Length)))
+                                    {
+                                        continue;
+                                    }
+                                    hasLanguageData = true;
+                                    sheetCellName = "content";
+                                }
+                                FieldInfo fieldInfo = type.GetField(sheetCellName); //先获得字段信息，方便获得字段类型
+                                if (fieldInfo == null)
+                                {
+                                    LogUtil.LogError($"没有找到 第{column}竖排：{sheetCellName}的字段信息");
+                                    continue;
+                                }
+                                string textData = sheet.Cells[row, column].Text;
+                                if (textData.IsNull())
+                                {
+                                    if (fieldInfo.FieldType == typeof(int)
+                                        || fieldInfo.FieldType == typeof(float)
+                                        || fieldInfo.FieldType == typeof(double)
+                                        || fieldInfo.FieldType == typeof(long))
+                                    {
+                                        textData = "0";
+                                    }
+                                }
+                                object value = Convert.ChangeType(textData, fieldInfo.FieldType);
+                                type.GetField(sheetCellName).SetValue(o, value);
                             }
+                            lst.Add(o);
                         }
-                        object value = Convert.ChangeType(textData, fieldInfo.FieldType);
-                        type.GetField(sheet.Cells[1, column].Text).SetValue(o, value);
+                        //如果没有当前语种的数据 则不生成
+                        if (hasLanguageData == false)
+                            continue;
+                        //写入json文件
+                            string jsonPath = $"{jsonFolderPath}/{sheet.Name}_{languageName}.txt";
+                        if (!File.Exists(jsonPath))
+                        {
+                            File.Create(jsonPath).Dispose();
+                        }
+                        string jsonData = JsonUtil.ToJsonByNet(lst.ToArray());
+                        File.WriteAllText(jsonPath, jsonData);
                     }
-                    lst.Add(o);
                 }
-                //写入json文件
-                string jsonPath = $"{jsonFolderPath}/{sheet.Name}.txt";
-                if (!File.Exists(jsonPath))
+                else
                 {
-                    File.Create(jsonPath).Dispose();
+                    //从第四行开始，前3行分别是属性名字，属性字段，属性描述------------------------------------------------------------------------
+                    for (int row = 4; row <= rowCount; row++)
+                    {
+                        object o = ab.CreateInstance(type.ToString());
+                        for (int column = 1; column <= columnCount; column++)
+                        {
+                            string sheetCellName = sheet.Cells[1, column].Text;
+                            FieldInfo fieldInfo = type.GetField(sheetCellName); //先获得字段信息，方便获得字段类型
+                            if (fieldInfo == null)
+                            {
+                                LogUtil.LogError($"没有找到 第{column}竖排：{sheetCellName}的字段信息");
+                                continue;
+                            }
+                            string textData = sheet.Cells[row, column].Text;
+                            if (textData.IsNull())
+                            {
+                                if (fieldInfo.FieldType == typeof(int)
+                                    || fieldInfo.FieldType == typeof(float)
+                                    || fieldInfo.FieldType == typeof(double)
+                                    || fieldInfo.FieldType == typeof(long))
+                                {
+                                    textData = "0";
+                                }
+                            }
+                            object value = Convert.ChangeType(textData, fieldInfo.FieldType);
+                            type.GetField(sheetCellName).SetValue(o, value);
+                        }
+                        lst.Add(o);
+                    }
+                    //写入json文件
+                    string jsonPath = $"{jsonFolderPath}/{sheet.Name}.txt";
+                    if (!File.Exists(jsonPath))
+                    {
+                        File.Create(jsonPath).Dispose();
+                    }
+                    string jsonData = JsonUtil.ToJsonByNet(lst.ToArray());
+                    File.WriteAllText(jsonPath, jsonData);
                 }
-                string jsonData = JsonUtil.ToJsonByNet(lst.ToArray());
-                File.WriteAllText(jsonPath, jsonData);
             }
             LogUtil.Log($"转换完成 {fileInfo.FullName}");
         });
@@ -344,24 +414,29 @@ public class ExcelEditorWindow : EditorWindow
         ExcelUtil.GetExcelPackage(fileInfo, (ep) =>
         {
             bool isFrameWork = false;
+            bool isLangauge = false;
             if (fileInfo.Name.Contains("_FrameWork"))
             {
                 isFrameWork = true;
+            }
+            if (fileInfo.Name.Contains("excel_language"))
+            {
+                isLangauge = true;
             }
             //获得所有工作表
             ExcelWorksheets workSheets = ep.Workbook.Worksheets;
             //遍历所有工作表
             for (int w = 1; w <= workSheets.Count; w++)
             {
-                CreateEntityPartial(workSheets[w], isFrameWork);
-                CreateEntity(workSheets[w], isFrameWork);
+                CreateEntityPartial(workSheets[w], isFrameWork, isLangauge);
+                CreateEntity(workSheets[w], isFrameWork, isLangauge);
             }
             AssetDatabase.Refresh();
             LogUtil.Log("生成完成");
         });
     }
 
-    void CreateEntityPartial(ExcelWorksheet sheet, bool isFrameWork)
+    void CreateEntityPartial(ExcelWorksheet sheet, bool isFrameWork, bool isLangauge)
     {
         string dir;
         if (isFrameWork)
@@ -406,7 +481,7 @@ public class ExcelEditorWindow : EditorWindow
         AssetDatabase.Refresh();
     }
 
-    void CreateEntity(ExcelWorksheet sheet, bool isFrameWork)
+    void CreateEntity(ExcelWorksheet sheet, bool isFrameWork, bool isLangauge)
     {
         string dir;
         if (isFrameWork)
@@ -443,9 +518,20 @@ public class ExcelEditorWindow : EditorWindow
             }
 
             if (cellName.Equals("id")
-                || cellName.Equals("name_cn")
-                || cellName.Equals("name_en"))
+                || cellName.Equals("valid"))
                 continue;
+            //如果是多语言表
+            if (isLangauge)
+            {
+                if (cellName.Equals("content_cn"))
+                {
+                    cellName = "content";
+                }
+                else
+                {
+                    continue;
+                }
+            }
             sb.AppendLine("\t/// <summary>");
             sb.AppendLine($"\t///{remarkName}");
             sb.AppendLine("\t/// </summary>");
@@ -457,6 +543,11 @@ public class ExcelEditorWindow : EditorWindow
         sb.AppendLine($"public partial class {sheet.Name}Cfg : BaseCfg<{keyTypeName}, {sheet.Name}Bean>");
         sb.AppendLine("{");
 
+        if (isLangauge)
+        {
+           sb.AppendLine($"\tpublic static string currentLanguage = \"\";"); 
+        }
+
         sb.AppendLine($"\tpublic static string fileName = \"{sheet.Name}\";");
         sb.AppendLine($"\tprotected static Dictionary<{keyTypeName}, {sheet.Name}Bean> dicData = null;");
 
@@ -464,7 +555,17 @@ public class ExcelEditorWindow : EditorWindow
         sb.AppendLine("\t{");
         sb.AppendLine($"\t\tif (dicData == null)");
         sb.AppendLine("\t\t{");
-        sb.AppendLine($"\t\t\t{sheet.Name}Bean[] arrayData = GetInitData(fileName);");
+
+        if (isLangauge)
+        {
+            sb.AppendLine($"\t\t\t{sheet.Name}Bean[] arrayData = GetInitData(fileName + \"_\" + currentLanguage);");
+        }
+        else
+        { 
+            sb.AppendLine($"\t\t\t{sheet.Name}Bean[] arrayData = GetInitData(fileName);");
+        }
+
+
         sb.AppendLine($"\t\t\tInitData(arrayData);");
         sb.AppendLine("\t\t}");
         sb.AppendLine($"\t\treturn dicData;");
@@ -474,7 +575,15 @@ public class ExcelEditorWindow : EditorWindow
         sb.AppendLine("\t{");
         sb.AppendLine($"\t\tif (dicData == null)");
         sb.AppendLine("\t\t{");
-        sb.AppendLine($"\t\t\t{sheet.Name}Bean[] arrayData = GetInitData(fileName);");
+        if (isLangauge)
+        {
+            sb.AppendLine($"\t\t\t{sheet.Name}Bean[] arrayData = GetInitData(fileName + \"_\" + currentLanguage);");
+        }
+        else
+        { 
+            sb.AppendLine($"\t\t\t{sheet.Name}Bean[] arrayData = GetInitData(fileName);");
+        }
+
         sb.AppendLine($"\t\t\tInitData(arrayData);");
         sb.AppendLine("\t\t}");
         sb.AppendLine($"\t\treturn GetItemData(key, dicData);");
