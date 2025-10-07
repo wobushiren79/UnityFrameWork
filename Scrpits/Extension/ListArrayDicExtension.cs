@@ -8,6 +8,17 @@ public static class ListArrayDicExtension
     /// <summary>
     /// 循环
     /// </summary>
+    public static void ForEach<T>(this IReadOnlyList<T> self, Action<int, T> actionItem)
+    {
+        for (int i = 0; i < self.Count; i++)
+        {
+            actionItem?.Invoke(i, self[i]);
+        }
+    }
+
+    /// <summary>
+    /// 循环
+    /// </summary>
     public static void ForEach<T>(this T[] self, Action<int, T> actionItem)
     {
         for (int i = 0; i < self.Length; i++)

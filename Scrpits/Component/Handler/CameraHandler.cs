@@ -1,6 +1,6 @@
 ﻿
 
-using Cinemachine;
+using Unity.Cinemachine;
 using UnityEngine;
 
 public partial class CameraHandler : BaseHandler<CameraHandler, CameraManager>
@@ -23,16 +23,16 @@ public partial class CameraHandler : BaseHandler<CameraHandler, CameraManager>
     /// </summary>
     /// <param name="virtualCamera"></param>
     /// <returns></returns>
-    public float GetDistanceFollow(CinemachineVirtualCamera virtualCamera)
+    public float GetDistanceFollow(CinemachineCamera cinemachineCamera)
     {
-        if (virtualCamera == null)
+        if (cinemachineCamera == null)
         {
             LogUtil.LogError($" 获取跟随物体距离失败 virtualCamera为null");
             return 0;
         }
         // 获取 Transposer 组件
-        CinemachineTransposer transposerBase = virtualCamera.GetCinemachineComponent<CinemachineTransposer>();
-        Vector3 followOffset = transposerBase.m_FollowOffset;
+        CinemachineFollow cinemachineFollow = cinemachineCamera.GetComponent<CinemachineFollow>();
+        Vector3 followOffset = cinemachineFollow.FollowOffset;
         float disFollow = Vector3.Distance(followOffset, Vector3.zero);
         return disFollow;
     }
