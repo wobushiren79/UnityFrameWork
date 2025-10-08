@@ -344,6 +344,10 @@ public class ExcelEditorWindow : EditorWindow
                         for (int column = 1; column <= columnCount; column++)
                         {
                             string sheetCellName = sheet.Cells[1, column].Text;
+                            if (sheetCellName.Contains("[language]"))
+                            {
+                                sheetCellName = sheetCellName.Replace("[language]", "");
+                            }
                             FieldInfo fieldInfo = type.GetField(sheetCellName); //先获得字段信息，方便获得字段类型
                             if (fieldInfo == null)
                             {
@@ -497,6 +501,7 @@ public class ExcelEditorWindow : EditorWindow
 
         sb.AppendLine($"using System;");
         sb.AppendLine($"using System.Collections.Generic;");
+        sb.AppendLine($"using Newtonsoft.Json;");
         //创建bean
         sb.AppendLine($"[Serializable]");
         sb.AppendLine($"public partial class {sheet.Name}Bean : BaseBean");
@@ -535,7 +540,19 @@ public class ExcelEditorWindow : EditorWindow
             sb.AppendLine("\t/// <summary>");
             sb.AppendLine($"\t///{remarkName}");
             sb.AppendLine("\t/// </summary>");
-            sb.AppendLine($"\tpublic {typeName} {cellName};");
+
+            //如果是多语言指向
+            if (cellName.Contains("[language]"))
+            {
+                string originCellName = cellName.Replace("[language]", "");
+                sb.AppendLine($"\tpublic {typeName} {originCellName};");
+                sb.AppendLine($"\t[JsonIgnore]");
+                sb.AppendLine($"\tpublic string {originCellName}_language {{ get {{ return TextHandler.Instance.GetTextById({originCellName}); }} }}");    
+            }
+            else
+            {
+                sb.AppendLine($"\tpublic {typeName} {cellName};");
+            }
         }
         sb.AppendLine("}");
 
