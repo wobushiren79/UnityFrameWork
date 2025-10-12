@@ -2,12 +2,12 @@
 using UnityEditor;
 using UnityEngine;
 
-public interface EventEntity : System.IDisposable
+public interface IEventEntity : System.IDisposable
 {
 
 }
 
-public class EventSignal : EventEntity
+public class EventSignal : IEventEntity
 {
     Action action;
 
@@ -32,7 +32,7 @@ public class EventSignal : EventEntity
     }
 }
 
-public class EventSignal<T> : EventEntity
+public class EventSignal<T> : IEventEntity
 {
     Action<T> action;
 
@@ -57,7 +57,7 @@ public class EventSignal<T> : EventEntity
     }
 }
 
-public class EventSignal<T, U> : EventEntity
+public class EventSignal<T, U> : IEventEntity
 {
     Action<T, U> action;
 
@@ -82,7 +82,7 @@ public class EventSignal<T, U> : EventEntity
     }
 }
 
-public class EventSignal<T, U, V> : EventEntity
+public class EventSignal<T, U, V> : IEventEntity
 {
     Action<T, U, V> action;
 
@@ -107,7 +107,7 @@ public class EventSignal<T, U, V> : EventEntity
     }
 }
 
-public class EventSignal<T, U, V, W> : EventEntity
+public class EventSignal<T, U, V, W> : IEventEntity
 {
     Action<T, U, V, W> action;
 
