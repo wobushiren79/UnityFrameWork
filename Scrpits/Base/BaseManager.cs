@@ -6,6 +6,7 @@ using UnityEngine.U2D;
 using RotaryHeart.Lib.SerializableDictionary;
 using System;
 using UnityEngine.ResourceManagement.AsyncOperations;
+using System.Threading.Tasks;
 
 public class BaseManager : BaseMonoBehaviour
 {
@@ -191,20 +192,45 @@ public class BaseManager : BaseMonoBehaviour
         return data;
     }
 
+    public async Task<T> GetModelForAddressables<T>(Dictionary<string, T> listModel, string keyName) where T : UnityEngine.Object
+    {
+        if (keyName == null)
+        {
+            LogUtil.LogError($"GetModelForAddressablesAsync keyName is null");
+            return default;
+        }
+        if (listModel.TryGetValue(keyName, out T value))
+        {
+            return value;
+        }
+        AsyncOperationHandle<T> data = await LoadAddressablesUtil.LoadAssetAsync<T>(keyName);
+        if (listModel.TryGetValue(keyName, out T result))
+        {
+            return result;
+        }
+        else
+        {
+            if (data.Result != null)
+            {
+                listModel.Add(keyName, data.Result);
+            }
+            return data.Result;
+        }
+    }
+
     public void GetModelForAddressables<T>(Dictionary<string, T> listModel, string keyName, Action<T> callBack) where T : UnityEngine.Object
     {
         if (keyName == null)
         {
+            LogUtil.LogError($"GetModelForAddressablesAsync keyName is null");
             callBack?.Invoke(null);
             return;
         }
-
         if (listModel.TryGetValue(keyName, out T value))
         {
             callBack?.Invoke(value);
             return;
         }
-
         LoadAddressablesUtil.LoadAssetAsync<T>(keyName, data =>
         {
             if (listModel.TryGetValue(keyName, out T result))
@@ -213,7 +239,7 @@ public class BaseManager : BaseMonoBehaviour
             }
             else
             {
-                if(data.Result != null)
+                if (data.Result != null)
                 {
                     listModel.Add(keyName, data.Result);
                 }
@@ -222,10 +248,38 @@ public class BaseManager : BaseMonoBehaviour
         });
     }
 
+    public async Task<T> GetModelForAddressables<T>(Dictionary<long, T> listModel, long id, string keyName) where T : UnityEngine.Object
+    {
+        if (keyName == null)
+        {
+            LogUtil.LogError($"GetModelForAddressablesAsync keyName is null");
+            return default;
+        }
+        if (listModel.TryGetValue(id, out T value))
+        {
+            return value;
+        }
+        AsyncOperationHandle<T> data = await LoadAddressablesUtil.LoadAssetAsync<T>(keyName);
+        if (listModel.TryGetValue(id, out T result))
+        {
+            return result;
+        }
+        else
+        {
+            if (data.Result != null)
+            {
+
+                listModel.Add(id, data.Result);
+            }
+            return data.Result;
+        }
+    }
+
     public void GetModelForAddressables<T>(Dictionary<long, T> listModel, long id, string keyName, Action<T> callBack) where T : UnityEngine.Object
     {
         if (keyName == null)
         {
+            LogUtil.LogError($"GetModelForAddressablesAsync keyName is null");
             callBack?.Invoke(null);
             return;
         }
@@ -238,48 +292,74 @@ public class BaseManager : BaseMonoBehaviour
 
         LoadAddressablesUtil.LoadAssetAsync<T>(keyName, data =>
         {
-            if (data.Result != null)
+            if (listModel.TryGetValue(id, out T result))
             {
-                if (listModel.TryGetValue(id, out T result))
-                {
-                    callBack?.Invoke(result);
-                }
-                else
+                callBack?.Invoke(result);
+            }
+            else
+            {
+                if (data.Result != null)
                 {
                     listModel.Add(id, data.Result);
-                    callBack?.Invoke(data.Result);
                 }
+                callBack?.Invoke(data.Result);
             }
         });
+    }
+    public async Task<IList<T>> GetModelsForAddressables<T>(Dictionary<long, IList<T>> listModel, long id, List<string> listKeyName) where T : UnityEngine.Object
+    {
+        if (listKeyName.IsNull())
+        {
+            LogUtil.LogError($"GetModelForAddressablesAsync keyName is null");
+            return null;
+        }
+        if (listModel.TryGetValue(id, out IList<T> value))
+        {
+            return value;
+        }
+
+        AsyncOperationHandle<IList<T>> data = await LoadAddressablesUtil.LoadAssetsAsync<T>(listKeyName);
+
+        if (listModel.TryGetValue(id, out IList<T> result))
+        {
+            return result;
+        }
+        else
+        {
+            if (data.Result != null)
+            {
+                listModel.Add(id, data.Result);
+            }
+            return data.Result;
+        }
     }
 
     public void GetModelsForAddressables<T>(Dictionary<long, IList<T>> listModel, long id, List<string> listKeyName, Action<IList<T>> callBack) where T : UnityEngine.Object
     {
         if (listKeyName.IsNull())
         {
+            LogUtil.LogError($"GetModelForAddressablesAsync keyName is null");
             callBack?.Invoke(null);
             return;
         }
-
         if (listModel.TryGetValue(id, out IList<T> value))
         {
             callBack?.Invoke(value);
             return;
         }
-
         LoadAddressablesUtil.LoadAssetsAsync<T>(listKeyName, data =>
         {
-            if (data.Result != null)
+            if (listModel.TryGetValue(id, out IList<T> result))
             {
-                if (listModel.TryGetValue(id, out IList<T> result))
-                {
-                    callBack?.Invoke(result);
-                }
-                else
+                callBack?.Invoke(result);
+            }
+            else
+            {
+                if (data.Result != null)
                 {
                     listModel.Add(id, data.Result);
-                    callBack?.Invoke(data.Result);
                 }
+                callBack?.Invoke(data.Result);
             }
         });
     }

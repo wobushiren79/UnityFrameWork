@@ -223,10 +223,17 @@ public class BaseUICreateWindow : EditorWindow
         {
             pathCreateFinal = $"{pathCreateBase}/Toast";
         }
-        //Toast
+        //Common
         else if (typeCreate == 6)
         {
-            pathCreateFinal = $"{pathCreateBase}/Common";
+            if (modelName.IsNull())
+            {
+                pathCreateFinal = $"{pathCreateBase}/Common";
+            }
+            else
+            {
+                pathCreateFinal = $"{pathCreateBase}/Common/{modelName}";
+            }
         }
         else
         {

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
@@ -37,10 +38,31 @@ public class LoadAddressablesUtil
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <param name="keyName"></param>
+    public static async Task<AsyncOperationHandle<T>> LoadAssetAsync<T>(string keyName)
+    {
+        try
+        {
+            // 使用await等待资源加载完成
+            AsyncOperationHandle<T> handle = Addressables.LoadAssetAsync<T>(keyName);
+            T result = await handle.Task;
+            return handle;
+        }
+        catch (Exception ex)
+        {
+            LogUtil.LogError($"资源加载失败: {ex.Message}");
+            return default;
+        }
+    }
+
+    /// <summary>
+    /// 根据KEY 异步读取 读取之后还需要实例化
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="keyName"></param>
     /// <param name="callBack"></param>
     public static void LoadAssetsAsync<T>(string keyName, Action<AsyncOperationHandle<IList<T>>> callBack)
     {
-        Addressables.LoadAssetsAsync<T>(keyName,null).Completed += callBack;
+        Addressables.LoadAssetsAsync<T>(keyName, null).Completed += callBack;
     }
 
     /// <summary>
@@ -52,6 +74,25 @@ public class LoadAddressablesUtil
     public static void LoadAssetsAsync<T>(List<string> listKey, Action<AsyncOperationHandle<IList<T>>> callBack)
     {
         Addressables.LoadAssetsAsync<T>(listKey, null, Addressables.MergeMode.Intersection).Completed += callBack;
+    }
+    
+    /// <summary>
+    /// 根据KEY LIST 异步读取 读取之后还需要实例化
+    /// </summary>
+    public static async Task<AsyncOperationHandle<IList<T>>> LoadAssetsAsync<T>(List<string> listKey)
+    {
+        try
+        {
+            //使用await等待资源加载完成
+            AsyncOperationHandle<IList<T>> handle = Addressables.LoadAssetsAsync<T>(listKey, null, Addressables.MergeMode.Intersection);
+            IList<T> result = await handle.Task;
+            return handle;
+        }
+        catch (Exception ex)
+        {
+            LogUtil.LogError($"资源加载失败: {ex.Message}");
+            return default;
+        }
     }
 
     /// <summary>

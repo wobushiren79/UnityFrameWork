@@ -3,15 +3,17 @@ using System.Linq;
 
 public class DictionaryList<A, B> where A : notnull
 {
-    private readonly List<B> _list = new List<B>();
+    private readonly List<A> _keyList = new List<A>();
+    private readonly List<B> _valueList = new List<B>();
     private readonly Dictionary<A, B> _keyToValue = new Dictionary<A, B>();
     private readonly Dictionary<B, A> _valueToKey = new Dictionary<B, A>();
 
-    public int Count => _list.Count;
+    public int Count => _valueList.Count;
 
     public void Clear()
     {
-        _list.Clear();
+        _keyList.Clear();
+        _valueList.Clear();
         _keyToValue.Clear();
         _valueToKey.Clear();
     }
@@ -26,7 +28,8 @@ public class DictionaryList<A, B> where A : notnull
         if (_valueToKey.ContainsKey(value))
             return false;
 
-        _list.Add(value);
+        _keyList.Add(key);
+        _valueList.Add(value);
         _keyToValue[key] = value;
         _valueToKey[value] = key;
         
@@ -49,10 +52,11 @@ public class DictionaryList<A, B> where A : notnull
         _valueToKey[newValue] = key;
 
         // 更新列表中的值
-        int index = _list.IndexOf(oldValue);
+        int index = _valueList.IndexOf(oldValue);
         if (index >= 0)
         {
-            _list[index] = newValue;
+            _valueList[index] = newValue;
+            // keyList 保持不变，因为键没有变化
         }
 
         return true;
@@ -64,7 +68,14 @@ public class DictionaryList<A, B> where A : notnull
         {
             _keyToValue.Remove(key);
             _valueToKey.Remove(value);
-            return _list.Remove(value);
+            
+            int index = _valueList.IndexOf(value);
+            if (index >= 0)
+            {
+                _keyList.RemoveAt(index);
+                _valueList.RemoveAt(index);
+            }
+            return true;
         }
         return false;
     }
@@ -75,7 +86,14 @@ public class DictionaryList<A, B> where A : notnull
         {
             _valueToKey.Remove(value);
             _keyToValue.Remove(key);
-            return _list.Remove(value);
+            
+            int index = _valueList.IndexOf(value);
+            if (index >= 0)
+            {
+                _keyList.RemoveAt(index);
+                _valueList.RemoveAt(index);
+            }
+            return true;
         }
         return false;
     }
@@ -86,12 +104,40 @@ public class DictionaryList<A, B> where A : notnull
     public bool TryGetValue(A key, out B value) => _keyToValue.TryGetValue(key, out value);
     public bool TryGetKey(B value, out A key) => _valueToKey.TryGetValue(value, out key);
 
-    // 只读访问
-    // public IReadOnlyList<B> List => _list;
-    // public IReadOnlyDictionary<A, B> Dictionary => _keyToValue;
-    public List<B> List => _list;
+    // 列表访问
+    public List<A> ListKey => _keyList;
+    public List<B> List => _valueList;
+    
+    // 字典访问
     public Dictionary<A, B> Dictionary => _keyToValue;
+
     // 遍历支持
     public IEnumerable<KeyValuePair<A, B>> KeyValuePairs => 
-        _list.Select(value => new KeyValuePair<A, B>(_valueToKey[value], value));
+        _valueList.Select(value => new KeyValuePair<A, B>(_valueToKey[value], value));
+
+    // 索引器访问
+    public A GetKeyAt(int index) => _keyList[index];
+    public B GetValueAt(int index) => _valueList[index];
+    public KeyValuePair<A, B> GetKeyValueAt(int index) => 
+        new KeyValuePair<A, B>(_keyList[index], _valueList[index]);
+
+    // 批量操作
+    public void AddRange(IEnumerable<KeyValuePair<A, B>> items)
+    {
+        foreach (var item in items)
+        {
+            Add(item.Key, item.Value);
+        }
+    }
+
+    // 查找索引
+    public int IndexOfKey(A key)
+    {
+        return _keyList.IndexOf(key);
+    }
+
+    public int IndexOfValue(B value)
+    {
+        return _valueList.IndexOf(value);
+    }
 }
