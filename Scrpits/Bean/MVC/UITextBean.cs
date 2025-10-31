@@ -7,7 +7,9 @@ public partial class UITextBean : BaseBean
 	/// <summary>
 	///内容id
 	/// </summary>
-	public long content_id;
+	public long content;
+	[JsonIgnore]
+	public string content_language { get { return TextHandler.Instance.GetTextById(UITextCfg.fileName, content); } }
 	/// <summary>
 	///内容
 	/// </summary>

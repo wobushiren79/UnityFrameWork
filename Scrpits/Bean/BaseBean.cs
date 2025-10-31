@@ -7,7 +7,6 @@ using System.Collections.Generic;
 public class BaseBean 
 {
     public long id;//id
-    public int valid;//是否有效
 }
 
 public class BaseCfg<E, T> where T : BaseBean

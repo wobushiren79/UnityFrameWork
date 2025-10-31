@@ -13,7 +13,5 @@ public partial class LanguageCfg
     public static void ChangeLanguageData(string languageType)
 	{
         currentLanguage = languageType;
-		LanguageBean[] arrayData = GetInitData(fileName + "_" + currentLanguage);
-        InitData(arrayData);
 	}
 }

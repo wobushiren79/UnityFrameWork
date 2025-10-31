@@ -25,13 +25,26 @@ public partial class TextHandler : BaseHandler<TextHandler, TextManager>
     }
 
     /// <summary>
-    /// 通过ID获取文本
+    /// 通过ID获取文本-UIText
     /// </summary>
-    /// <param name="id"></param>
-    /// <returns></returns>
     public string GetTextById(long id)
     {
-        return manager.GetTextById(id).Replace(" ", noBreakingSpace);
+        return manager.GetTextById(UITextCfg.fileName, id);
+    }
+    
+    /// <summary>
+    /// 通过ID获取文本
+    /// </summary>
+    public string GetTextById(string cfgName, long id)
+    {
+        return manager.GetTextById(cfgName,id);
     }
 
+    /// <summary>
+    /// 通过ID获取文本
+    /// </summary>
+    public string GetTextByIdNoBreakingSpace(string cfgName, long id)
+    {
+        return manager.GetTextById(cfgName,id).Replace(" ",noBreakingSpace);
+    }
 }
