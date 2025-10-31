@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class GameSystemInfo
 {
-    //ÆÁÄ»·Ö±æÂÊÉèÖÃ
+    //å±å¹•åˆ†è¾¨ç‡è®¾ç½®
     public static List<string> ListScreenResolutionData = new List<string>
         {
             "640x480",

@@ -3,6 +3,68 @@ using UnityEditor;
 
 public class VectorUtil
 {
+
+    /// <summary>
+    /// 计算物体在中心点两侧排列的位置
+    /// </summary>
+    /// <param name="center">中心点坐标</param>
+    /// <param name="spacing">物体之间的间隔距离</param>
+    /// <param name="totalCount">物体总数</param>
+    /// <param name="index">当前物体的下标（从0开始）</param>
+    /// <returns>当前物体应该放置的位置</returns>
+    public static float GetCenterToTwoSide(float center, float spacing, int totalCount, int index)
+    {
+        // 参数验证
+        if (totalCount <= 0)
+        {
+            LogUtil.LogError("物体总数必须大于0");
+            return center;
+        }
+
+        if (index < 0 || index >= totalCount)
+        {
+            LogUtil.LogError($"物体下标必须在0到{totalCount - 1}之间");
+            return center;
+        }
+
+        // 如果是奇数个物体
+        if (totalCount % 2 == 1)
+        {
+            // 中间位置的下标
+            int middleIndex = totalCount / 2;
+
+            // 计算相对于中心的位置偏移
+            int offsetFromCenter = index - middleIndex;
+
+            // 返回位置：中心点 + 偏移量 × 间隔
+            return center + (offsetFromCenter * spacing);
+        }
+        // 如果是偶数个物体
+        else
+        {
+            // 计算中间的两个位置（虚拟的，实际没有物体在正中心）
+            // 对于偶数个物体，位置对称分布在中心两侧
+            int halfCount = totalCount / 2;
+
+            // 计算位置偏移
+            // 对于前半部分（下标小于halfCount），偏移为负；后半部分偏移为正
+            float offset;
+            if (index < halfCount)
+            {
+                // 左侧物体：偏移为负，从 -0.5 间隔开始
+                offset = -(halfCount - index) + 0.5f;
+            }
+            else
+            {
+                // 右侧物体：偏移为正，从 +0.5 间隔开始
+                offset = (index - halfCount) + 0.5f;
+            }
+
+            // 返回位置：中心点 + 偏移量 × 间隔
+            return center + (offset * spacing);
+        }
+    }
+    
     /// <summary>
     /// 获取两个点的夹角 vec2相对于vec1 的夹角
     /// </summary>

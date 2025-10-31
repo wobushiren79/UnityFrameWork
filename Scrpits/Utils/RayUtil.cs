@@ -35,11 +35,11 @@ public class RayUtil
     /// <param name="isCollider"></param>
     /// <param name="hit"></param>
     /// <param name="camera"></param>
-    public static void RayToScreenPointForMousePosition(float maxDistance, int layerMask, out bool isCollider, out RaycastHit hit, Camera camera = null)
+    public static void RayToScreenPointForMousePosition(float maxDistance, int layerMask, out bool isCollider, out RaycastHit hit)
     {
         RayToScreenPoint(Input.mousePosition, maxDistance, layerMask, out isCollider, out hit);
     }
-    public static void RayAllToScreenPointForMousePosition(float maxDistance, int layerMask, out RaycastHit[] arrayHit, Camera camera = null)
+    public static void RayAllToScreenPointForMousePosition(float maxDistance, int layerMask, out RaycastHit[] arrayHit)
     {
         RayAllToScreenPoint(Input.mousePosition, maxDistance, layerMask, out arrayHit);
     }

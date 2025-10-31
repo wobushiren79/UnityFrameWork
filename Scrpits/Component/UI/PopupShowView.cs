@@ -10,6 +10,8 @@ public class PopupShowView : BaseUIView
     public float offsetX = 0;
     public float offsetY = 0;
     public Vector2 offsetPivot = Vector2.zero;
+    //是否实时更新位置
+    public bool isUpdatePosition = true;
 
     public override void Awake()
     {
@@ -42,9 +44,8 @@ public class PopupShowView : BaseUIView
 
     public void InitPosition()
     {
-        if (gameObject.activeSelf)
+        if (isUpdatePosition && gameObject.activeSelf)
         {
-
             Transform tfContainer = UIHandler.Instance.manager.GetUITypeContainer(UITypeEnum.Popup);
             //屏幕坐标转换为UI坐标
             Vector2 outPosition = GameUtil.MousePointToUGUIPoint(null,(RectTransform)tfContainer);
