@@ -590,12 +590,19 @@ public class ExcelEditorWindow : EditorWindow
             sb.AppendLine("\t{");
             sb.AppendLine($"\t\tif (dicData == null)");
             sb.AppendLine("\t\t{");
-
-            sb.AppendLine($"\t\t\t{sheet.Name}Bean[] arrayData = GetInitData(fileName);");
-
+            sb.AppendLine($"\t\t\tvar arrayData = GetAllArrayData();");
             sb.AppendLine($"\t\t\tInitData(arrayData);");
             sb.AppendLine("\t\t}");
             sb.AppendLine($"\t\treturn dicData;");
+            sb.AppendLine("\t}");
+
+            sb.AppendLine($"\tpublic static {sheet.Name}Bean[] GetAllArrayData()");
+            sb.AppendLine("\t{");
+            sb.AppendLine($"\t\tif (arrayData == null)");
+            sb.AppendLine("\t\t{");
+            sb.AppendLine($"\t\t\tarrayData = GetInitData(fileName);");
+            sb.AppendLine("\t\t}");
+            sb.AppendLine($"\t\treturn arrayData;");
             sb.AppendLine("\t}");
 
             sb.AppendLine($"\tpublic static {sheet.Name}Bean GetItemData({keyTypeName} key)");

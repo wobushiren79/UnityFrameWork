@@ -27,10 +27,18 @@ public partial class UITextCfg : BaseCfg<long, UITextBean>
 	{
 		if (dicData == null)
 		{
-			UITextBean[] arrayData = GetInitData(fileName);
+			var arrayData = GetAllArrayData();
 			InitData(arrayData);
 		}
 		return dicData;
+	}
+	public static UITextBean[] GetAllArrayData()
+	{
+		if (arrayData == null)
+		{
+			arrayData = GetInitData(fileName);
+		}
+		return arrayData;
 	}
 	public static UITextBean GetItemData(long key)
 	{

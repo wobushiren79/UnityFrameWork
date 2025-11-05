@@ -25,10 +25,18 @@ public partial class AudioInfoCfg : BaseCfg<long, AudioInfoBean>
 	{
 		if (dicData == null)
 		{
-			AudioInfoBean[] arrayData = GetInitData(fileName);
+			var arrayData = GetAllArrayData();
 			InitData(arrayData);
 		}
 		return dicData;
+	}
+	public static AudioInfoBean[] GetAllArrayData()
+	{
+		if (arrayData == null)
+		{
+			arrayData = GetInitData(fileName);
+		}
+		return arrayData;
 	}
 	public static AudioInfoBean GetItemData(long key)
 	{

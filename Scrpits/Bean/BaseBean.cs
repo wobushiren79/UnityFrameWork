@@ -11,6 +11,8 @@ public class BaseBean
 
 public class BaseCfg<E, T> where T : BaseBean
 {
+    protected static T[] arrayData;//数组数据
+    
     protected static T GetItemData(E key, Dictionary<E, T> dicData)
     {
         if (dicData.TryGetValue(key, out T value))
@@ -30,7 +32,7 @@ public class BaseCfg<E, T> where T : BaseBean
         TextAsset textAsset = LoadResourcesUtil.SyncLoadData<TextAsset>($"JsonText/{fileName}");
         if (textAsset == null || textAsset.text == null)
             return null;
-        T[] arrayData = JsonUtil.FromJsonByNet<T[]>(textAsset.text);
+        arrayData = JsonUtil.FromJsonByNet<T[]>(textAsset.text);
         return arrayData;
     }
 }

@@ -39,6 +39,10 @@ public partial class LanguageCfg : BaseCfg<long, LanguageBean>
 			LanguageBean itemData = arrayData[i];
 			cfgDicData.Add(itemData.id, itemData);
 		}
+		if (dicData == null)
+        {
+			dicData = new Dictionary<string, Dictionary<long, LanguageBean>>();
+        }
 		dicData.Add(cfgName, cfgDicData);
 	}
 }

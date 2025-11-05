@@ -21,10 +21,18 @@ public partial class SpineAnimationStateCfg : BaseCfg<long, SpineAnimationStateB
 	{
 		if (dicData == null)
 		{
-			SpineAnimationStateBean[] arrayData = GetInitData(fileName);
+			var arrayData = GetAllArrayData();
 			InitData(arrayData);
 		}
 		return dicData;
+	}
+	public static SpineAnimationStateBean[] GetAllArrayData()
+	{
+		if (arrayData == null)
+		{
+			arrayData = GetInitData(fileName);
+		}
+		return arrayData;
 	}
 	public static SpineAnimationStateBean GetItemData(long key)
 	{
