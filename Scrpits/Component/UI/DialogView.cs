@@ -3,19 +3,23 @@ using UnityEditor;
 using DG.Tweening;
 using UnityEngine.UI;
 using System;
+using TMPro;
 
 public class DialogView : BaseUIView
 {
     public Button ui_Submit;
     public Text ui_SubmitText;
+    public TextMeshProUGUI ui_SubmitTextPro;
 
     public Button ui_Cancel;
     public Text ui_CancelText;
+    public TextMeshProUGUI ui_CancelTextPro;
 
     public Button ui_Background;
     public Text ui_Title;
     public Text ui_Content;
-
+    public TextMeshProUGUI ui_TitlePro;
+    public TextMeshProUGUI ui_ContentPro;
     protected IDialogCallBack callBack;
 
     protected Action<DialogView, DialogBean> actionSubmit;
@@ -112,23 +116,10 @@ public class DialogView : BaseUIView
         if (dialogData == null)
             return;
         this.dialogData = dialogData;
-
-        if (dialogData.title != null)
-        {
-            SetTitle(dialogData.title);
-        }
-        if (dialogData.content != null)
-        {
-            SetContent(dialogData.content);
-        }
-        if (dialogData.submitStr != null)
-        {
-            SetSubmitStr(dialogData.submitStr);
-        }
-        if (dialogData.cancelStr != null)
-        {
-            SetCancelStr(dialogData.cancelStr);
-        }
+        SetTitle(dialogData.title);
+        SetContent(dialogData.content);
+        SetSubmitStr(dialogData.submitStr);
+        SetCancelStr(dialogData.cancelStr);
     }
 
     /// <summary>
@@ -137,9 +128,17 @@ public class DialogView : BaseUIView
     /// <param name="title"></param>
     public virtual void SetTitle(string title)
     {
+        if (title.IsNull())
+        {
+            return;
+        }
         if (ui_Title != null)
         {
             ui_Title.text = title;
+        }
+        if (ui_TitlePro != null)
+        {
+            ui_TitlePro.text = title;
         }
     }
 
@@ -148,10 +147,18 @@ public class DialogView : BaseUIView
     /// </summary>
     /// <param name="content"></param>
     public virtual void SetContent(string content)
-    {
+    {        
+        if (content.IsNull())
+        {
+            return;
+        }
         if (ui_Content != null)
         {
             ui_Content.text = content;
+        }
+        if (ui_ContentPro != null)
+        {
+            ui_ContentPro.text = content;
         }
     }
 
@@ -161,9 +168,17 @@ public class DialogView : BaseUIView
     /// <param name="str"></param>
     public virtual void SetSubmitStr(string str)
     {
+        if (str.IsNull())
+        {
+           return;
+        }
         if (ui_SubmitText != null)
         {
             ui_SubmitText.text = str;
+        }
+        if (ui_SubmitTextPro != null)
+        {
+            ui_SubmitTextPro.text = str;
         }
     }
 
@@ -172,10 +187,18 @@ public class DialogView : BaseUIView
     /// </summary>
     /// <param name="str"></param>
     public virtual void SetCancelStr(string str)
-    {
+    {        
+        if (str.IsNull())
+        {
+           return;
+        }
         if (ui_CancelText != null)
         {
             ui_CancelText.text = str;
+        }
+        if (ui_CancelTextPro != null)
+        {
+            ui_CancelTextPro.text = str;
         }
     }
 
