@@ -11,6 +11,10 @@ public class DialogBean
     public Action<DialogView, DialogBean> actionSubmit;
     //弹窗按钮事件
     public Action<DialogView, DialogBean> actionCancel;
+    //弹窗关闭事件-之前
+    public Action<DialogView, DialogBean> actionDestoryBefore;
+    //弹窗关闭事件-之后
+    public Action<DialogBean> actionDestoryAfter;
     //弹窗回调
     public DialogView.IDialogCallBack callBack;
 
