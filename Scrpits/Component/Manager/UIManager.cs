@@ -107,11 +107,7 @@ public partial class UIManager : BaseUIManager
             DialogView dialogView = objDialog.GetComponent<DialogView>();
             if (dialogView == null)
                 Destroy(objDialog);
-            dialogView.SetCallBack(dialogBean.callBack);
-            dialogView.SetAction(dialogBean.actionSubmit, dialogBean.actionCancel);
             dialogView.SetData(dialogBean);
-            if (dialogBean.delayDelete != 0)
-                dialogView.SetDelayDelete(dialogBean.delayDelete);
 
             //改变焦点
             EventSystem.current.SetSelectedGameObject(objDialog);

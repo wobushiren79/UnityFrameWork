@@ -11,12 +11,13 @@ public class DialogBean
     public Action<DialogView, DialogBean> actionSubmit;
     //弹窗按钮事件
     public Action<DialogView, DialogBean> actionCancel;
+    //弹窗按钮事件
+    public Action<DialogView, DialogBean> actionBG;
+
     //弹窗关闭事件-之前
     public Action<DialogView, DialogBean> actionDestoryBefore;
     //弹窗关闭事件-之后
     public Action<DialogBean> actionDestoryAfter;
-    //弹窗回调
-    public DialogView.IDialogCallBack callBack;
 
     public string title;
     public string content;
@@ -27,5 +28,10 @@ public class DialogBean
     //备注
     public string remark;
     //延迟删除
-    public float delayDelete;
+    public float timeDestroyDelay;
+
+    //是否点击后删除
+    public bool isDestroySubmit = true;
+    public bool isDestroyCancel = true;
+    public bool isDestroyBG = true;
 }

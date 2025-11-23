@@ -7,6 +7,8 @@ using TMPro;
 
 public class DialogView : BaseUIView
 {
+    public DialogBean dialogData;
+
     public Button ui_Submit;
     public Text ui_SubmitText;
     public TextMeshProUGUI ui_SubmitTextPro;
@@ -20,16 +22,6 @@ public class DialogView : BaseUIView
     public Text ui_Content;
     public TextMeshProUGUI ui_TitlePro;
     public TextMeshProUGUI ui_ContentPro;
-    protected IDialogCallBack callBack;
-
-    protected Action<DialogView, DialogBean> actionSubmit;
-    protected Action<DialogView, DialogBean> actionCancel;
-
-    public DialogBean dialogData;
-
-    protected float timeDelayDelete;
-
-    protected bool isSubmitDestroy = true;
 
     public virtual void Start()
     {
@@ -59,37 +51,35 @@ public class DialogView : BaseUIView
         if (ui_Background != null)
         {
             ui_Background.onClick.RemoveAllListeners();
-            ui_Background.onClick.AddListener(CancelOnClick);
+            ui_Background.onClick.AddListener(BGOnClick);
         }
-    }
-
-
-    public void SetSubmitDestroy(bool isSubmitDestroy)
-    {
-        this.isSubmitDestroy = isSubmitDestroy;
     }
 
     public virtual void SubmitOnClick()
     {
-        callBack?.Submit(this, dialogData);
-        actionSubmit?.Invoke(this, dialogData);
-        if (isSubmitDestroy)
-        {
+        dialogData.actionSubmit?.Invoke(this, dialogData);
+        if (dialogData.isDestroySubmit)
             DestroyDialog();
-        }
     }
     public virtual void CancelOnClick()
     {
-        callBack?.Cancel(this, dialogData);
-        actionCancel?.Invoke(this, dialogData);
-        DestroyDialog();
+        dialogData.actionCancel?.Invoke(this, dialogData);
+        if (dialogData.isDestroyCancel)
+            DestroyDialog();
+    }
+
+    public virtual void BGOnClick()
+    {
+        dialogData.actionBG?.Invoke(this, dialogData);
+        if (dialogData.isDestroyBG)
+            DestroyDialog();
     }
 
     public virtual void DestroyDialog()
     {
-        if (timeDelayDelete != 0)
+        if (dialogData.timeDestroyDelay != 0)
         {
-            transform.DOScale(new Vector3(1, 1, 1), timeDelayDelete).OnComplete(()=> 
+            transform.DOScale(new Vector3(1, 1, 1), dialogData.timeDestroyDelay).OnComplete(()=> 
             { 
                 if(gameObject != null)
                     Destroy(gameObject); 
@@ -100,17 +90,6 @@ public class DialogView : BaseUIView
             gameObject.SetActive(false);
             Destroy(gameObject);
         }
-    }
-
-    public void SetCallBack(IDialogCallBack callBack)
-    {
-        this.callBack = callBack;
-    }
-
-    public virtual void SetAction(Action<DialogView, DialogBean> actionSubmit, Action<DialogView, DialogBean> actionCancel)
-    {
-        this.actionSubmit += actionSubmit;
-        this.actionCancel += actionCancel;
     }
 
     public virtual void SetData(DialogBean dialogData)
@@ -202,20 +181,5 @@ public class DialogView : BaseUIView
         {
             ui_CancelTextPro.text = str;
         }
-    }
-
-    /// <summary>
-    /// 设置延迟删除
-    /// </summary>
-    /// <param name="delayTime"></param>
-    public virtual void SetDelayDelete(float delayTime)
-    {
-        this.timeDelayDelete = delayTime;
-    }
-
-    public interface IDialogCallBack
-    {
-        void Submit(DialogView dialogView, DialogBean dialogBean);
-        void Cancel(DialogView dialogView, DialogBean dialogBean);
     }
 }
