@@ -151,7 +151,7 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
                 {
                     int lastSlashIndex = itemSkinName.LastIndexOf('/');
                     string slot = itemSkinName.Substring(lastSlashIndex + 1);
-                    ChangeSlotColor(skeleton, slot, itemSkinData.skinColor);
+                    ChangeSlotColor(skeleton, slot, itemSkinData.skinColor.GetColor());
                 }
             }
         }

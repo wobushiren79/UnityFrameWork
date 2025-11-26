@@ -99,15 +99,17 @@ public class FileUtil
     /// <summary>
     /// 复制文件到指定路径
     /// </summary>
-    /// <param name="localFilePath">源文件路径</param>
+    /// <param name="sourceFilePatch">源文件路径</param>
     /// <param name="saveFilePath">存储路径</param>
     /// <param name="isReplace">若存储路径有相同文件是否替换</param>
-    public static void CopyFile(string localFilePath, string saveFilePath, bool isReplace)
+    public static bool CopyFile(string sourceFilePatch, string saveFilePath, bool isReplace)
     {
-        if (File.Exists(localFilePath))//必须判断要复制的文件是否存在
+        if (File.Exists(sourceFilePatch))//必须判断要复制的文件是否存在
         {
-            File.Copy(localFilePath, saveFilePath, isReplace);
+            File.Copy(sourceFilePatch, saveFilePath, isReplace);     
+            return true;
         }
+        return false;
     }
 
     /// <summary>
