@@ -8,20 +8,15 @@ using UnityEngine.U2D;
 public partial class IconManager : BaseManager
 {
     //UI图标
-    public SpriteAtlas atlasForUI;
-    public SpriteAtlas atlasForItems;
-    public SpriteAtlas atlasForSky;
-
-    public Dictionary<string, Sprite> dicUI = new Dictionary<string, Sprite>();
-    public Dictionary<string, Sprite> dicItems = new Dictionary<string, Sprite>();
-    public Dictionary<string, Sprite> dicSky = new Dictionary<string, Sprite>();
+    public Dictionary<string, Dictionary<string, Sprite>> dicSprite = new Dictionary<string, Dictionary<string, Sprite>>();
+    public Dictionary<string, SpriteAtlas> dicSpriteAtlas = new Dictionary<string, SpriteAtlas>();
 
     public static string PathSpriteAtlas = "Assets/LoadResources/Textures/SpriteAtlas";
 
     public string PathSpriteAtlasForUI = $"{PathSpriteAtlas}/AtlasForUI.spriteatlas";
     public string PathSpriteAtlasForItems = $"{PathSpriteAtlas}/AtlasForItems.spriteatlas";
     public string PathSpriteAtlasForSky = $"{PathSpriteAtlas}/AtlasForSky.spriteatlas";
-
+    public string PathSpriteAtlasForSkin = $"{PathSpriteAtlas}/AtlasForSkin.spriteatlas";
     //贴图列表
     public Dictionary<string, Texture2D> dicTex = new Dictionary<string, Texture2D>();
 
@@ -41,34 +36,31 @@ public partial class IconManager : BaseManager
         GetModelForAddressables(dicTex, texResPath, callBackForComplete);
     }
 
-
     /// <summary>
-    /// 根据名字获取UI图标
+    /// 获取sprite
     /// </summary>
-    /// <param name="name"></param>
-    /// <param name="callBack"></param>
-    public void GetUISpriteByName(string name, Action<Sprite> callBack)
+    public void GetSprite(string atlasName, string name, Action<Sprite> callBack)
     {
-        GetSpriteByName(dicUI, ref atlasForUI, PathSpriteAtlasForUI, name, callBack);
-    }
+        bool isNewAtlas = false;
+        SpriteAtlas atlas = null;
 
-    /// <summary>
-    ///  根据名字获取物品图标
-    /// </summary>
-    /// <param name="name"></param>
-    /// <param name="callBack"></param>
-    public void GetItemsSpriteByName(string name, Action<Sprite> callBack)
-    {
-        GetSpriteByName(dicUI, ref atlasForItems, PathSpriteAtlasForItems, name, callBack);
-    }
+        if (!dicSprite.TryGetValue(atlasName, out var spriteDict))
+        {
+            spriteDict = new Dictionary<string, Sprite>();
+            dicSprite.Add(atlasName, spriteDict);
+            dicSpriteAtlas.Add(atlasName, null);
+            isNewAtlas = true;
+        }
+        else
+        {
+            atlas = dicSpriteAtlas[atlasName];
+        }
 
-    /// <summary>
-    /// 根据名字获取天空图标
-    /// </summary>
-    /// <param name="name"></param>
-    /// <param name="callBack"></param>
-    public void GetSkySpriteByName(string name, Action<Sprite> callBack)
-    {
-        GetSpriteByName(dicSky, ref atlasForSky, PathSpriteAtlasForSky, name, callBack);
+        GetSpriteByName(spriteDict, ref atlas, $"{PathSpriteAtlas}/{atlasName}.spriteatlas", name, callBack);
+
+        if (isNewAtlas)
+        {
+            dicSpriteAtlas[atlasName] = atlas;
+        }
     }
 }

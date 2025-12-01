@@ -320,7 +320,8 @@ public class SpineWindow : EditorWindow
                                 List<string> listFilter = filterSkinName.SplitForListStr(',');
                                 foreach (var itemFilter in listFilter)
                                 {
-                                    if (region.name.Contains(itemFilter))
+                                    string regionNameFirst = region.name.Split('_')[0];
+                                    if (regionNameFirst.Equals(itemFilter))
                                     {
                                         actionStartMerge?.Invoke();
                                         break;
@@ -354,7 +355,8 @@ public class SpineWindow : EditorWindow
                             List<string> listFilter = filterSkinName.SplitForListStr(',');
                             foreach (var itemFilter in listFilter)
                             {
-                                if (region.name.Contains(itemFilter))
+                                string regionNameFirst = region.name.Split('_')[0];
+                                if (regionNameFirst.Equals(itemFilter))
                                 {
                                     Texture2D newTex = CreateRegionTexture(region, sourceTexture);
                                     SaveRegionTexture(spineAtlas, skin, newTex, outputPath);

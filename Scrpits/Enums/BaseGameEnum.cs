@@ -162,5 +162,6 @@ public enum SpriteAtlasType
     UI,//ui
     Items,//道具
     Sky,//天空
+    Skins,//皮肤
 }
 

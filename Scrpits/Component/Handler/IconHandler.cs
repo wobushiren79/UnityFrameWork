@@ -35,32 +35,12 @@ public partial class IconHandler : BaseHandler<IconHandler, IconManager>
     /// <returns></returns>
     public void GetUnKnowSprite(Action<Sprite> callBack)
     {
-        manager.GetUISpriteByName("icon_unknow", callBack);
+        manager.GetSprite($"AtlasFor{SpriteAtlasType.UI.GetEnumName()}", "icon_unknow", callBack);
     }
 
     /// <summary>
-    /// 获取图标sprite
+    /// 获取图标
     /// </summary>
-    /// <param name="spriteData">前图集 后名字 用,分割</param>
-    public void GetIconSprite(string spriteData, Action<Sprite> callBack)
-    {
-        string[] spriteArrayData = spriteData.SplitForArrayStr(',');
-        SpriteAtlasType spriteAtlasType = SpriteAtlasType.UI;
-        if (spriteArrayData[0].Equals("0"))
-        {
-            spriteAtlasType = SpriteAtlasType.UI;
-        }
-        else if (spriteArrayData[0].Equals("1"))
-        {
-            spriteAtlasType = SpriteAtlasType.Items;
-        }
-        else if (spriteArrayData[0].Equals("2"))
-        {
-            spriteAtlasType = SpriteAtlasType.Sky;
-        }
-        GetIconSprite(spriteAtlasType, spriteArrayData[1], callBack);
-    }
-
     public void GetIconSprite(SpriteAtlasType spriteAtlasType, string spriteName, Action<Sprite> callBack)
     {
         Action<Sprite> callBackForComplete = (sprite) =>
@@ -74,17 +54,6 @@ public partial class IconHandler : BaseHandler<IconHandler, IconManager>
                 callBack?.Invoke(sprite);
             }
         };
-        switch (spriteAtlasType)
-        {
-            case SpriteAtlasType.UI:
-                manager.GetUISpriteByName(spriteName, callBackForComplete);
-                break;
-            case SpriteAtlasType.Items:
-                manager.GetItemsSpriteByName(spriteName, callBackForComplete);
-                break;
-            case SpriteAtlasType.Sky:
-                manager.GetSkySpriteByName(spriteName, callBackForComplete);
-                break;
-        }
+        manager.GetSprite($"AtlasFor{spriteAtlasType.GetEnumName()}", spriteName, callBackForComplete);
     }
 }
