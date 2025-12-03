@@ -162,7 +162,7 @@ public class SpineManager : BaseManager
         Skin targetSkinNew = skeletonData.FindSkin(skinName);
         if (targetSkinNew == null)
         {
-            LogUtil.LogError($"没有找到指定皮肤 skeletonData.Name：{skeletonData.Name} skinName：{skinName}");
+            LogUtil.LogError($"没有找到指定皮肤 skeletonData.Name：{skeletonData.Name} skinName：{skinName} AudioPath:{skeletonData.AudioPath}");
             return null;
         }
         return targetSkinNew;
