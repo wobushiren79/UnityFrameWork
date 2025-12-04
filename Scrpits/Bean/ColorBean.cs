@@ -63,6 +63,13 @@ public class ColorBean
     public ColorBean(Color color) : this(color.r, color.g, color.b, color.a)
     {
     }
+    public void SetColor(Color targetColor)
+    {
+        this.r = targetColor.r;
+        this.g = targetColor.g;
+        this.b = targetColor.b;
+        this.a = targetColor.a;
+    }
 
     public Color GetColor()
     {

@@ -133,8 +133,6 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
             foreach (var itemData in dicSkin)
             {
                 var itemSkinName = itemData.Key;
-                var itemSkinData = itemData.Value;
-
                 if (itemSkinName.IsNull())
                 {
                     continue;
@@ -146,6 +144,22 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
                 }
                 //添加皮肤
                 newSkin.AddSkin(itemSkin);
+            }
+        }
+        skeleton.SetSkin(newSkin);
+        skeleton.SetSlotsToSetupPose();
+
+        //改变皮肤颜色
+        if (dicSkin != null)
+        {
+            foreach (var itemData in dicSkin)
+            {
+                var itemSkinName = itemData.Key;
+                var itemSkinData = itemData.Value;
+                if (itemSkinName.IsNull())
+                {
+                    continue;
+                }
                 //改变皮肤颜色
                 if (itemSkinData.hasColor)
                 {
@@ -155,8 +169,6 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
                 }
             }
         }
-        skeleton.SetSkin(newSkin);
-        skeleton.SetSlotsToSetupPose();
     }
 
     /// <summary>
