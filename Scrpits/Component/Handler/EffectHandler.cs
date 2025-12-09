@@ -21,8 +21,11 @@ public partial class EffectHandler : BaseHandler<EffectHandler, EffectManager>
                 //展示时间过后就删除
                 this.WaitExecuteSeconds(effectData.timeForShow, () =>
                 {
-                    manager.DestoryEffect(effect);
-                    callBackDestory?.Invoke(effect);
+                    if (effect != null)
+                    {
+                        manager.DestoryEffect(effect);
+                        callBackDestory?.Invoke(effect);
+                    }
                 });
             }
         });

@@ -8,10 +8,22 @@ public class SpineSkinBean
     public bool hasColor;
     public ColorBean skinColor;
 
-    public SpineSkinBean(long skinId)
+    public SpineSkinBean()
+    {
+
+    }
+
+
+    public SpineSkinBean(long skinId) : this(skinId, false, Color.white)
+    {
+
+    }
+
+
+    public SpineSkinBean(long skinId, bool hasColor, Color color)
     {
         this.skinId = skinId;
-        this.hasColor = false;
-        this.skinColor = new ColorBean(Color.white);
+        this.hasColor = hasColor;
+        this.skinColor = new ColorBean(color);
     }
 }
