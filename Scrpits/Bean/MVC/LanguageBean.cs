@@ -19,6 +19,11 @@ public partial class LanguageCfg : BaseCfg<long, LanguageBean>
 		if (dicData == null || !dicData.ContainsKey(cfgName))
 		{
 			LanguageBean[] arrayData = GetInitData($"{fileName}_{cfgName}_{currentLanguage}");
+			if (arrayData == null)
+            {
+				LogUtil.LogError($"读取多语言表失败 没有找到表名为{cfgName}的数据 全名：{fileName}_{cfgName}_{currentLanguage}");
+                return null;
+            }
 			InitData(cfgName, arrayData);
 		}
 		if (dicData.TryGetValue(cfgName, out Dictionary<long, LanguageBean> cfgData))

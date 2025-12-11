@@ -14,6 +14,8 @@ public class BaseUIComponent : BaseUIInit
     public BaseUIManager uiManager;
     //备注数据
     public string remarkData;
+    //UI关闭类型 默认隐藏
+    protected UICloseTypeEnum uiCloseType = UICloseTypeEnum.Hide;
 
     public override void Awake()
     {
@@ -39,6 +41,18 @@ public class BaseUIComponent : BaseUIInit
         base.CloseUI();
         StopAllCoroutines();
         UnRegisterInputAction();
+        if (uiCloseType == UICloseTypeEnum.Destory)
+        {
+            UIHandler.Instance.manager.DestoryUI(this);
+        }
+    }
+
+    /// <summary>
+    /// 设置UI关闭类型
+    /// </summary>
+    public virtual void SetUICloseType(UICloseTypeEnum uiCloseType)
+    {
+        this.uiCloseType = uiCloseType;
     }
 
     /// <summary>

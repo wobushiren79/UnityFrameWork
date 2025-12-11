@@ -53,6 +53,23 @@ public partial class UIManager : BaseUIManager
     }
 
     /// <summary>
+    /// 删除UI 注意-请不要单独使用这个方式删除UI
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="uiComponent"></param>
+    public void DestoryUI<T>(T uiComponent) where T : BaseUIComponent
+    {
+        if (uiComponent != null)
+        {
+            if (uiList.Contains(uiComponent))
+            {
+                uiList.Remove(uiComponent);
+            }
+            Destroy(uiComponent.gameObject);
+        }
+    }
+
+    /// <summary>
     /// 创建UI
     /// </summary>
     /// <typeparam name="T"></typeparam>

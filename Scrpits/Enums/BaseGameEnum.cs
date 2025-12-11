@@ -15,6 +15,15 @@ public enum UIOpenAnimEnum
 }
 
 /// <summary>
+/// BaseUIComponent关闭类型
+/// </summary>
+public enum UICloseTypeEnum
+{
+    Hide = 0,//隐藏
+    Destory = 1,//删除
+}
+
+/// <summary>
 /// 有效值
 /// </summary>
 public enum ValidEnum
