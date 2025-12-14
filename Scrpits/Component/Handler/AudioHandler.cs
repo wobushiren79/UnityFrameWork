@@ -159,7 +159,10 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
             audioSource = manager.audioSourceForSound;
         }
         GameConfigBean gameConfig = GameDataHandler.Instance.manager.GetGameConfig();
-        PlaySound(soundId, Camera.main.transform.position, gameConfig.soundVolume, audioSource);
+        if (Camera.main != null)
+        {
+            PlaySound(soundId, Camera.main.transform.position, gameConfig.soundVolume, audioSource);
+        }
     }
 
     public void PlaySound(int soundId, Vector3 soundPosition, AudioSource audioSource = null)
