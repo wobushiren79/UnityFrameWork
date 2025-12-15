@@ -15,4 +15,6 @@ public class EffectBean
     public Vector3 effectPosition;
     //是否展示时播放
     public bool isPlayInShow = true;
+    //是否播放完成后销毁
+    public bool isDestoryPlayEnd = false;
 }

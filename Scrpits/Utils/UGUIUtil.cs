@@ -8,30 +8,30 @@ using UnityEngine.UI;
 public class UGUIUtil
 {
     public static Vector3 GetRootPos(
-        Transform newParent, 
+        Transform newParent,
         Transform originalTF)
     {
         return GetRootPos(newParent, originalTF.position);
     }
 
     public static Vector3 GetRootPos(
-        Transform newParent, 
+        Transform newParent,
         Vector3 originalPosition)
     {
         return newParent.InverseTransformPoint(originalPosition);
     }
 
     public static Vector2 GetRootPosForUI(
-        RectTransform originalRTF, 
-        RectTransform newParent, 
+        RectTransform originalRTF,
+        RectTransform newParent,
         Camera cameraParent = null)
     {
         return GetRootPosForUI(originalRTF.position, newParent, cameraParent);
     }
 
     public static Vector2 GetRootPosForUI(
-        Vector3 originalWorldPosition, 
-        RectTransform newParent, 
+        Vector3 originalWorldPosition,
+        RectTransform newParent,
         Camera cameraParent = null)
     {
         // 获取子控件的屏幕坐标
@@ -115,5 +115,17 @@ public class UGUIUtil
     public static void RefreshUISize(RectTransform rectTransform)
     {
         LayoutRebuilder.ForceRebuildLayoutImmediate(rectTransform);
+    }
+    
+    /// <summary>
+    /// 刷新UI大小
+    /// </summary>
+    /// <param name="transform"></param>
+    public static void RefreshUISize(Transform transform)
+    {
+        if (transform is RectTransform rtf)
+        {
+            RefreshUISize(rtf);
+        }
     }
 }

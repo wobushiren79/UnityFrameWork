@@ -135,22 +135,31 @@ public partial class EffectManager : BaseManager
     {
         EffectBean effectData = effect.effectData;
         listEffect.Remove(effect);
-        if (dicPoorEffect.TryGetValue(effectData.effectName, out Queue<EffectBase> listPoorEffect))
-        {
-            listPoorEffect.Enqueue(effect);
-        }
-        else
-        {
-            Queue<EffectBase> listEffect = new Queue<EffectBase>();
-            listEffect.Enqueue(effect);
-            dicPoorEffect.Add(effectData.effectName, listEffect);
-        }
         //持续性粒子列表删除
         if (effectData.effectShowType == EffectShowTypeEnum.Enduring)
         {
-            if(dicEffectForEnduring.ContainsKey(effectData.effectName))
+            if (dicEffectForEnduring.ContainsKey(effectData.effectName))
                 dicEffectForEnduring.Remove(effectData.effectName);
         }
-        effect.ShowObj(false);
+        //如果是播放完成直接销毁
+        if (effectData.isDestoryPlayEnd)
+        {
+            Destroy(effect.gameObject);
+            return;
+        }
+        else
+        {
+            if (dicPoorEffect.TryGetValue(effectData.effectName, out Queue<EffectBase> listPoorEffect))
+            {
+                listPoorEffect.Enqueue(effect);
+            }
+            else
+            {
+                Queue<EffectBase> listEffect = new Queue<EffectBase>();
+                listEffect.Enqueue(effect);
+                dicPoorEffect.Add(effectData.effectName, listEffect);
+            }
+            effect.ShowObj(false);
+        }
     }
 }
