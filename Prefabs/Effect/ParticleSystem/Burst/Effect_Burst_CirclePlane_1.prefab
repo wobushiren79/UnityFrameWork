@@ -4873,7 +4873,7 @@ GameObject:
   - component: {fileID: 4048874703246631104}
   - component: {fileID: 1928415926580955882}
   m_Layer: 0
-  m_Name: Effect_Burst_13_Area
+  m_Name: Effect_Burst_CirclePlane_1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
