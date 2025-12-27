@@ -392,4 +392,15 @@ public class TypeConversionUtil
         }
         return listData;
     }
+
+    /// <summary>
+    ///  枚举转long
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="enumArray"></param>
+    /// <returns></returns>
+    public static long[] EnumToLongArray<T>(T[] enumArray) where T : Enum
+    {
+        return enumArray.Select(e => Convert.ToInt64(e)).ToArray();
+    }
 }

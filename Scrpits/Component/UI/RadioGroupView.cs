@@ -23,6 +23,16 @@ public class RadioGroupView : BaseMonoBehaviour, IRadioButtonCallBack
         }
     }
 
+    public void AddRadioButton(RadioButtonView targetRB)
+    {
+        if (listButton == null)
+        {
+            listButton = new List<RadioButtonView>();
+        }
+        listButton.Add(targetRB);
+        targetRB.SetCallBack(this);
+    }
+
     public void SetPosition(int position, bool isCallBack)
     {
         if (listButton == null)
@@ -60,10 +70,12 @@ public class RadioGroupView : BaseMonoBehaviour, IRadioButtonCallBack
         if (rbList != null)
             listButton = TypeConversionUtil.ArrayToList(rbList);
         if (listButton != null)
+        {
             foreach (RadioButtonView itemRB in listButton)
             {
                 itemRB.SetCallBack(this);
             }
+        }
     }
 
     /// <summary>

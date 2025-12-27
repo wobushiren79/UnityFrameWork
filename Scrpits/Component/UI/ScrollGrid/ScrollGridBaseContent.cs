@@ -5,6 +5,8 @@ using UnityEngine;
 using UnityEngine.UI;
 public class ScrollGridBaseContent : BaseMonoBehaviour
 {
+    [Header("Mask状态 0:mask 1:RectMask2D")]
+    public int maskState = 0;
     public GameObject tempCell;//模板cell，以此为目标，克隆出每个cell。
     public ScrollRect.MovementType movementType = ScrollRect.MovementType.Elastic;
 
@@ -135,11 +137,21 @@ public class ScrollGridBaseContent : BaseMonoBehaviour
         this.scrollRect.viewport.anchoredPosition3D = Vector3.zero;
         this.scrollRect.viewport.eulerAngles = Vector3.zero;
 
-        //设置viewpoint的mask。
-        this.scrollRect.viewport.gameObject.AddComponent<Mask>().showMaskGraphic = false;
         Image image = this.scrollRect.viewport.gameObject.AddComponent<Image>();
         Rect viewRect = this.scrollRect.viewport.rect;
         image.sprite = Sprite.Create(new Texture2D(1, 1), new Rect(Vector2.zero, Vector2.one), Vector2.zero);
+
+        //设置viewpoint的mask。
+        if (maskState == 0)
+        {
+            this.scrollRect.viewport.gameObject.AddComponent<Mask>().showMaskGraphic = false;
+            image.color = new Color(1, 1, 1, 1f);
+        }
+        else if (maskState == 1)
+        {
+            this.scrollRect.viewport.gameObject.AddComponent<RectMask2D>();
+            image.color = new Color(0, 0, 0, 0f);
+        }
 
         //获取模板cell的宽高。
         Rect tempRect = tempCell.GetComponent<RectTransform>().rect;
