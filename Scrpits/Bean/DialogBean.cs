@@ -33,5 +33,5 @@ public class DialogBean
     //是否点击后删除
     public bool isDestroySubmit = true;
     public bool isDestroyCancel = true;
-    public bool isDestroyBG = true;
+    public bool isDestroyBG = false;
 }

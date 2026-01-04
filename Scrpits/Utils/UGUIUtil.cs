@@ -113,7 +113,11 @@ public class UGUIUtil
     /// </summary>
     /// <param name="rectTransform"></param>
     public static void RefreshUISize(RectTransform rectTransform)
-    {
+    {        
+        if (rectTransform == null)
+        {
+            return;
+        }
         LayoutRebuilder.ForceRebuildLayoutImmediate(rectTransform);
     }
     
@@ -123,6 +127,10 @@ public class UGUIUtil
     /// <param name="transform"></param>
     public static void RefreshUISize(Transform transform)
     {
+        if (transform == null)
+        {
+            return;
+        }
         if (transform is RectTransform rtf)
         {
             RefreshUISize(rtf);
