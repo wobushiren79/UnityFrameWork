@@ -395,6 +395,12 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
         ToastBean toastData = new ToastBean(ToastEnum.Normal, hintContent, toastIconSp);
         return manager.CreateToast<T>(toastData);
     }
+    
+    public T ToastHint<T>(Sprite toastIconSp, Color toastIconColor, string hintContent) where T : ToastView
+    {
+        ToastBean toastData = new ToastBean(ToastEnum.Normal, hintContent, toastIconSp, toastIconColor);
+        return manager.CreateToast<T>(toastData);
+    }
 
     public T ToastHint<T>(Sprite toastIconSp, string hintContent, float showTime) where T : ToastView
     {

@@ -3,16 +3,18 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
+using TMPro;
 
-public class ToastView : BaseMonoBehaviour
+public class ToastView : BaseUIView
 {
-    public Image ivIcon;
-    public Text tvContent;
+    public Image ui_Icon;
+    public Text ui_Content;
+    public TextMeshProUGUI ui_ContentPro;
     public CanvasGroup cgToast;
 
-    public void Awake()
+    public override void Awake()
     {
-        AutoLinkUI();
+        base.Awake();
         cgToast = GetComponent<CanvasGroup>();
     }
 
@@ -26,13 +28,19 @@ public class ToastView : BaseMonoBehaviour
     public void SetData(ToastBean toastData)
     {
         //设置Icon
-        SetIcon(toastData.toastIcon);
+        SetIcon(toastData.toastIcon, toastData.toastIconColor);
         //设置内容
         SetContent(toastData.content);
         //定时销毁
         DestroyToast(toastData.showTime);
-
-        UGUIUtil.RefreshUISize(tvContent.rectTransform);
+        if (ui_Content != null)
+        {
+            UGUIUtil.RefreshUISize(ui_Content.rectTransform);
+        }
+        if (ui_ContentPro != null)
+        {
+            UGUIUtil.RefreshUISize(ui_ContentPro.rectTransform);
+        }
         UGUIUtil.RefreshUISize((RectTransform)cgToast.transform);
 
         AnimForShow();
@@ -42,11 +50,12 @@ public class ToastView : BaseMonoBehaviour
     /// 设置图标
     /// </summary>
     /// <param name="spIcon"></param>
-    public void SetIcon(Sprite spIcon)
+    public void SetIcon(Sprite spIcon, Color spIconColor)
     {
-        if (ivIcon != null && spIcon != null)
+        if (ui_Icon != null && spIcon != null)
         {
-            ivIcon.sprite = spIcon;
+            ui_Icon.sprite = spIcon;
+            ui_Icon.color = spIconColor;
         }
     }
 
@@ -56,9 +65,13 @@ public class ToastView : BaseMonoBehaviour
     /// <param name="content"></param>
     public void SetContent(string content)
     {
-        if (tvContent != null)
+        if (ui_Content != null)
         {
-            tvContent.text = content;
+            ui_Content.text = content;
+        }
+        if (ui_ContentPro!=null)
+        {
+            ui_ContentPro.text = content;
         }
     }
 
