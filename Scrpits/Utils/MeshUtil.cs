@@ -62,7 +62,7 @@ public class MeshUtil : ScriptableObject
                         AddEdge(data, x, y, DirectionEnum.Down);
 
                     if (y == data.height - 1 || !HasPixel(data, x, y + 1))
-                        AddEdge(data, x, y, DirectionEnum.UP);
+                        AddEdge(data, x, y, DirectionEnum.Up);
                 }
             }
         }
@@ -101,7 +101,7 @@ public class MeshUtil : ScriptableObject
         uv += size * 0.5f;
         Vector2 P2 = P;
         Vector3 normal;
-        if (direction == DirectionEnum.UP)
+        if (direction == DirectionEnum.Up)
         {
             P += size;
             P2.y += size.y;

@@ -51,7 +51,7 @@ public enum Direction2DEnum
     None = 0,
     Left = 1,
     Right = 2,
-    UP = 3,
+    Up = 3,
     Down = 4,
 }
 
@@ -61,7 +61,7 @@ public enum Direction2DEnum
 public enum DirectionEnum
 {
     None = 0,
-    UP = 1,
+    Up = 1,
     Down = 2,
     Left = 3,
     Right = 4,

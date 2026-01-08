@@ -13,6 +13,8 @@ public class PopupShowView : BaseUIView
     //是否实时更新位置
     public bool isUpdatePosition = true;
 
+    protected Direction2DEnum mouseAreaLeftRight =  Direction2DEnum.Left;
+    protected Direction2DEnum mouseAreaUpDown = Direction2DEnum.Down;
     public override void Awake()
     {
         base.Awake();
@@ -42,7 +44,7 @@ public class PopupShowView : BaseUIView
     }
 
 
-    public void InitPosition()
+    public virtual void InitPosition()
     {
         if (isUpdatePosition && gameObject.activeSelf)
         {
@@ -61,21 +63,27 @@ public class PopupShowView : BaseUIView
             {    
                 //左
                 offsetTotalX = 0 - offsetPivot.x;
+                mouseAreaLeftRight = Direction2DEnum.Left;
             }
             else
             {  
                 //右
                 offsetTotalX = 1 + offsetPivot.x;
+                mouseAreaLeftRight = Direction2DEnum.Right;
             }
 
             //屏幕上下修正
             if (Input.mousePosition.y <= (Screen.height / 2))
             {
+                //下
                 offsetTotalY = 0 + offsetPivot.y;
+                mouseAreaUpDown = Direction2DEnum.Down;
             }
             else
             {
+                //上
                 offsetTotalY = 1 + offsetPivot.y;
+                mouseAreaUpDown = Direction2DEnum.Up;
             }
             rectTransform.pivot = new Vector2(offsetTotalX, offsetTotalY);
         }
