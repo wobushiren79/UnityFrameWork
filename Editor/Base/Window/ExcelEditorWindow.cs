@@ -1,6 +1,5 @@
-﻿using DG.Tweening.Plugins.Core.PathCore;
+﻿
 using OfficeOpenXml;
-using OfficeOpenXml.FormulaParsing.Excel.Functions.Logical;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,15 +9,17 @@ using System.Text;
 using UnityEditor;
 using UnityEditor.Toolbars;
 using UnityEngine;
-using UnityEngine.TextCore;
 using UnityEngine.UIElements;
 
 public class ExcelEditorWindow : EditorWindow
 {
-    [MenuItem("Custom/工具弹窗/处理Excel")]
+ [MenuItem("Custom/工具弹窗/处理Excel")]
     static void CreateWindows()
     {
-        EditorWindow.GetWindowWithRect(typeof(ExcelEditorWindow), new Rect(0, 0, 600, 800));
+        var window = EditorWindow.GetWindow<ExcelEditorWindow>();
+        window.titleContent = new GUIContent("Excel处理工具");
+        window.minSize = new Vector2(650, 800);
+        window.Show();
     }
 
     public string queryStr;//查询
@@ -29,7 +30,17 @@ public class ExcelEditorWindow : EditorWindow
 
     public FileInfo[] queryFileInfos;
 
-    protected Vector2 scrollPosForList = new Vector2();
+    protected Vector2 scrollPosForList = Vector2.zero;
+   protected  Vector2 fileListScroll = Vector2.zero;
+    // 添加一个变量来跟踪窗口是否已初始化
+    private bool stylesInitialized = false;
+    
+    // 自定义样式
+    private GUIStyle boxStyle;
+    private GUIStyle buttonStyle;
+    private GUIStyle textFieldStyle;
+    private GUIStyle listItemStyle;
+    private GUIStyle sectionHeaderStyle;
 
     [InitializeOnLoadMethod]
     public static void Init()
@@ -46,14 +57,6 @@ public class ExcelEditorWindow : EditorWindow
             CreateWindows();
         };
 
-        //var m_TextElement = refresh.Q<TextElement>(className: "unity-editor-toolbar-element__label");
-        //var ArrowElement = refresh.Q(className: "unity-icon-arrow");
-
-        //m_TextElement.style.width = 100;
-        //m_TextElement.style.textOverflow = TextOverflow.Clip;
-        //m_TextElement.style.unityTextAlign = TextAnchor.MiddleCenter;
-        //ArrowElement.style.display = DisplayStyle.None;
-
         rootVisualElement.Add(refresh);
     }
 
@@ -62,8 +65,71 @@ public class ExcelEditorWindow : EditorWindow
         excelFolderPath = Application.dataPath + "/Data/Excel";
         entityFolderPath = Application.dataPath + "/Scrpits/Bean/MVC/Game";
         entityFolderPathForFrameWork = Application.dataPath + "/FrameWork/Scrpits/Bean/MVC";
-        //jsonFolderPath = Application.streamingAssetsPath + "/JsonText";
         jsonFolderPath = Application.dataPath + "/Resources/JsonText";
+        
+        // 初始化样式
+        InitializeStyles();
+    }
+    
+    private void InitializeStyles()
+    {
+        if (stylesInitialized) return;
+        
+        // 分区标题样式
+        sectionHeaderStyle = new GUIStyle(EditorStyles.boldLabel)
+        {
+            fontSize = 14,
+            fixedHeight = 28,
+            alignment = TextAnchor.MiddleLeft,
+            padding = new RectOffset(10, 0, 8, 8),
+            normal = { textColor = EditorGUIUtility.isProSkin ? 
+                new Color(0.9f, 0.9f, 0.9f) : new Color(0.1f, 0.1f, 0.1f) }
+        };
+        
+        // 盒子样式
+        boxStyle = new GUIStyle("HelpBox")
+        {
+            padding = new RectOffset(15, 15, 15, 15),
+            margin = new RectOffset(5, 5, 10, 10)
+        };
+        
+        // 按钮样式
+        buttonStyle = new GUIStyle(GUI.skin.button)
+        {
+            padding = new RectOffset(12, 12, 8, 8),
+            margin = new RectOffset(2, 2, 2, 2),
+            fontSize = 12,
+            fontStyle = FontStyle.Bold
+        };
+        
+        // 文本框样式
+        textFieldStyle = new GUIStyle(EditorStyles.textField)
+        {
+            padding = new RectOffset(8, 8, 6, 6),
+            margin = new RectOffset(2, 2, 2, 2)
+        };
+        
+        // 列表项样式
+        listItemStyle = new GUIStyle()
+        {
+            padding = new RectOffset(5, 5, 5, 5),
+            margin = new RectOffset(2, 2, 2, 2),
+            normal = { background = MakeTex(2, 2, EditorGUIUtility.isProSkin ? 
+                new Color(0.3f, 0.3f, 0.3f, 0.8f) : new Color(0.95f, 0.95f, 0.95f)) }
+        };
+        
+        stylesInitialized = true;
+    }
+    
+    private Texture2D MakeTex(int width, int height, Color col)
+    {
+        Color[] pix = new Color[width * height];
+        for (int i = 0; i < pix.Length; i++)
+            pix[i] = col;
+        Texture2D result = new Texture2D(width, height);
+        result.SetPixels(pix);
+        result.Apply();
+        return result;
     }
 
     private void OnDestroy()
@@ -73,145 +139,327 @@ public class ExcelEditorWindow : EditorWindow
 
     private void OnGUI()
     {
-        GUILayout.BeginHorizontal();
-        if (EditorUI.GUIButton("选择Excel所在文件夹", 200))
+        // 确保样式已初始化
+        if (!stylesInitialized)
         {
-            excelFolderPath = EditorUI.GetFolderPanel("选择目录");
+            InitializeStyles();
         }
-        if (EditorUI.GUIButton("打开所在文件夹", 200))
-        {
-            EditorUI.OpenFolder(excelFolderPath);
-        }
-        GUILayout.EndHorizontal();
-        excelFolderPath = EditorUI.GUIEditorText(excelFolderPath, 500);
-        GUILayout.Space(10);
-        GUILayout.BeginHorizontal();
-        if (EditorUI.GUIButton("选择Entity所在文件夹", 200))
-        {
-            entityFolderPath = EditorUI.GetFolderPanel("选择目录");
-        }
-        if (EditorUI.GUIButton("打开所在文件夹", 200))
-        {
-            EditorUI.OpenFolder(entityFolderPath);
-        }
-        GUILayout.EndHorizontal();
-        entityFolderPath = EditorUI.GUIEditorText(entityFolderPath, 500);
-        GUILayout.Space(10);
-        GUILayout.BeginHorizontal();
-        if (EditorUI.GUIButton("选择Json文本所在文件夹", 200))
-        {
-            jsonFolderPath = EditorUI.GetFolderPanel("选择目录");
-        }
-        if (EditorUI.GUIButton("打开所在文件夹", 200))
-        {
-            EditorUI.OpenFolder(jsonFolderPath);
-        }
-        GUILayout.EndHorizontal();
-        jsonFolderPath = EditorUI.GUIEditorText(jsonFolderPath, 500);
-        GUILayout.Space(10);
-        GUILayout.Space(20);
+        EditorGUILayout.BeginScrollView(scrollPosForList);
 
-        GUILayout.BeginHorizontal();
-        if (EditorUI.GUIButton("生成所有相关Entity", 200))
+        // 第一部分：路径设置
+        DrawPathSettings();
+        
+        GUILayout.Space(10);
+        
+        // 第二部分：批量操作
+        DrawBatchOperations();
+        
+        GUILayout.Space(10);
+        
+        // 第三部分：Excel文件列表
+        DrawExcelList();
+        
+        EditorGUILayout.EndScrollView();
+    }
+    
+    private void DrawPathSettings()
+    {
+        EditorGUILayout.BeginVertical(boxStyle);
+        EditorGUILayout.LabelField("路径设置", sectionHeaderStyle);
+        GUILayout.Space(10);
+        
+        // Excel文件夹路径
+        DrawPathField("Excel文件夹路径:", ref excelFolderPath, "选择Excel目录");
+        
+        GUILayout.Space(10);
+        
+        // Entity文件夹路径
+        DrawPathField("Entity文件夹路径:", ref entityFolderPath, "选择Entity目录");
+        
+        GUILayout.Space(10);
+        
+        // Json文件夹路径
+        DrawPathField("Json文件夹路径:", ref jsonFolderPath, "选择Json目录");
+        
+        EditorGUILayout.EndVertical();
+    }
+    
+    private void DrawPathField(string label, ref string path, string dialogTitle)
+    {
+        EditorGUILayout.BeginVertical();
+        EditorGUILayout.LabelField(label, EditorStyles.miniBoldLabel);
+        EditorGUILayout.BeginHorizontal();
+        
+        // 路径文本框
+        path = EditorGUILayout.TextField(path, textFieldStyle, GUILayout.Height(25));
+        
+        // 按钮组
+        if (GUILayout.Button("选择", buttonStyle, GUILayout.Width(60), GUILayout.Height(25)))
+        {
+            string newPath = EditorUI.GetFolderPanel(dialogTitle);
+            if (!string.IsNullOrEmpty(newPath))
+            {
+                path = newPath;
+                GUI.FocusControl(null); // 移除焦点，刷新UI
+            }
+        }
+        
+        if (GUILayout.Button("打开", buttonStyle, GUILayout.Width(60), GUILayout.Height(25)))
+        {
+            if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+            {
+                EditorUI.OpenFolder(path);
+            }
+            else
+            {
+                EditorUtility.DisplayDialog("提示", "文件夹不存在，请先选择有效的路径", "确定");
+            }
+        }
+        
+        EditorGUILayout.EndHorizontal();
+        EditorGUILayout.EndVertical();
+    }
+    
+    private void DrawBatchOperations()
+    {
+        EditorGUILayout.BeginVertical(boxStyle);
+        EditorGUILayout.LabelField("批量操作", sectionHeaderStyle);
+        GUILayout.Space(10);
+        
+        EditorGUILayout.BeginHorizontal();
+        GUILayout.FlexibleSpace();
+        
+        // 添加图标
+        GUIContent entityContent = new GUIContent(" 生成所有Entity", 
+            EditorGUIUtility.IconContent("d_CreateAddNew").image);
+        
+        if (GUILayout.Button(entityContent, buttonStyle, GUILayout.Width(200), GUILayout.Height(35)))
         {
             CreateEntities();
         }
-        if (EditorUI.GUIButton("所有Excel转Json文本", 200))
+        
+        GUILayout.Space(20);
+        
+        GUIContent jsonContent = new GUIContent(" 所有Excel转Json", 
+            EditorGUIUtility.IconContent("d_TextAsset Icon").image);
+        
+        if (GUILayout.Button(jsonContent, buttonStyle, GUILayout.Width(200), GUILayout.Height(35)))
         {
             ExcelToJson();
         }
-        GUILayout.EndHorizontal();
+        
+        GUILayout.FlexibleSpace();
+        EditorGUILayout.EndHorizontal();
+        
+        EditorGUILayout.EndVertical();
+    }
+
+   private void DrawExcelList()
+    {
+        EditorGUILayout.BeginVertical(boxStyle);
+        
+        // 搜索和刷新区域
+        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.LabelField("Excel文件列表", sectionHeaderStyle, GUILayout.Width(120));
+        GUILayout.FlexibleSpace();
+        
+        // 搜索框
+        EditorGUILayout.BeginHorizontal(GUILayout.Width(250));
+        EditorGUILayout.LabelField("搜索:", GUILayout.Width(40));
+        queryStr = EditorGUILayout.TextField(queryStr, textFieldStyle, GUILayout.Height(25));
+        EditorGUILayout.EndHorizontal();
+        
         GUILayout.Space(10);
-        UIForListExcel();
+        
+        GUIContent refreshContent = new GUIContent(" 刷新", 
+            EditorGUIUtility.IconContent("d_Refresh").image);
+        
+        if (GUILayout.Button(refreshContent, buttonStyle, GUILayout.Width(100), GUILayout.Height(25)))
+        {
+            RefreshFileList();
+        }
+        EditorGUILayout.EndHorizontal();
+        
+        GUILayout.Space(15);
+        
+        // 文件列表 - 使用固定高度的滚动区域
+        if (queryFileInfos == null || queryFileInfos.Length == 0)
+        {
+            EditorGUILayout.HelpBox("没有找到Excel文件，请检查路径设置", MessageType.Info);
+        }
+        else
+        {
+            // 计算文件列表区域的高度（窗口高度减去其他部分的高度）
+            float listHeight = Mathf.Max(300, position.height - 450);
+            
+            // 文件列表滚动区域
+            fileListScroll = EditorGUILayout.BeginScrollView(fileListScroll, 
+                GUILayout.Height(listHeight));
+            
+            DrawFileList();
+            
+            EditorGUILayout.EndScrollView();
+            
+            // 统计信息
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.LabelField($"共找到 {queryFileInfos.Length} 个Excel文件", 
+                EditorStyles.miniLabel);
+            EditorGUILayout.EndHorizontal();
+        }
+        
+        EditorGUILayout.EndVertical();
+    }
+
+    private void RefreshFileList()
+    {
+        queryFileInfos = FileUtil.GetFilesByPath(excelFolderPath);
+        if (!queryStr.IsNull())
+        {
+            List<FileInfo> listQueryData = new List<FileInfo>();
+            for (int i = 0; i < queryFileInfos.Length; i++)
+            {
+                var itemInfo = queryFileInfos[i];
+                if (itemInfo.Name.ToLower().Contains(queryStr.ToLower()))
+                {
+                    listQueryData.Add(itemInfo);
+                }
+                else
+                {
+                    ExcelUtil.GetExcelPackage(itemInfo, (ep) =>
+                    {
+                        ExcelWorksheets workSheets = ep.Workbook.Worksheets;
+                        for (int w = 1; w <= workSheets.Count; w++)
+                        {
+                            ExcelWorksheet sheet = workSheets[w];
+                            if (sheet.Name.ToLower().Contains(queryStr.ToLower()) ||
+                                sheet.Name.ToLower().Contains(queryStr.Replace("Cfg", "").ToLower()))
+                            {
+                                listQueryData.Add(itemInfo);
+                                break;
+                            }
+                        }
+                    });
+                }
+            }
+            queryFileInfos = listQueryData.ToArray();
+        }
+        queryFileInfos = queryFileInfos.OrderByDescending(f => f.LastWriteTime).ToArray();
+    }
+
+   private void DrawFileList()
+    {
+        int validFileCount = 0;
+        
+        for (int i = 0; i < queryFileInfos.Length; i++)
+        {
+            FileInfo fileInfo = queryFileInfos[i];
+            if (fileInfo.Name.Contains(".meta") || fileInfo.Name.Contains("~$"))
+                continue;
+                
+            validFileCount++;
+            
+            EditorGUILayout.BeginVertical(listItemStyle);
+            
+            // 文件信息行
+            EditorGUILayout.BeginHorizontal();
+            
+            // 文件图标和名称
+            EditorGUILayout.BeginHorizontal(GUILayout.Width(300));
+            GUILayout.Space(5);
+            GUILayout.Label(EditorGUIUtility.IconContent("d_SpreadsheetAsset Icon"), GUILayout.Width(20));
+            GUILayout.Space(5);
+
+            EditorGUILayout.LabelField(fileInfo.Name, EditorStyles.boldLabel, GUILayout.Width(400));
+            EditorGUILayout.EndHorizontal();
+            
+            GUILayout.FlexibleSpace();
+            
+            // 文件大小和时间
+            EditorGUILayout.BeginHorizontal(GUILayout.Width(200));
+            string size = FormatFileSize(fileInfo.Length);
+            EditorGUILayout.LabelField(size, EditorStyles.miniLabel, GUILayout.Width(60));
+            EditorGUILayout.LabelField(fileInfo.LastWriteTime.ToString("MM-dd HH:mm"), 
+                EditorStyles.miniLabel, GUILayout.Width(80));
+            EditorGUILayout.EndHorizontal();
+            
+            EditorGUILayout.EndHorizontal();
+            
+            // 操作按钮行
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            
+            GUIContent entityBtnContent = new GUIContent("生成Entity", 
+                EditorGUIUtility.IconContent("d_ScriptableObject Icon").image);
+            
+            if (GUILayout.Button(entityBtnContent, buttonStyle, GUILayout.Width(100), GUILayout.Height(25)))
+            {
+                CreateEntitiesItem(fileInfo);
+            }
+            
+            GUILayout.Space(10);
+            
+            GUIContent jsonBtnContent = new GUIContent("生成Json", 
+                EditorGUIUtility.IconContent("d_TextAsset Icon").image);
+            
+            if (GUILayout.Button(jsonBtnContent, buttonStyle, GUILayout.Width(100), GUILayout.Height(25)))
+            {
+                ExcelToJsonItem(fileInfo);
+            }
+            
+            GUILayout.Space(10);
+            
+            GUIContent openBtnContent = new GUIContent("打开", 
+                EditorGUIUtility.IconContent("d_FolderOpened Icon").image);
+            
+            if (GUILayout.Button(openBtnContent, buttonStyle, GUILayout.Width(80), GUILayout.Height(25)))
+            {
+                System.Diagnostics.Process.Start(fileInfo.FullName);
+            }
+            
+            EditorGUILayout.EndHorizontal();
+            
+            EditorGUILayout.EndVertical();
+            
+            // 分隔线（除了最后一个）
+            if (i < queryFileInfos.Length - 1)
+            {
+                GUILayout.Space(5);
+                Rect separatorRect = EditorGUILayout.GetControlRect(false, 1);
+                EditorGUI.DrawRect(separatorRect, EditorGUIUtility.isProSkin ? 
+                    new Color(0.4f, 0.4f, 0.4f, 0.5f) : new Color(0.8f, 0.8f, 0.8f, 0.5f));
+                GUILayout.Space(5);
+            }
+        }
+        
+        // 如果没有有效文件，显示提示
+        if (validFileCount == 0)
+        {
+            EditorGUILayout.HelpBox("没有找到有效的Excel文件", MessageType.Warning);
+        }
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        int order = 0;
+        double len = bytes;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len = len / 1024;
+        }
+        return $"{len:0.##} {sizes[order]}";
     }
 
     /// <summary>
-    /// Excel列表
+    /// Excel列表（保持原有方法，但UI已在DrawFileList中实现）
     /// </summary>
     public void UIForListExcel()
     {
-        if (EditorUI.GUIButton("刷新Excel", 500))
-        {
-            queryFileInfos = FileUtil.GetFilesByPath(excelFolderPath);
-            if (!queryStr.IsNull())
-            {
-                List<FileInfo> listQueryData = new List<FileInfo>();
-                for (int i = 0; i < queryFileInfos.Length; i++)
-                {
-                    var itemInfo = queryFileInfos[i];
-                    if (itemInfo.Name.ToLower().Contains(queryStr.ToLower()))
-                    {
-                        listQueryData.Add(itemInfo);
-                    }
-                    else
-                    {
-                        ExcelUtil.GetExcelPackage(itemInfo, (ep) =>
-                        {
-                            //获得所有工作表
-                            ExcelWorksheets workSheets = ep.Workbook.Worksheets;
-                            //workSheets.Add("IgnoreErrors");
-                            List<object> lst = new List<object>();
-                            //遍历所有工作表
-                            for (int w = 1; w <= workSheets.Count; w++)
-                            {
-                                //当前工作表 
-                                ExcelWorksheet sheet = workSheets[w];
-                                if (sheet.Name.ToLower().Contains(queryStr.ToLower()) || sheet.Name.ToLower().Contains(queryStr.Replace("Cfg", "").ToLower()))
-                                {
-                                    listQueryData.Add(itemInfo);
-                                    break;
-                                }
-                            }
-                        });
-                    }
-                }
-                queryFileInfos = listQueryData.ToArray();
-            }
-            queryFileInfos = queryFileInfos.OrderByDescending(f => f.LastWriteTime).ToArray();
-        }
-
-        GUILayout.BeginHorizontal();
-        EditorUI.GUIText("搜索", 50);
-        queryStr = EditorUI.GUIEditorText(queryStr, 500);
-        if (queryFileInfos == null)
-        {
-            queryFileInfos = FileUtil.GetFilesByPath(excelFolderPath);
-            queryFileInfos = queryFileInfos.OrderByDescending(f => f.LastWriteTime).ToArray();
-        }
-        GUILayout.EndHorizontal();
-
-        GUILayout.Space(10);
-        if (queryFileInfos != null)
-        {
-            scrollPosForList = EditorGUILayout.BeginScrollView(scrollPosForList);
-            for (int i = 0; i < queryFileInfos.Length; i++)
-            {
-                FileInfo fileInfo = queryFileInfos[i];
-                if (fileInfo.Name.Contains(".meta"))
-                    continue;
-                string filePath = fileInfo.FullName;
-                if (filePath.Contains(".meta"))
-                    continue;
-                if (filePath.Contains("~$"))
-                    continue;
-                GUILayout.BeginHorizontal();
-                if (EditorUI.GUIButton("生成Entity"))
-                {
-                    CreateEntitiesItem(fileInfo);
-                }
-                if (EditorUI.GUIButton("生成Json文本"))
-                {
-                    ExcelToJsonItem(fileInfo);
-                }
-                if (EditorUI.GUIButton($"{fileInfo.Name}", 400))
-                {
-                    EditorUI.OpenFolder(fileInfo.FullName);
-                }
-                GUILayout.EndHorizontal();
-                GUILayout.Space(5);
-            }
-            EditorGUILayout.EndScrollView();
-        }
+        // 此方法的功能已迁移到DrawExcelList和DrawFileList中
+        // 保留此方法以避免破坏原有代码结构
+        DrawExcelList();
     }
 
     #region Json处理
@@ -237,6 +485,7 @@ public class ExcelEditorWindow : EditorWindow
             ExcelToJsonItem(fileInfo);
         }
         EditorUtil.RefreshAsset();
+        EditorUtility.DisplayDialog("完成", "所有Excel文件已成功转换为Json文本", "确定");
     }
 
     public void ExcelToJsonItem(FileInfo fileInfo)
@@ -431,6 +680,7 @@ public class ExcelEditorWindow : EditorWindow
             CreateEntitiesItem(fileInfo);
         }
         AssetDatabase.Refresh();
+        EditorUtility.DisplayDialog("完成", "所有Entity文件已生成", "确定");
     }
 
     public void CreateEntitiesItem(FileInfo fileInfo)
@@ -530,7 +780,7 @@ public class ExcelEditorWindow : EditorWindow
         {
             path = $"{dir}/LanguageBean.cs";
             string beanPath = Application.dataPath + "/FrameWork/Editor/ScrpitsTemplates/Excel_LanguageEntity.txt";
-            EditorUtil.CreateClass(new Dictionary<string, string>(), beanPath,"LanguageBean", "Assets/FrameWork/Scrpits/Bean/MVC");
+            EditorUtil.CreateClass(new Dictionary<string, string>(), beanPath, "LanguageBean", "Assets/FrameWork/Scrpits/Bean/MVC");
         }
         else
         {
