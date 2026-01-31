@@ -3,6 +3,7 @@ using UnityEditor;
 using UnityEngine;
 using System.Text;
 using System;
+using Unity.VisualScripting;
 
 [InitializeOnLoad]
 [CustomEditor(typeof(BaseUIComponent), true)]
@@ -11,11 +12,63 @@ public class InspectorBaseUIComponent : Editor
     protected readonly static string scrpitsTemplatesPath = "/FrameWork/Editor/ScrpitsTemplates/UI_BaseUIComponent.txt";
     protected readonly static string classSuffix = "Component";
     protected readonly static string keyEditorPrefs = "InspectorBaseUIComponent";
+    
+    // UI样式相关变量
+    private GUIStyle headerStyle;
+    private GUIStyle buttonStyle;
+    private GUIStyle infoBoxStyle;
+    private GUIStyle sectionStyle;
+    private GUIStyle warningStyle;
+    
+    private void InitializeStyles()
+    {
+        if (headerStyle == null)
+        {
+            headerStyle = new GUIStyle(EditorStyles.boldLabel)
+            {
+                fontSize = 14,
+                margin = new RectOffset(0, 0, 10, 10),
+                padding = new RectOffset(5, 5, 5, 5),
+                normal = { textColor = new Color(0.2f, 0.4f, 0.8f) }
+            };
+            
+            buttonStyle = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = 12,
+                fontStyle = FontStyle.Bold,
+                fixedHeight = 30,
+                margin = new RectOffset(5, 5, 5, 5),
+                padding = new RectOffset(10, 10, 5, 5)
+            };
+            
+            infoBoxStyle = new GUIStyle(EditorStyles.helpBox)
+            {
+                margin = new RectOffset(5, 5, 10, 10),
+                padding = new RectOffset(10, 10, 10, 10),
+                fontSize = 11
+            };
+            
+            sectionStyle = new GUIStyle(EditorStyles.helpBox)
+            {
+                margin = new RectOffset(0, 0, 10, 10),
+                padding = new RectOffset(5, 5, 10, 10)
+            };
+            
+            warningStyle = new GUIStyle(EditorStyles.label)
+            {
+                fontSize = 11,
+                fontStyle = FontStyle.Italic,
+                normal = { textColor = new Color(0.8f, 0.4f, 0.2f) }
+            };
+        }
+    }
+    
     [InitializeOnLoadMethod]
     public static void Init()
     {
         AssemblyReloadEvents.afterAssemblyReload += OnAfterAssemblyReload;
     }
+    
     private static void OnAfterAssemblyReload()
     {
         bool isAutoAdd = EditorPrefs.GetBool(keyEditorPrefs, false);
@@ -29,30 +82,90 @@ public class InspectorBaseUIComponent : Editor
 
     public override void OnInspectorGUI()
     {
+        InitializeStyles();
+        
+        // 绘制默认的Inspector
         base.OnInspectorGUI();
+        
+        // 检查是否是预制体模式
         if (!EditorUtil.CheckIsPrefabMode())
         {
+            EditorGUILayout.Space(10);
+            EditorGUILayout.LabelField("⚠️ 请进入预制体编辑模式以使用UI组件功能", warningStyle);
             return;
         }
-        GUILayout.Space(50);
-        GUILayout.BeginHorizontal();
-        if (EditorUI.GUIButton("生成UICompont脚本", 200))
+        
+        // 添加分隔线
+        EditorGUILayout.Space(20);
+        EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+        EditorGUILayout.Space(10);
+        
+        // UI组件工具区域
+        using (new GUILayout.VerticalScope(sectionStyle))
         {
-            HandleForCreateUIComponent();
-            EditorPrefs.SetBool(keyEditorPrefs, true);
+            // 标题
+            EditorGUILayout.LabelField("UI组件工具", headerStyle);
+            EditorGUILayout.Space(5);
+            
+            // 说明信息
+            using (new GUILayout.VerticalScope(infoBoxStyle))
+            {
+                EditorGUILayout.LabelField("功能说明：", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField("• 生成UI组件脚本：创建与当前UI相关的C#脚本");
+                EditorGUILayout.LabelField("• 设置UI组件数据：自动绑定Hierarchy选中的控件到脚本变量");
+                EditorGUILayout.Space(5);
+                EditorGUILayout.LabelField("注意：操作前请确保已在Hierarchy视图中选中需要绑定的UI控件", warningStyle);
+            }
+            
+            EditorGUILayout.Space(15);
+            
+            // 按钮区域
+            using (new GUILayout.HorizontalScope())
+            {
+                GUILayout.FlexibleSpace();
+                
+                // 生成脚本按钮
+                GUI.backgroundColor = new Color(0.3f, 0.6f, 0.9f);
+                if (GUILayout.Button("🔄 生成UI组件脚本", buttonStyle, GUILayout.Width(180), GUILayout.Height(35)))
+                {
+                    BaseUIInit component = (BaseUIInit)target;
+                    HandleForCreateUIComponent(component);
+                    EditorPrefs.SetBool(keyEditorPrefs, true);
+                }
+                GUI.backgroundColor = Color.white;
+                
+                GUILayout.Space(15);
+                
+                // 设置数据按钮
+                GUI.backgroundColor = new Color(0.4f, 0.8f, 0.4f);
+                if (GUILayout.Button("⚙️  设置UI组件数据", buttonStyle, GUILayout.Width(180), GUILayout.Height(35)))
+                {
+                    BaseUIInit component = (BaseUIInit)target;
+                    HandleForSetUICompontData(component);
+                }
+                GUI.backgroundColor = Color.white;
+                
+                GUILayout.FlexibleSpace();
+            }
+            
+            // 状态提示
+            EditorGUILayout.Space(10);
+            bool hasPendingChanges = EditorPrefs.GetBool(keyEditorPrefs, false);
+            if (hasPendingChanges)
+            {
+                EditorGUILayout.HelpBox("脚本生成完成！将在重新编译后自动设置数据。", MessageType.Info);
+            }
         }
-        if (EditorUI.GUIButton("设置UICompont数据", 200))
-        {
-            HandleForSetUICompontData();
-        }
-        GUILayout.EndHorizontal();
+        
+        // 底部空间
+        EditorGUILayout.Space(20);
     }
 
     ////Hierarchy视图
     //[MenuItem("GameObject/创建/UIComponent", false, 10)]
     ////Projects视图
     //[MenuItem("Assets/创建/UIComponent", false, 10)]
-    public void HandleForCreateUIComponent()
+    public void HandleForCreateUIComponent(BaseUIInit uiComponent)
     {
         GameObject objSelect = Selection.activeGameObject;
         string createfileName = GetCreateScriptFileName(objSelect);
@@ -85,12 +198,17 @@ public class InspectorBaseUIComponent : Editor
     /// <summary>
     /// 处理 设置UI的值
     /// </summary>
-    public static void HandleForSetUICompontData()
+    public static void HandleForSetUICompontData(BaseUIInit uiComponent = null)
     {
         GameObject objSelect = Selection.activeGameObject;
         if (objSelect == null)
             return;
-        BaseMonoBehaviour uiComponent = objSelect.GetComponent<BaseMonoBehaviour>();
+        if (uiComponent == null)
+        {
+            uiComponent = objSelect.GetComponent<BaseUIComponent>();
+        }
+        if (uiComponent == null)
+            return;
         Dictionary<string, Type> dicData = ReflexUtil.GetAllNameAndType(uiComponent);
         foreach (var itemData in dicData)
         {

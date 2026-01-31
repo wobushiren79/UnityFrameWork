@@ -59,7 +59,7 @@ public class MathUtil
     /// <param name="outMin"></param>
     /// <param name="outMax"></param>
     /// <returns></returns>
-    public static float Remap(float In,float inMin,float inMax,float outMin,float outMax)
+    public static float Remap(float In, float inMin, float inMax, float outMin, float outMax)
     {
         return outMin + (In - inMin) * (outMax - outMin) / (inMax - inMin);
     }
@@ -248,4 +248,92 @@ public class MathUtil
         int cy = Mathf.RoundToInt(ty);
         return new Vector2Int(cx, cy);
     }
+
+    #region 在指定范围内插值计算
+    /// <summary>
+    /// 在指定范围内进行插值计算
+    /// </summary>
+    /// <param name="x">输入值</param>
+    /// <param name="x1">输入范围起点</param>
+    /// <param name="x2">输入范围终点</param>
+    /// <param name="y1">输出范围起点（对应x1）</param>
+    /// <param name="y2">输出范围终点（对应x2）</param>
+    /// <param name="easing">缓动函数类型</param>
+    /// <param name="factor">曲线因子</param>
+    /// <returns>插值结果</returns>
+    public static double InterpolationLerp(double x, double x1, double x2, double y1, double y2,
+                              int easing = 0, //0.Linear 1.指数递增（缓入） 2.指数递减（缓出） 3.S型 4.对数递增 5.对数递减
+                              double factor = 2.0)
+    {
+        // 参数验证
+        if (Math.Abs(x2 - x1) < double.Epsilon)
+            throw new ArgumentException("x1和x2不能相同");
+
+        // 限制输入在有效范围内
+        x = Math.Clamp(x, Math.Min(x1, x2), Math.Max(x1, x2));
+
+        // 归一化到0-1范围
+        double normalized = (x - x1) / (x2 - x1);
+
+        // 应用缓动函数
+        double eased = easing switch
+        {
+            0 => normalized,
+            1 => Math.Pow(normalized, factor),
+            2 => 1.0 - Math.Pow(1.0 - normalized, factor),
+            3 => normalized < 0.5
+                ? 0.5 * Math.Pow(2 * normalized, factor)
+                : 1.0 - 0.5 * Math.Pow(2 * (1 - normalized), factor),
+            4 => normalized <= 0 ? 0 : Math.Log(1 + normalized) / Math.Log(2),
+            5 => normalized >= 1 ? 1 : 1.0 - Math.Log(2 - normalized) / Math.Log(2),
+            _ => normalized
+        }; ;
+
+        // 线性插值
+        return y1 + (y2 - y1) * eased;
+    }
+
+    /// <summary>
+    /// 在指定范围内进行插值计算
+    /// </summary>
+    /// <param name="x">输入值</param>
+    /// <param name="x1">输入范围起点</param>
+    /// <param name="x2">输入范围终点</param>
+    /// <param name="y1">输出范围起点（对应x1）</param>
+    /// <param name="y2">输出范围终点（对应x2）</param>
+    /// <param name="easing">缓动函数类型</param>
+    /// <param name="factor">曲线因子</param>
+    /// <returns>插值结果</returns>
+    public static float InterpolationLerp(float x, float x1, float x2, float y1, float y2,
+                              int easing = 0, //0.Linear 1.指数递增（缓入） 2.指数递减（缓出） 3.S型 4.对数递增 5.对数递减
+                              float factor = 2.0f)
+    {
+        // 参数验证
+        if (Math.Abs(x2 - x1) < float.Epsilon)
+            throw new ArgumentException("x1和x2不能相同");
+
+        // 限制输入在有效范围内
+        x = Math.Clamp(x, Math.Min(x1, x2), Math.Max(x1, x2));
+
+        // 归一化到0-1范围
+        float normalized = (x - x1) / (x2 - x1);
+
+        // 应用缓动函数
+        float eased = easing switch
+        {
+            0 => normalized,
+            1 => Mathf.Pow(normalized, factor),
+            2 => 1.0f - Mathf.Pow(1.0f - normalized, factor),
+            3 => normalized < 0.5
+                ? 0.5f * Mathf.Pow(2 * normalized, factor)
+                : 1.0f - 0.5f * Mathf.Pow(2 * (1 - normalized), factor),
+            4 => normalized <= 0 ? 0 : Mathf.Log(1 + normalized) / Mathf.Log(2),
+            5 => normalized >= 1 ? 1 : 1.0f - Mathf.Log(2 - normalized) / Mathf.Log(2),
+            _ => normalized
+        }; ;
+
+        // 线性插值
+        return y1 + (y2 - y1) * eased;
+    }
+    #endregion
 }
