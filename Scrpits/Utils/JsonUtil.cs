@@ -26,13 +26,13 @@ public class JsonUtil : ScriptableObject
     /// <summary>
     /// Json转换成类
     /// </summary>
-    public static T FromJson<T>(string strData, JsonType jsonType = JsonType.System)
+    public static T FromJson<T>(string strData, JsonTypeEnum jsonType = JsonTypeEnum.System)
     {
         switch (jsonType)
         {
-            case JsonType.System:
+            case JsonTypeEnum.System:
                 return FromJsonBySystem<T>(strData);
-            case JsonType.Net:
+            case JsonTypeEnum.Net:
                 return FromJsonByNet<T>(strData);
         }
         return default(T);
@@ -59,13 +59,13 @@ public class JsonUtil : ScriptableObject
     /// <summary>
     /// 类转换成Json
     /// </summary>
-    public static string ToJson<T>(T dataBean, JsonType jsonType = JsonType.System)
+    public static string ToJson<T>(T dataBean, JsonTypeEnum jsonType = JsonTypeEnum.System)
     {
         switch (jsonType)
         {
-            case JsonType.System:
+            case JsonTypeEnum.System:
                 return ToJsonBySystem(dataBean);
-            case JsonType.Net:
+            case JsonTypeEnum.Net:
                 return ToJsonByNet(dataBean);
         }
         return null;

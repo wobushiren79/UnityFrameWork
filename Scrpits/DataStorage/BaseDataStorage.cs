@@ -37,7 +37,7 @@ public abstract class BaseDataStorage
     /// </summary>
     /// <param name="fileName"></param>
     /// <param name="dataBean"></param>
-    public void BaseSaveData<T>(string fileName, T dataBean, JsonType jsonType = JsonType.System)
+    public void BaseSaveData<T>(string fileName, T dataBean, JsonTypeEnum jsonType = JsonTypeEnum.System)
     {
         if (fileName.IsNull())
         {
@@ -72,7 +72,7 @@ public abstract class BaseDataStorage
     /// </summary>
     /// <param name="fileName"></param>
     /// <param name="dataBeanList"></param>
-    public void BaseSaveDataForList<T>(string fileName, List<T> dataBeanList, JsonType jsonType = JsonType.System)
+    public void BaseSaveDataForList<T>(string fileName, List<T> dataBeanList, JsonTypeEnum JsonTypeEnum = JsonTypeEnum.System)
     {
         if (fileName == null)
         {
@@ -86,7 +86,7 @@ public abstract class BaseDataStorage
         }
         DataStorageListBean<T> handBean = new DataStorageListBean<T>();
         handBean.listData = dataBeanList;
-        string strData = JsonUtil.ToJson(handBean, jsonType);
+        string strData = JsonUtil.ToJson(handBean, JsonTypeEnum);
         FileUtil.CreateTextFile(dataStoragePath, fileName, strData);
     }
 
@@ -95,7 +95,7 @@ public abstract class BaseDataStorage
     /// </summary>
     /// <param name="fileName"></param>
     /// <returns></returns>
-    public T BaseLoadData<T>(string fileName, bool isShowLog = true, JsonType jsonType = JsonType.System)
+    public T BaseLoadData<T>(string fileName, bool isShowLog = true, JsonTypeEnum jsonType = JsonTypeEnum.System)
     {
         if (fileName == null)
         {
@@ -106,7 +106,7 @@ public abstract class BaseDataStorage
         return BaseLoadDataByPath<T>($"{dataStoragePath}/{fileName}", jsonType);
     }
 
-    public T BaseLoadDataByPath<T>(string path, JsonType jsonType = JsonType.System)
+    public T BaseLoadDataByPath<T>(string path, JsonTypeEnum jsonType = JsonTypeEnum.System)
     {
         string strData = FileUtil.LoadTextFile(path);
         if (strData == null)
@@ -120,7 +120,7 @@ public abstract class BaseDataStorage
     /// </summary>
     /// <param name="fileName"></param>
     /// <returns></returns>
-    public List<T> BaseLoadDataForList<T>(string fileName, JsonType jsonType = JsonType.System)
+    public List<T> BaseLoadDataForList<T>(string fileName, JsonTypeEnum jsonType = JsonTypeEnum.System)
     {
         if (fileName == null)
         {

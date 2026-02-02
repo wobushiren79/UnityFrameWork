@@ -160,13 +160,13 @@ public enum SpineAnimationStateEnum
     Dizzy = 90001,//晕眩
 }
 
-public enum JsonType
+public enum JsonTypeEnum
 {
     System,
     Net,
 }
 
-public enum SpriteAtlasType
+public enum SpriteAtlasTypeEnum
 {
     UI,//ui
     Items,//道具
@@ -174,3 +174,11 @@ public enum SpriteAtlasType
     Skins,//皮肤
 }
 
+public enum TextReplaceEnum
+{
+    Name,//名字
+    Percentage,//百分比
+    Time_S,//时间秒
+    Time_M,//时间分
+    Time_H,//时间时
+}

@@ -35,13 +35,13 @@ public partial class IconHandler : BaseHandler<IconHandler, IconManager>
     /// <returns></returns>
     public void GetUnKnowSprite(Action<Sprite> callBack)
     {
-        manager.GetSprite($"AtlasFor{SpriteAtlasType.UI.GetEnumName()}", "icon_unknow", callBack);
+        manager.GetSprite($"AtlasFor{SpriteAtlasTypeEnum.UI.GetEnumName()}", "icon_unknow", callBack);
     }
 
     /// <summary>
     /// 获取图标
     /// </summary>
-    public void GetIconSprite(SpriteAtlasType spriteAtlasType, string spriteName, Action<Sprite> callBack)
+    public void GetIconSprite(SpriteAtlasTypeEnum spriteAtlasType, string spriteName, Action<Sprite> callBack)
     {
         Action<Sprite> callBackForComplete = (sprite) =>
         {
