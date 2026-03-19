@@ -181,4 +181,8 @@ public enum TextReplaceEnum
     Time_S,//时间秒
     Time_M,//时间分
     Time_H,//时间时
+    KillNum,//击杀数
+    UnderAttackDamage,//承受伤害
+    AttackDamage,//造成伤害
+    HPRateLess,//生命值少于百分比
 }
