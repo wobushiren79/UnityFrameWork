@@ -42,8 +42,25 @@ public class OpenEditor : Editor
     [InitializeOnLoadMethod]
     public static void Init()
     {
+        #if UNITY_6000_3_OR_NEWER
+        #else
         ToolbarExtension.ToolbarZoneLeftAlign += OnToolbarGUI;
+        #endif
     }
+
+    #if UNITY_6000_3_OR_NEWER
+    // defaultDockPosition 可选：Left / Middle / Right
+    [MainToolbarElement("自定义标题/打开存档路径", defaultDockPosition = MainToolbarDockPosition.Left)]
+    public static MainToolbarElement CreateSettingsButton()
+    {
+        var content = new MainToolbarContent("打开存档路径");
+        
+        return new MainToolbarButton(content, () =>
+        {
+            OpenPersistantPath();
+        });
+    }
+    #endif
 
     static void OnToolbarGUI(VisualElement rootVisualElement)
     {

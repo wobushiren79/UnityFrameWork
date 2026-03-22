@@ -72,22 +72,6 @@ MonoBehaviour:
   m_UIInfos: {fileID: 114340500867371532}
   m_CustomAttributes: []
   m_ParameterInfo:
-  - name: PositionStart
-    path: PositionStart
-    tooltip: 
-    space: -1
-    spaceable: 0
-    sheetType: m_Vector3f
-    realType: Vector3
-    defaultValue:
-      m_Type:
-        m_SerializableType: UnityEngine.Vector3, UnityEngine.CoreModule, Version=0.0.0.0,
-          Culture=neutral, PublicKeyToken=null
-      m_SerializableObject: '{"x":0.0,"y":0.0,"z":0.0}'
-    min: -Infinity
-    max: Infinity
-    enumValues: []
-    descendantCount: 0
   - name: IsLoop
     path: IsLoop
     tooltip: 
@@ -248,22 +232,6 @@ MonoBehaviour:
     max: Infinity
     enumValues: []
     descendantCount: 0
-  - name: BloodAlphaClip
-    path: BloodAlphaClip
-    tooltip: 
-    space: -1
-    spaceable: 0
-    sheetType: m_Float
-    realType: Single
-    defaultValue:
-      m_Type:
-        m_SerializableType: System.Single, mscorlib, Version=4.0.0.0, Culture=neutral,
-          PublicKeyToken=b77a5c561934e089
-      m_SerializableObject: 0.1
-    min: -Infinity
-    max: Infinity
-    enumValues: []
-    descendantCount: 0
   - name: BloodSmoothness
     path: BloodSmoothness
     tooltip: 
@@ -308,6 +276,22 @@ MonoBehaviour:
         m_SerializableType: UnityEngine.Color, UnityEngine.CoreModule, Version=0.0.0.0,
           Culture=neutral, PublicKeyToken=null
       m_SerializableObject: '{"r":0.0,"g":0.0,"b":0.0,"a":0.0}'
+    min: -Infinity
+    max: Infinity
+    enumValues: []
+    descendantCount: 0
+  - name: BloodAlphaClip
+    path: BloodAlphaClip
+    tooltip: 
+    space: -1
+    spaceable: 0
+    sheetType: m_Float
+    realType: Single
+    defaultValue:
+      m_Type:
+        m_SerializableType: System.Single, mscorlib, Version=4.0.0.0, Culture=neutral,
+          PublicKeyToken=b77a5c561934e089
+      m_SerializableObject: 0.1
     min: -Infinity
     max: Infinity
     enumValues: []
@@ -376,8 +360,24 @@ MonoBehaviour:
     max: Infinity
     enumValues: []
     descendantCount: 0
+  - name: PositionStart
+    path: PositionStart
+    tooltip: 
+    space: -1
+    spaceable: 0
+    sheetType: m_Vector3f
+    realType: Vector3
+    defaultValue:
+      m_Type:
+        m_SerializableType: UnityEngine.Vector3, UnityEngine.CoreModule, Version=0.0.0.0,
+          Culture=neutral, PublicKeyToken=null
+      m_SerializableObject: '{"x":0.0,"y":0.0,"z":0.0}'
+    min: -Infinity
+    max: Infinity
+    enumValues: []
+    descendantCount: 0
   m_ImportDependencies: []
-  m_GraphVersion: 18
+  m_GraphVersion: 19
   m_ResourceVersion: 1
   m_SubgraphDependencies: []
   m_CategoryPath: 
@@ -393,10 +393,6 @@ VisualEffectResource:
     m_RendererSettings:
       motionVectorGenerationMode: 0
       shadowCastingMode: 0
-      rayTracingMode: 0
-      receiveShadows: 0
-      reflectionProbeUsage: 0
-      lightProbeUsage: 0
     m_CullingFlags: 3
     m_UpdateMode: 0
     m_PreWarmDeltaTime: 0.05
@@ -1791,7 +1787,7 @@ MonoBehaviour:
   - {fileID: 8926484042661614615}
   m_ExposedName: IsLoop
   m_Exposed: 1
-  m_Order: 1
+  m_Order: 0
   m_Category: 
   m_Min:
     m_Type:
@@ -1875,7 +1871,7 @@ MonoBehaviour:
   - {fileID: 8926484042661614622}
   m_ExposedName: Rate
   m_Exposed: 1
-  m_Order: 2
+  m_Order: 1
   m_Category: 
   m_Min:
     m_Type:
@@ -2291,7 +2287,7 @@ MonoBehaviour:
   - {fileID: 8926484042661614639}
   m_ExposedName: BurstDelay
   m_Exposed: 1
-  m_Order: 3
+  m_Order: 2
   m_Category: 
   m_Min:
     m_Type:
@@ -2372,7 +2368,7 @@ MonoBehaviour:
   - {fileID: 8926484042661614641}
   m_ExposedName: BloodVelocityRandomStart
   m_Exposed: 1
-  m_Order: 4
+  m_Order: 3
   m_Category: 
   m_Min:
     m_Type:
@@ -2555,7 +2551,7 @@ MonoBehaviour:
   - {fileID: 8926484042661614646}
   m_ExposedName: BloodVelocityRandomEnd
   m_Exposed: 1
-  m_Order: 5
+  m_Order: 4
   m_Category: 
   m_Min:
     m_Type:
@@ -2738,7 +2734,7 @@ MonoBehaviour:
   - {fileID: 8926484042661614651}
   m_ExposedName: LifeTimeRandomStart
   m_Exposed: 1
-  m_Order: 6
+  m_Order: 5
   m_Category: 
   m_Min:
     m_Type:
@@ -2819,7 +2815,7 @@ MonoBehaviour:
   - {fileID: 8926484042661614653}
   m_ExposedName: LifeTimeRandomEnd
   m_Exposed: 1
-  m_Order: 7
+  m_Order: 6
   m_Category: 
   m_Min:
     m_Type:
@@ -3128,7 +3124,7 @@ MonoBehaviour:
   - {fileID: 8926484042661614664}
   m_ExposedName: Gravity
   m_Exposed: 1
-  m_Order: 8
+  m_Order: 7
   m_Category: 
   m_Min:
     m_Type:
@@ -3311,7 +3307,7 @@ MonoBehaviour:
   - {fileID: 8926484042661614669}
   m_ExposedName: BloodTexture
   m_Exposed: 1
-  m_Order: 9
+  m_Order: 8
   m_Category: 
   m_Min:
     m_Type:
@@ -3401,7 +3397,7 @@ MonoBehaviour:
   - {fileID: 8926484042661614693}
   m_ExposedName: BloodColor
   m_Exposed: 1
-  m_Order: 10
+  m_Order: 9
   m_Category: 
   m_Min:
     m_Type:
@@ -3627,7 +3623,7 @@ MonoBehaviour:
   - {fileID: 8926484042661614749}
   m_ExposedName: BloodSmoothness
   m_Exposed: 1
-  m_Order: 12
+  m_Order: 10
   m_Category: 
   m_Min:
     m_Type:
@@ -3717,7 +3713,7 @@ MonoBehaviour:
   - {fileID: 8926484042661614751}
   m_ExposedName: BloodMetallic
   m_Exposed: 1
-  m_Order: 13
+  m_Order: 11
   m_Category: 
   m_Min:
     m_Type:
@@ -3807,7 +3803,7 @@ MonoBehaviour:
   - {fileID: 8926484042661614753}
   m_ExposedName: BloodEmission
   m_Exposed: 1
-  m_Order: 14
+  m_Order: 12
   m_Category: 
   m_Min:
     m_Type:
@@ -4034,7 +4030,7 @@ MonoBehaviour:
   - {fileID: 8926484042661614759}
   m_ExposedName: BloodAlphaClip
   m_Exposed: 1
-  m_Order: 11
+  m_Order: 13
   m_Category: 
   m_Min:
     m_Type:
@@ -4124,7 +4120,7 @@ MonoBehaviour:
   - {fileID: 8926484042661614766}
   m_ExposedName: BloodSizeRandomStart
   m_Exposed: 1
-  m_Order: 15
+  m_Order: 14
   m_Category: 
   m_Min:
     m_Type:
@@ -4214,7 +4210,7 @@ MonoBehaviour:
   - {fileID: 8926484042661614768}
   m_ExposedName: BloodSizeRandomEnd
   m_Exposed: 1
-  m_Order: 16
+  m_Order: 15
   m_Category: 
   m_Min:
     m_Type:
@@ -5124,7 +5120,7 @@ MonoBehaviour:
   - {fileID: 8926484042661615091}
   m_ExposedName: LifeTimeGrondRandomStart
   m_Exposed: 1
-  m_Order: 17
+  m_Order: 16
   m_Category: 
   m_Min:
     m_Type:
@@ -5205,7 +5201,7 @@ MonoBehaviour:
   - {fileID: 8926484042661615093}
   m_ExposedName: LifeTimeGroundRandomEnd
   m_Exposed: 1
-  m_Order: 18
+  m_Order: 17
   m_Category: 
   m_Min:
     m_Type:
@@ -5398,7 +5394,7 @@ MonoBehaviour:
   - {fileID: 8926484042661615132}
   m_ExposedName: PositionStart
   m_Exposed: 1
-  m_Order: 0
+  m_Order: 18
   m_Category: 
   m_Min:
     m_Type:
@@ -6415,6 +6411,7 @@ MonoBehaviour:
   sortingPriority: 0
   m_SubOutputs:
   - {fileID: 8926484042661615223}
+  useBaseColorMap: 3
   colorMapping: 0
   uvMode: 0
   flipbookLayout: 0
@@ -7193,6 +7190,7 @@ MonoBehaviour:
   sortingPriority: 0
   m_SubOutputs:
   - {fileID: 8926484042661615246}
+  useBaseColorMap: 3
   colorMapping: 0
   uvMode: 0
   flipbookLayout: 0

@@ -65,10 +65,27 @@ public class BaseUICreateWindow : EditorWindow
     [InitializeOnLoadMethod]
     public static void Init()
     {
+        #if UNITY_6000_3_OR_NEWER
+        #else
         ToolbarExtension.ToolbarZoneLeftAlign += OnToolbarGUI;
+        #endif
         AssemblyReloadEvents.afterAssemblyReload += OnAfterAssemblyReload;
     }
 
+    #if UNITY_6000_3_OR_NEWER
+    // defaultDockPosition 可选：Left / Middle / Right
+    [MainToolbarElement("自定义标题/UI脚本创建", defaultDockPosition = MainToolbarDockPosition.Left)]
+    public static MainToolbarElement CreateSettingsButton()
+    {
+        var content = new MainToolbarContent("UI脚本创建");
+        
+        return new MainToolbarButton(content, () =>
+        {
+            CreateWindows();
+        });
+    }
+
+    #endif
     static void OnToolbarGUI(VisualElement rootVisualElement)
     {
         var refresh = new EditorToolbarDropdown();

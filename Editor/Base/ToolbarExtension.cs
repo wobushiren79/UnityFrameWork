@@ -9,7 +9,6 @@ namespace UnityEditor
     public static class ToolbarExtension
     {
         static Type m_toolbarType = typeof(Editor).Assembly.GetType("UnityEditor.Toolbar");
-        static Type m_guiViewType = typeof(Editor).Assembly.GetType("UnityEditor.GUIView");
 
         static ScriptableObject m_currentToolbar;
 
