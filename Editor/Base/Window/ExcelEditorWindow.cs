@@ -31,7 +31,7 @@ public class ExcelEditorWindow : EditorWindow
     public FileInfo[] queryFileInfos;
 
     protected Vector2 scrollPosForList = Vector2.zero;
-   protected  Vector2 fileListScroll = Vector2.zero;
+    protected  Vector2 fileListScroll = Vector2.zero;
     // 添加一个变量来跟踪窗口是否已初始化
     private bool stylesInitialized = false;
     
