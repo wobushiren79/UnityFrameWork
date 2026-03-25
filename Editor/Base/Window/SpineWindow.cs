@@ -17,28 +17,85 @@ public class SpineWindow : EditorWindow
     private string inputPath = "Assets/LoadResources/Spine/Creature";
     private bool isPutAllSkin = true;
     private string filterSkinName = "Clothes,Pants,Weapon,Shoes,Hat,Mask";//筛选名字
+    private Vector2 scrollPos;
+
+    // 样式缓存
+    private GUIStyle headerStyle;
+    private GUIStyle sectionBoxStyle;
+    private GUIStyle sectionTitleStyle;
+    private bool stylesInitialized;
 
     [MenuItem("Custom/工具弹窗/Spine工具")]
     static void Init()
     {
         var window = GetWindow<SpineWindow>();
         window.titleContent = new GUIContent("Spine工具");
-        window.minSize = new Vector2(350, 200);
+        window.minSize = new Vector2(420, 380);
         window.Show();
+    }
+
+    void InitStyles()
+    {
+        if (stylesInitialized) return;
+
+        headerStyle = new GUIStyle(EditorStyles.boldLabel)
+        {
+            fontSize = 14,
+            alignment = TextAnchor.MiddleCenter,
+            fixedHeight = 30
+        };
+
+        sectionBoxStyle = new GUIStyle("HelpBox")
+        {
+            padding = new RectOffset(10, 10, 8, 8),
+            margin = new RectOffset(4, 4, 4, 4)
+        };
+
+        sectionTitleStyle = new GUIStyle(EditorStyles.boldLabel)
+        {
+            fontSize = 11
+        };
+
+        stylesInitialized = true;
+    }
+
+    void DrawSectionHeader(string title)
+    {
+        EditorGUILayout.Space(2);
+        GUILayout.Label(title, sectionTitleStyle);
+        DrawSeparator();
+        EditorGUILayout.Space(2);
+    }
+
+    void DrawSeparator()
+    {
+        var rect = EditorGUILayout.GetControlRect(false, 1);
+        EditorGUI.DrawRect(rect, new Color(0.5f, 0.5f, 0.5f, 0.3f));
     }
 
     void OnGUI()
     {
-        EditorGUILayout.Space(10);
-        GUILayout.Label("皮肤图片提取工具（只针对皮肤）", EditorStyles.boldLabel);
+        InitStyles();
 
-        // 路径选择
+        // 标题
+        EditorGUILayout.Space(6);
+        GUILayout.Label("Spine 皮肤图片提取工具", headerStyle);
+        EditorGUILayout.Space(4);
+        DrawSeparator();
+        EditorGUILayout.Space(6);
+
+        scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
+
+        // ====== 数据源配置 ======
+        EditorGUILayout.BeginVertical(sectionBoxStyle);
+        DrawSectionHeader("数据源配置");
+
         EditorGUILayout.BeginHorizontal();
         inputPath = EditorGUILayout.TextField(
-            new GUIContent("骨架数据文件夹", ""),
+            new GUIContent("骨架数据文件夹", "批量提取时的搜索目录"),
             inputPath
         );
-        if (GUILayout.Button("浏览...", GUILayout.Width(80)))
+        if (GUILayout.Button("浏览...", GUILayout.Width(60)))
         {
             string selectedPath = EditorUtility.SaveFolderPanel("选择骨架数据文件夹路径", inputPath, "");
             if (!string.IsNullOrEmpty(selectedPath))
@@ -48,34 +105,49 @@ public class SpineWindow : EditorWindow
         }
         EditorGUILayout.EndHorizontal();
 
-        // 数据源选择
         skeletonDataAsset = EditorGUILayout.ObjectField(
-            new GUIContent("骨架数据源", "拖拽Spine的SkeletonDataAsset到这里"),
+            new GUIContent("骨架数据源", "拖拽Spine的SkeletonDataAsset到这里（可选，留空则批量处理文件夹）"),
             skeletonDataAsset,
             typeof(SkeletonDataAsset),
             false
         ) as SkeletonDataAsset;
 
+        EditorGUILayout.EndVertical();
 
-        // 皮肤名称输入
+        // ====== 皮肤设置 ======
+        EditorGUILayout.BeginVertical(sectionBoxStyle);
+        DrawSectionHeader("皮肤设置");
+
+        isPutAllSkin = EditorGUILayout.Toggle(
+            new GUIContent("提取所有皮肤", "勾选后将忽略下方的目标皮肤名称，提取全部皮肤"),
+            isPutAllSkin
+        );
+
+        EditorGUI.BeginDisabledGroup(isPutAllSkin);
         targetSkinName = EditorGUILayout.TextField(
             new GUIContent("目标皮肤名称", "需要提取的皮肤名称（区分大小写）"),
             targetSkinName
         );
+        EditorGUI.EndDisabledGroup();
 
-        EditorGUILayout.BeginHorizontal();
-        EditorUI.GUIText("是否提取皮肤下所有图片", 150);
-        isPutAllSkin = EditorGUILayout.Toggle(isPutAllSkin);
-        EditorGUILayout.EndHorizontal();
+        EditorGUILayout.Space(2);
+        filterSkinName = EditorGUILayout.TextField(
+            new GUIContent("筛选关键字", "用逗号分割，只提取名称包含这些关键字的图片"),
+            filterSkinName
+        );
 
+        EditorGUILayout.EndVertical();
 
-        // 路径选择
+        // ====== 输出设置 ======
+        EditorGUILayout.BeginVertical(sectionBoxStyle);
+        DrawSectionHeader("输出设置");
+
         EditorGUILayout.BeginHorizontal();
         outputPath = EditorGUILayout.TextField(
             new GUIContent("保存路径", "建议使用Assets下的路径"),
             outputPath
         );
-        if (GUILayout.Button("浏览...", GUILayout.Width(80)))
+        if (GUILayout.Button("浏览...", GUILayout.Width(60)))
         {
             string selectedPath = EditorUtility.SaveFolderPanel("选择保存路径", outputPath, "");
             if (!string.IsNullOrEmpty(selectedPath))
@@ -85,20 +157,25 @@ public class SpineWindow : EditorWindow
         }
         EditorGUILayout.EndHorizontal();
 
-        EditorGUILayout.BeginHorizontal();
-        EditorUI.GUIText("筛选名字 ,分割(只提取包含)", 150);
-        filterSkinName = EditorUI.GUIEditorText(filterSkinName, 500);
-        EditorGUILayout.EndHorizontal();
+        EditorGUILayout.EndVertical();
 
-        // 操作按钮
-        EditorGUILayout.Space(15);
-        if (GUILayout.Button("开始提取", GUILayout.Height(30)))
+        EditorGUILayout.EndScrollView();
+
+        // ====== 操作按钮 ======
+        EditorGUILayout.Space(8);
+        EditorGUI.BeginDisabledGroup(string.IsNullOrEmpty(outputPath));
+        Color defaultColor = GUI.backgroundColor;
+        GUI.backgroundColor = new Color(0.4f, 0.8f, 0.4f, 1f);
+        if (GUILayout.Button("开始提取", GUILayout.Height(32)))
         {
             if (ValidateParameters())
             {
                 ExtractSkinTextures(inputPath, outputPath, skeletonDataAsset, isPutAllSkin, targetSkinName, filterSkinName);
             }
         }
+        GUI.backgroundColor = defaultColor;
+        EditorGUI.EndDisabledGroup();
+        EditorGUILayout.Space(4);
     }
 
     /// <summary>
