@@ -1,55 +1,77 @@
-﻿using OfficeOpenXml.FormulaParsing.Excel.Functions.Text;
-using System;
-using UnityEditor;
+﻿using UnityEditor;
 using UnityEngine;
 
+/// <summary>
+/// FBX批量材质替换工具
+/// 用途：在Project中选中一个或多个FBX文件（支持选中文件夹递归查找），
+///       指定目标材质后一键批量替换所有选中FBX的默认材质。
+/// 入口：Custom/工具弹窗/FBX处理
+/// </summary>
 public class FBXEditorWindow : EditorWindow
 {
     [MenuItem("Custom/工具弹窗/FBX处理")]
     static void CreateWindows()
     {
-        EditorWindow.GetWindowWithRect(typeof(FBXEditorWindow), new Rect(0, 0, 600, 800));
+        var window = GetWindowWithRect<FBXEditorWindow>(new Rect(0, 0, 400, 200));
+        window.titleContent = new GUIContent("FBX批量材质替换");
     }
 
-    public UnityEngine.Object targetSelectMat;
+    public Material targetSelectMat;
+    private Vector2 scrollPosition;
 
     private void OnGUI()
     {
-        //设置材质UI
-        UIForSetMat();
-    }
+        scrollPosition = GUILayout.BeginScrollView(scrollPosition);
 
-    /// <summary>
-    /// 设置默认材质
-    /// </summary>
-    public void UIForSetMat()
-    {
-        EditorGUILayout.BeginHorizontal();
-        EditorUI.GUIText("设置默认材质:");
-        targetSelectMat = EditorGUILayout.ObjectField("材质", targetSelectMat, typeof(Material), true);
-        if (EditorUI.GUIButton("设置材质"))
+        // 说明区域
+        EditorGUILayout.HelpBox(
+            "使用说明：\n" +
+            "1. 拖入目标材质\n" +
+            "2. 在Project中选中FBX文件或文件夹\n" +
+            "3. 点击「批量替换材质」执行",
+            MessageType.Info);
+
+        GUILayout.Space(10);
+
+        // 材质选择
+        targetSelectMat = EditorUI.GUIObj<Material>("目标材质", targetSelectMat);
+
+        GUILayout.Space(10);
+
+        // 操作按钮
+        GUI.enabled = targetSelectMat != null;
+        if (EditorUI.GUIButton("批量替换材质", 150))
         {
             OnClickForSetFbxMat();
         }
-        EditorGUILayout.EndHorizontal();
+        GUI.enabled = true;
+
+        GUILayout.EndScrollView();
     }
 
     /// <summary>
-    /// 设置设置材质
+    /// 批量替换选中FBX的材质
     /// </summary>
-    public void OnClickForSetFbxMat()
+    private void OnClickForSetFbxMat()
     {
-        var gameobjects =  EditorUtil.GetSelectionAll<GameObject>();
+        var gameobjects = EditorUtil.GetSelectionAll<GameObject>();
         if (gameobjects.Count == 0)
         {
-            LogUtil.LogError("没有选中物体");
+            EditorUtility.DisplayDialog("提示", "请先在Project中选中FBX文件或文件夹", "确定");
             return;
         }
-        for (int i = 0; i < gameobjects.Count; i++)
+
+        if (!EditorUI.GUIDialog("确认操作", $"即将对 {gameobjects.Count} 个FBX替换材质为 [{targetSelectMat.name}]，是否继续？"))
+            return;
+
+        int total = gameobjects.Count;
+        for (int i = 0; i < total; i++)
         {
             var itemObj = gameobjects[i];
-            LogUtil.Log($"SetFbxMat itemObj_{itemObj.name} type_{itemObj.GetType().Name}");
-            FBXEditor.ChangeMaterial(itemObj, targetSelectMat as Material);
+            EditorUI.GUIShowProgressBar("替换材质", $"({i + 1}/{total}) {itemObj.name}", (float)(i + 1) / total);
+            FBXEditor.ChangeMaterial(itemObj, targetSelectMat);
         }
+        EditorUI.GUIHideProgressBar();
+        LogUtil.Log($"材质替换完成，共处理 {total} 个FBX");
     }
 }

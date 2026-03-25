@@ -1,9 +1,7 @@
-﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.AddressableAssets.Settings;
-using UnityEditor.Rendering;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 using static UnityEditor.AddressableAssets.Settings.AddressableAssetSettings;
 
@@ -12,17 +10,15 @@ public class AddressableWindow : EditorWindow
     [InitializeOnLoadMethod]
     static void EditorApplication_ProjectChanged()
     {
-        //--projectWindowChanged已过时
-        //--全局监听Project视图下的资源是否发生变化（添加 删除 移动等）
-        //EditorApplication.projectChanged += HandleForAssetsChange;
-        //PrefabStage.prefabSaving += HandleForAssetsChange;
         AddressableUtil.AddCallBackForAssetChange(HandleForAssetChange);
     }
 
     [MenuItem("Custom/工具弹窗/资源Addressable")]
     static void CreateWindows()
     {
-        EditorWindow.GetWindow(typeof(AddressableWindow));
+        var window = GetWindow<AddressableWindow>();
+        window.titleContent = new GUIContent("Addressable资源管理");
+        window.minSize = new Vector2(800, 400);
     }
 
     protected Vector2 scrollPosition;
@@ -31,6 +27,9 @@ public class AddressableWindow : EditorWindow
 
     protected static string pathSaveData = "Assets/Data/Addressable";
     protected static string saveDataFileName = "AddressableSaveData";
+
+    // 记录各Group的折叠状态
+    private readonly Dictionary<string, bool> foldoutStates = new();
 
     public void OnEnable()
     {
@@ -43,6 +42,7 @@ public class AddressableWindow : EditorWindow
         GUILayout.BeginVertical();
 
         UIForBase();
+        EditorGUILayout.Space(5);
         UIForListGroup();
 
         GUILayout.EndVertical();
@@ -54,11 +54,9 @@ public class AddressableWindow : EditorWindow
     /// </summary>
     public static void InitData()
     {
-        //获取所有组
         allGroup = AddressableUtil.FindAllGrop();
-        //首先创建文件夹
         FileUtil.CreateDirectory(pathSaveData);
-        //获取保存数据
+
         string dataSave = FileUtil.LoadTextFile($"{pathSaveData}/{saveDataFileName}");
         if (dataSave.IsNull())
         {
@@ -69,56 +67,57 @@ public class AddressableWindow : EditorWindow
             addressableSaveData = JsonUtil.FromJsonByNet<AddressableSaveBean>(dataSave);
         }
 
-        //容错 剔除没有的数据
-        List<string> listRemove = new List<string>();
-        foreach (var itemData in addressableSaveData.dicSaveData)
-        {
-            bool hasData = false;
-            foreach (var itemGruop in allGroup)
-            {
-                if (itemData.Key.Equals(itemGruop.Name))
-                {
-                    hasData = true;
-                    break;
-                }
-            }
-            if (!hasData) 
-            {
-                listRemove.Add(itemData.Key);
-            }
-        }
+        // 容错：剔除已不存在的Group数据
+        HashSet<string> existingGroupNames = new HashSet<string>(allGroup.Select(g => g.Name));
+        List<string> listRemove = addressableSaveData.dicSaveData.Keys
+            .Where(key => !existingGroupNames.Contains(key))
+            .ToList();
+
         if (listRemove.Count > 0)
         {
-            foreach (var itemData in listRemove)
+            foreach (var key in listRemove)
             {
-                addressableSaveData.dicSaveData.Remove(itemData);
+                addressableSaveData.dicSaveData.Remove(key);
             }
-
-            string saveData = JsonUtil.ToJsonByNet(addressableSaveData);
-            FileUtil.CreateTextFile(pathSaveData, saveDataFileName, saveData);
-            EditorUtil.RefreshAsset();
+            SaveData();
         }
     }
 
     /// <summary>
-    /// 基础
+    /// 保存数据到文件
+    /// </summary>
+    private static void SaveData()
+    {
+        string saveData = JsonUtil.ToJsonByNet(addressableSaveData);
+        FileUtil.CreateTextFile(pathSaveData, saveDataFileName, saveData);
+        EditorUtil.RefreshAsset();
+    }
+
+    private void SetAllFoldout(bool expand)
+    {
+        var keys = new List<string>(foldoutStates.Keys);
+        foreach (var key in keys)
+            foldoutStates[key] = expand;
+    }
+
+    /// <summary>
+    /// 基础操作栏
     /// </summary>
     public void UIForBase()
     {
-        GUILayout.BeginHorizontal();
+        GUILayout.BeginHorizontal(EditorStyles.toolbar);
 
-        if (EditorUI.GUIButton("刷新所有资源", 200))
+        if (EditorUI.GUIButton("刷新所有资源", 120))
         {
             InitData();
             HandleForAllAssetChange();
         }
-        if (EditorUI.GUIButton("保存所有数据", 200))
+        if (EditorUI.GUIButton("保存所有数据", 120))
         {
-            string saveData = JsonUtil.ToJsonByNet(addressableSaveData);
-            FileUtil.CreateTextFile(pathSaveData, saveDataFileName, saveData);
-            EditorUtil.RefreshAsset();
+            SaveData();
+            EditorUtility.DisplayDialog("提示", "数据保存成功", "确定");
         }
-        if (EditorUI.GUIButton("清除所有数据", 200))
+        if (EditorUI.GUIButton("清除所有数据", 120))
         {
             if (EditorUI.GUIDialog("确认", "是否清除所有数据"))
             {
@@ -127,92 +126,182 @@ public class AddressableWindow : EditorWindow
                 EditorUtil.RefreshAsset();
             }
         }
+
+        GUILayout.FlexibleSpace();
+
+        if (EditorUI.GUIButton("全部展开", 80))
+        {
+            SetAllFoldout(true);
+        }
+        if (EditorUI.GUIButton("全部折叠", 80))
+        {
+            SetAllFoldout(false);
+        }
+
         GUILayout.EndHorizontal();
     }
 
     /// <summary>
-    /// 列表
+    /// Group列表
     /// </summary>
     public void UIForListGroup()
     {
         if (allGroup.IsNull())
             return;
+
         for (int i = 0; i < allGroup.Count; i++)
         {
             AddressableAssetGroup itemGroup = allGroup[i];
-            if (addressableSaveData.dicSaveData.TryGetValue(itemGroup.name, out AddressableSaveItemBean value))
-            {
-                UIForItemGroup(itemGroup, value);
-            }
-            else
+            if (!addressableSaveData.dicSaveData.TryGetValue(itemGroup.name, out AddressableSaveItemBean value))
             {
                 value = new AddressableSaveItemBean();
                 addressableSaveData.dicSaveData.Add(itemGroup.name, value);
-                UIForItemGroup(itemGroup, null);
             }
+            UIForItemGroup(itemGroup, value);
         }
-
     }
 
     /// <summary>
-    /// UI单个Group
+    /// 单个Group的UI
     /// </summary>
-    /// <param name="itemGroup"></param>
-    /// <param name="value"></param>
     public void UIForItemGroup(AddressableAssetGroup itemGroup, AddressableSaveItemBean value)
     {
+        if (value == null)
+            return;
+
+        // 折叠标题
+        if (!foldoutStates.ContainsKey(itemGroup.name))
+            foldoutStates[itemGroup.name] = false;
+
+        EditorGUILayout.BeginVertical("box");
+
+        foldoutStates[itemGroup.name] = EditorGUILayout.Foldout(foldoutStates[itemGroup.name], itemGroup.name, true, EditorStyles.foldoutHeader);
+
+        if (foldoutStates[itemGroup.name])
+        {
+            EditorGUI.indentLevel++;
+
+            // 文件路径区域
+            UIForPathList(value);
+
+            EditorGUILayout.Space(3);
+
+            // Label区域
+            UIForLabelList(value);
+
+            EditorGUI.indentLevel--;
+        }
+
+        EditorGUILayout.EndVertical();
+    }
+
+    /// <summary>
+    /// 路径列表UI
+    /// </summary>
+    private void UIForPathList(AddressableSaveItemBean value)
+    {
         GUILayout.BeginHorizontal();
-
-        EditorUI.GUIText(itemGroup.name, 150);
-
         EditorUI.GUIText("文件路径地址：", 100);
-        if (EditorUI.GUIButton("+", 20))
+        if (EditorUI.GUIButton("+", 25))
         {
             value.listPathSave.Add("");
         }
+        GUILayout.EndHorizontal();
 
-        GUILayout.BeginVertical(GUILayout.Width(220));
-        if (value != null && value.listPathSave != null)
+        for (int i = 0; i < value.listPathSave.Count; i++)
         {
-            for (int i = 0; i < value.listPathSave.Count; i++)
-            {
-                GUILayout.BeginHorizontal(GUILayout.Width(220), GUILayout.Height(30));
-                value.listPathSave[i] = EditorUI.GUIEditorText(value.listPathSave[i], 500);
-                if (EditorUI.GUIButton("-", 20))
-                {
-                    value.listPathSave.RemoveAt(i);
-                    i--;
-                }
-                GUILayout.EndHorizontal();
-            }
-        }
-        GUILayout.EndVertical();
+            GUILayout.BeginHorizontal();
+            GUILayout.Space(20);
 
-        EditorUI.GUIText("Label：", 50);
-        if (EditorUI.GUIButton("+", 20))
+            // 支持拖拽文件夹设置路径
+            Rect dropRect = EditorGUILayout.GetControlRect(GUILayout.Width(500), GUILayout.Height(20));
+            value.listPathSave[i] = EditorGUI.TextField(dropRect, value.listPathSave[i]);
+            HandleDragAndDrop(dropRect, (path) => { value.listPathSave[i] = path; });
+
+            if (EditorUI.GUIButton("选择", 40))
+            {
+                string folder = EditorUI.GetFolderPanel("选择文件夹路径");
+                if (!string.IsNullOrEmpty(folder))
+                {
+                    // 转换为相对于Assets的路径
+                    int assetsIndex = folder.IndexOf("Assets");
+                    if (assetsIndex >= 0)
+                        value.listPathSave[i] = folder.Substring(assetsIndex);
+                    else
+                        value.listPathSave[i] = folder;
+                }
+            }
+            if (EditorUI.GUIButton("-", 25))
+            {
+                value.listPathSave.RemoveAt(i);
+                i--;
+            }
+            GUILayout.EndHorizontal();
+        }
+    }
+
+    /// <summary>
+    /// Label列表UI
+    /// </summary>
+    private void UIForLabelList(AddressableSaveItemBean value)
+    {
+        GUILayout.BeginHorizontal();
+        EditorUI.GUIText("Label：", 100);
+        if (EditorUI.GUIButton("+", 25))
         {
             value.listLabel.Add("");
         }
-        GUILayout.BeginVertical(GUILayout.Width(100));
-        if (value != null && value.listLabel != null)
-        {
-            for (int i = 0; i < value.listLabel.Count; i++)
-            {
-                GUILayout.BeginHorizontal(GUILayout.Width(100), GUILayout.Height(30));
-                value.listLabel[i] = EditorUI.GUIEditorText(value.listLabel[i], 500);
-                if (EditorUI.GUIButton("-", 20))
-                {
-                    value.listLabel.RemoveAt(i);
-                    i--;
-                }
-                GUILayout.EndHorizontal();
-            }
-        }
-        GUILayout.EndVertical();
-
-
         GUILayout.EndHorizontal();
-        EditorUI.GUIText("---------------------------------------------------------------------", 1000);
+
+        for (int i = 0; i < value.listLabel.Count; i++)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Space(20);
+            value.listLabel[i] = EditorUI.GUIEditorText(value.listLabel[i], 300);
+            if (EditorUI.GUIButton("-", 25))
+            {
+                value.listLabel.RemoveAt(i);
+                i--;
+            }
+            GUILayout.EndHorizontal();
+        }
+    }
+
+    /// <summary>
+    /// 处理拖拽文件夹到输入框
+    /// </summary>
+    private void HandleDragAndDrop(Rect dropRect, System.Action<string> onDrop)
+    {
+        Event evt = Event.current;
+        if (!dropRect.Contains(evt.mousePosition))
+            return;
+
+        switch (evt.type)
+        {
+            case EventType.DragUpdated:
+                if (DragAndDrop.paths != null && DragAndDrop.paths.Length > 0)
+                {
+                    DragAndDrop.visualMode = DragAndDropVisualMode.Link;
+                    evt.Use();
+                }
+                break;
+            case EventType.DragPerform:
+                if (DragAndDrop.paths != null && DragAndDrop.paths.Length > 0)
+                {
+                    DragAndDrop.AcceptDrag();
+                    string path = DragAndDrop.paths[0];
+                    // 如果是文件，取其所在目录
+                    if (!AssetDatabase.IsValidFolder(path))
+                    {
+                        int lastSlash = path.LastIndexOf("/");
+                        if (lastSlash > 0)
+                            path = path.Substring(0, lastSlash);
+                    }
+                    onDrop?.Invoke(path);
+                    evt.Use();
+                }
+                break;
+        }
     }
 
     /// <summary>
@@ -221,81 +310,72 @@ public class AddressableWindow : EditorWindow
     public static void HandleForAllAssetChange()
     {
         List<AddressableAssetEntry> listAllData = AddressableUtil.FindAllAsset();
-        List<AddressableAssetEntry> listData = new List<AddressableAssetEntry>();
-        for (int i = 0; i < listAllData.Count; i++)
-        {
-            AddressableAssetEntry addressableAsset = listAllData[i];
-            if (addressableAsset.parentGroup.name.Equals("Built In Data"))
-            {
-
-            }
-            else
-            {
-                listData.Add(addressableAsset);
-            }
-        }
+        List<AddressableAssetEntry> listData = listAllData
+            .Where(entry => !entry.parentGroup.name.Equals("Built In Data"))
+            .ToList();
         HandleForRefreshAssets(listData);
     }
-
 
     /// <summary>
     /// 资源修改监听处理
     /// </summary>
     public static void HandleForAssetChange(AddressableAssetSettings addressableAsset, ModificationEvent modificationEvent, object obj)
     {
-        switch (modificationEvent)
+        if (modificationEvent == ModificationEvent.EntryAdded && obj is List<AddressableAssetEntry> listData)
         {
-            //case ModificationEvent.EntryCreated:
-            //case ModificationEvent.EntryMoved:
-            //case ModificationEvent.EntryRemoved:
-            case ModificationEvent.EntryAdded:
-                if (obj is List<AddressableAssetEntry> listData)
-                {
-                    HandleForRefreshAssets(listData);
-                }
-                break;
+            HandleForRefreshAssets(listData);
         }
     }
 
     /// <summary>
     /// 刷新Addressable资源
     /// </summary>
-    /// <param name="listChangeAssetEntry"></param>
     public static void HandleForRefreshAssets(List<AddressableAssetEntry> listChangeAssetEntry)
     {
         InitData();
-        if (addressableSaveData == null)
+        if (addressableSaveData == null || listChangeAssetEntry == null || listChangeAssetEntry.Count == 0)
             return;
-        for (int i = 0; i < listChangeAssetEntry.Count; i++)
+
+        try
         {
-            EditorUI.GUIShowProgressBar("刷新进度", "资源", (float)i / listChangeAssetEntry.Count);
-
-            AddressableAssetEntry itemAssetEntry = listChangeAssetEntry[i];
-            LogUtil.Log($"资源修改 address:{itemAssetEntry.address} AssetPath:{itemAssetEntry.AssetPath}");
-            if (itemAssetEntry.AssetPath.LastIndexOf("/") == 0)
-                LogUtil.Log($"--------- address:{itemAssetEntry.address} AssetPath:{itemAssetEntry.AssetPath}");
-            string assetPathFile = itemAssetEntry.AssetPath.Remove(itemAssetEntry.AssetPath.LastIndexOf("/"));
-            //查询保存的路径
-            foreach (var itemSaveGroup in addressableSaveData.dicSaveData)
+            for (int i = 0; i < listChangeAssetEntry.Count; i++)
             {
-                string groupName = itemSaveGroup.Key;
+                AddressableAssetEntry itemAssetEntry = listChangeAssetEntry[i];
+                float progress = (float)i / listChangeAssetEntry.Count;
+                EditorUI.GUIShowProgressBar("刷新进度", $"({i + 1}/{listChangeAssetEntry.Count}) {itemAssetEntry.address}", progress);
 
-                List<string> listSavePath = itemSaveGroup.Value.listPathSave;
-                //遍历路径 如果再这个路径里 则分配要这个组
-                for (int f = 0; f < listSavePath.Count; f++)
+                string assetPath = itemAssetEntry.AssetPath;
+                int lastSlash = assetPath.LastIndexOf("/");
+                if (lastSlash <= 0)
+                    continue;
+
+                string assetPathFile = assetPath.Substring(0, lastSlash);
+
+                foreach (var itemSaveGroup in addressableSaveData.dicSaveData)
                 {
-                    string savePath = listSavePath[f];
-                    if (assetPathFile.Contains(savePath))
+                    string groupName = itemSaveGroup.Key;
+                    List<string> listSavePath = itemSaveGroup.Value.listPathSave;
+
+                    bool matched = false;
+                    for (int f = 0; f < listSavePath.Count; f++)
                     {
-                        AddressableUtil.MoveAssetEntry(itemAssetEntry, groupName);
-                        AddressableUtil.ClearAllLabel(itemAssetEntry);
-                        AddressableUtil.SetLabel(itemAssetEntry, itemSaveGroup.Value.listLabel);
-                        break;
+                        if (!string.IsNullOrEmpty(listSavePath[f]) && assetPathFile.Contains(listSavePath[f]))
+                        {
+                            AddressableUtil.MoveAssetEntry(itemAssetEntry, groupName);
+                            AddressableUtil.ClearAllLabel(itemAssetEntry);
+                            AddressableUtil.SetLabel(itemAssetEntry, itemSaveGroup.Value.listLabel);
+                            matched = true;
+                            break;
+                        }
                     }
+                    if (matched) break;
                 }
             }
         }
-        EditorUtil.RefreshAsset();
-        EditorUI.GUIHideProgressBar();
+        finally
+        {
+            EditorUI.GUIHideProgressBar();
+            EditorUtil.RefreshAsset();
+        }
     }
 }
