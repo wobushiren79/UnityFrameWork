@@ -111,6 +111,12 @@ public class SearchEditorWindow : EditorWindow
     private bool showTypeFilter = false;
     private Dictionary<string, bool> resultFoldouts = new Dictionary<string, bool>();
 
+    // 搜索历史
+    private List<string> searchHistory = new List<string>();
+    private Vector2 historyScrollPosition;
+    private const string HistoryPrefsKey = "SearchEditorWindow_History";
+    private const int MaxHistoryCount = 10;
+
     // 样式缓存
     private GUIStyle headerStyle;
     private GUIStyle resultHeaderStyle;
@@ -159,6 +165,7 @@ public class SearchEditorWindow : EditorWindow
         DrawTypeFilter();
         DrawProgress();
         DrawResults();
+        DrawSearchHistory();
     }
 
     private void DrawHeader()
@@ -315,6 +322,62 @@ public class SearchEditorWindow : EditorWindow
     }
 
     /// <summary>
+    /// 绘制搜索历史
+    /// </summary>
+    private void DrawSearchHistory()
+    {
+        if (searchHistory.Count == 0) return;
+
+        DrawSeparator();
+        EditorGUILayout.Space(4);
+
+        EditorGUILayout.BeginHorizontal();
+        {
+            EditorGUILayout.LabelField("最近搜索", headerStyle);
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("清空历史", EditorStyles.miniButton, GUILayout.Width(60)))
+            {
+                ClearHistory();
+            }
+        }
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.Space(2);
+
+        historyScrollPosition = EditorGUILayout.BeginScrollView(historyScrollPosition, GUILayout.MaxHeight(200));
+        {
+            foreach (var guid in searchHistory)
+            {
+                var obj = AssetDatabase.LoadAssetAtPath<Object>(AssetDatabase.GUIDToAssetPath(guid));
+                if (obj == null) continue;
+
+                EditorGUILayout.BeginHorizontal();
+                {
+                    GUILayout.Space(12);
+                    var icon = AssetDatabase.GetCachedIcon(AssetDatabase.GetAssetPath(obj));
+                    if (icon != null)
+                    {
+                        GUILayout.Label(new GUIContent(icon), GUILayout.Width(18), GUILayout.Height(18));
+                    }
+
+                    if (GUILayout.Button(obj.name, EditorStyles.label))
+                    {
+                        searchObject = obj;
+                        StartSearch();
+                    }
+
+                    if (GUILayout.Button("×", EditorStyles.miniButton, GUILayout.Width(20)))
+                    {
+                        RemoveFromHistory(guid);
+                    }
+                }
+                EditorGUILayout.EndHorizontal();
+            }
+        }
+        EditorGUILayout.EndScrollView();
+    }
+
+    /// <summary>
     /// 按资源类型分组显示结果
     /// </summary>
     private void DrawGroupedResults()
@@ -403,6 +466,9 @@ public class SearchEditorWindow : EditorWindow
         isSearching = true;
         searchStatus = "正在准备查找资源引用...";
         checkedFiles = 0;
+
+        // 添加到搜索历史
+        AddToHistory(searchObject);
 
         string assetPath = AssetDatabase.GetAssetPath(searchObject);
         string assetGuid = AssetDatabase.AssetPathToGUID(assetPath);
@@ -574,6 +640,63 @@ public class SearchEditorWindow : EditorWindow
         Repaint();
     }
 
+    private void AddToHistory(Object obj)
+    {
+        if (obj == null) return;
+
+        string guid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(obj));
+        if (string.IsNullOrEmpty(guid)) return;
+
+        // 如果已存在，先移除（避免重复）
+        searchHistory.Remove(guid);
+
+        // 添加到列表开头
+        searchHistory.Insert(0, guid);
+
+        // 限制最多 10 条
+        while (searchHistory.Count > MaxHistoryCount)
+        {
+            searchHistory.RemoveAt(searchHistory.Count - 1);
+        }
+
+        SaveHistory();
+    }
+
+    private void RemoveFromHistory(string guid)
+    {
+        searchHistory.Remove(guid);
+        SaveHistory();
+    }
+
+    private void ClearHistory()
+    {
+        searchHistory.Clear();
+        SaveHistory();
+    }
+
+    private void SaveHistory()
+    {
+        string data = string.Join(";", searchHistory);
+        EditorPrefs.SetString(HistoryPrefsKey, data);
+    }
+
+    private void LoadHistory()
+    {
+        searchHistory.Clear();
+        string data = EditorPrefs.GetString(HistoryPrefsKey, "");
+        if (!string.IsNullOrEmpty(data))
+        {
+            var guids = data.Split(';');
+            foreach (var guid in guids)
+            {
+                if (!string.IsNullOrEmpty(guid))
+                {
+                    searchHistory.Add(guid);
+                }
+            }
+        }
+    }
+
     private void DrawSeparator()
     {
         var rect = GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, GUILayout.Height(1), GUILayout.ExpandWidth(true));
@@ -619,5 +742,10 @@ public class SearchEditorWindow : EditorWindow
         {
             EditorApplication.update -= UpdateSearchCoroutine;
         }
+    }
+
+    private void OnEnable()
+    {
+        LoadHistory();
     }
 }
