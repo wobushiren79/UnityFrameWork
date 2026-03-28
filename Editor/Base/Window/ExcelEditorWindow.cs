@@ -581,6 +581,21 @@ public class ExcelEditorWindow : EditorWindow
                 System.Diagnostics.Process.Start(fileInfo.FullName);
             }
 
+            GUILayout.Space(10);
+
+            // 打开 Json 按钮 - 直接打开生成的 JSON 文件文本
+            // 多语言表添加特殊标识
+            bool isLanguageFile = fileInfo.Name.Contains("excel_language");
+            string jsonBtnText = isLanguageFile ? "📄 打开 Json🌐" : "📄 打开 Json";
+            string jsonBtnTooltip = isLanguageFile ? "多语言表 - 点击选择语言版本" : "打开生成的 JSON 文件";
+            GUIContent openJsonBtnContent = new GUIContent(jsonBtnText, 
+                EditorGUIUtility.IconContent("d_TextAsset Icon").image, 
+                jsonBtnTooltip);
+            if (GUILayout.Button(openJsonBtnContent, buttonStyle, GUILayout.Width(110), GUILayout.Height(25)))
+            {
+                OpenJsonFileForExcel(fileInfo);
+            }
+
             EditorGUILayout.EndHorizontal();
 
             EditorGUILayout.EndVertical();
@@ -632,6 +647,149 @@ public class ExcelEditorWindow : EditorWindow
     }
 
     #region Json 数据处理
+
+    /// <summary>
+    /// 打开 Excel 文件对应的 JSON 文件
+    /// 如果只有一个工作表则直接打开，多个则弹出选择菜单
+    /// </summary>
+    /// <param name="fileInfo">Excel 文件信息</param>
+    private void OpenJsonFileForExcel(FileInfo fileInfo)
+    {
+        ExcelUtil.GetExcelPackage(fileInfo, (ep) =>
+        {
+            ExcelWorksheets workSheets = ep.Workbook.Worksheets;
+            List<string> sheetNames = new List<string>();
+
+            // 收集所有工作表名称
+            for (int w = 1; w <= workSheets.Count; w++)
+            {
+                sheetNames.Add(workSheets[w].Name);
+            }
+
+            if (sheetNames.Count == 0)
+            {
+                EditorUtility.DisplayDialog("提示", "该 Excel 文件没有包含任何工作表", "确定");
+                return;
+            }
+
+            // 如果只有一个工作表，直接打开
+            bool isLanguage = fileInfo.Name.Contains("excel_language");
+            if (sheetNames.Count == 1)
+            {
+                OpenJsonFileBySheetName(sheetNames[0], isLanguage);
+            }
+            else if (isLanguage)
+            {
+                // 多语言表且有多个工作表：直接列出所有可用的语言文件
+                GenericMenu menu = new GenericMenu();
+                string[] languageNames = EnumExtension.GetEnumNames<LanguageEnum>();
+                
+                foreach (string sheetName in sheetNames)
+                {
+                    foreach (string languageName in languageNames)
+                    {
+                        string jsonPath = $"{jsonFolderPath}/Language_{sheetName}_{languageName}.txt";
+                        if (File.Exists(jsonPath))
+                        {
+                            string path = jsonPath;
+                            string fileName = Path.GetFileName(path);
+                            menu.AddItem(new GUIContent($"打开 {fileName}"), false, () =>
+                            {
+                                System.Diagnostics.Process.Start(path);
+                            });
+                        }
+                    }
+                }
+                
+                if (menu.GetItemCount() == 0)
+                {
+                    EditorUtility.DisplayDialog("提示", "未找到生成的 JSON 文件，请先生成 Json", "确定");
+                    return;
+                }
+                
+                menu.ShowAsContext();
+            }
+            else
+            {
+                // 非多语言表且有多个工作表，弹出选择菜单
+                GenericMenu menu = new GenericMenu();
+                for (int i = 0; i < sheetNames.Count; i++)
+                {
+                    string sheetName = sheetNames[i];
+                    menu.AddItem(new GUIContent($"打开 {sheetName}.txt"), false, () =>
+                    {
+                        OpenJsonFileBySheetName(sheetName, false);
+                    });
+                }
+                menu.ShowAsContext();
+            }
+        });
+    }
+
+    /// <summary>
+    /// 根据工作表名称打开对应的 JSON 文件
+    /// </summary>
+    /// <param name="sheetName">工作表名称</param>
+    /// <param name="isLanguage">是否为多语言表</param>
+    private void OpenJsonFileBySheetName(string sheetName, bool isLanguage)
+    {
+        string jsonPath;
+        
+        if (isLanguage)
+        {
+            // 多语言表：遍历所有语言版本
+            string[] languageNames = EnumExtension.GetEnumNames<LanguageEnum>();
+            List<string> existingLanguageFiles = new List<string>();
+            
+            foreach (string languageName in languageNames)
+            {
+                string path = $"{jsonFolderPath}/Language_{sheetName}_{languageName}.txt";
+                if (File.Exists(path))
+                {
+                    existingLanguageFiles.Add(path);
+                }
+            }
+            
+            if (existingLanguageFiles.Count == 0)
+            {
+                EditorUtility.DisplayDialog("提示", $"未找到 {sheetName} 生成的 JSON 文件，请先生成 Json", "确定");
+                return;
+            }
+            else if (existingLanguageFiles.Count == 1)
+            {
+                jsonPath = existingLanguageFiles[0];
+            }
+            else
+            {
+                // 多个语言版本，弹出选择
+                GenericMenu menu = new GenericMenu();
+                foreach (string path in existingLanguageFiles)
+                {
+                    string pathCopy = path; // 捕获变量副本
+                    string fileName = Path.GetFileName(pathCopy);
+                    menu.AddItem(new GUIContent($"打开 {fileName}"), false, () =>
+                    {
+                        System.Diagnostics.Process.Start(pathCopy);
+                    });
+                }
+                menu.ShowAsContext();
+                return;
+            }
+        }
+        else
+        {
+            jsonPath = $"{jsonFolderPath}/{sheetName}.txt";
+        }
+
+        if (File.Exists(jsonPath))
+        {
+            System.Diagnostics.Process.Start(jsonPath);
+        }
+        else
+        {
+            EditorUtility.DisplayDialog("提示", $"未找到 {sheetName}.txt 文件，请先生成 Json", "确定");
+        }
+    }
 
     /// <summary>
     /// 批量转换：将所有 Excel 文件转换为 Json 格式
