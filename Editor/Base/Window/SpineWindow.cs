@@ -274,24 +274,11 @@ public class SpineWindow : EditorWindow
     {
         HashSet<string> regions = new HashSet<string>();
 
-        // 新版Spine遍历方式（4.0+）
-        List<SkinEntry> skinEntries = new List<SkinEntry>();
-        foreach (SlotData slot in skeletonData.Slots)
+        // Spine 4.2+ 遍历方式：使用 Skin.Attachments 属性
+        foreach (SkinEntry entry in skin.Attachments)
         {
-            skin.GetAttachments(slot.Index, skinEntries);
-            foreach (SkinEntry entry in skinEntries)
-            {
-                ProcessAttachment(skin.GetAttachment(slot.Index, entry.Name), regions);
-            }
+            ProcessAttachment(entry.Attachment, regions);
         }
-
-        // 旧版兼容方式（3.8及以下）
-#if !SPINE_TK2D && !SPINE_4_0
-        foreach (var pair in skin.Attachments)
-        {
-            ProcessAttachment(pair.Value, regions);
-        }
-#endif
 
         return regions;
     }
@@ -306,17 +293,19 @@ public class SpineWindow : EditorWindow
         // 处理区域附件
         if (attachment is RegionAttachment regionAttachment)
         {
-            if (regionAttachment.GetRegion() != null)
+            AtlasRegion atlasRegion = regionAttachment.Region as AtlasRegion;
+            if (atlasRegion != null)
             {
-                regions.Add(regionAttachment.GetRegion().name);
+                regions.Add(atlasRegion.name);
             }
         }
         // 处理网格附件
         else if (attachment is MeshAttachment meshAttachment)
         {
-            if (meshAttachment.GetRegion() != null)
+            AtlasRegion atlasRegion = meshAttachment.Region as AtlasRegion;
+            if (atlasRegion != null)
             {
-                regions.Add(meshAttachment.GetRegion().name);
+                regions.Add(atlasRegion.name);
             }
         }
         // 处理其他类型附件...
@@ -361,20 +350,20 @@ public class SpineWindow : EditorWindow
                         {
                             System.Action actionStartMerge = () =>
                             {
-                                var attachments = skin.Attachments;
                                 RegionAttachment targetAttachment = null;
-                                foreach (var itemAttachment in attachments)
+                                foreach (SkinEntry entry in skin.Attachments)
                                 {
-                                    if (itemAttachment.Value.Name.Equals(region.name))
+                                    if (entry.Attachment is RegionAttachment regionAtt && regionAtt.Name.Equals(region.name))
                                     {
-                                        targetAttachment = (RegionAttachment)itemAttachment.Value;
+                                        targetAttachment = regionAtt;
+                                        break;
                                     }
                                 }
                                 // 2. 创建临时的 Skeleton 实例
                                 Skeleton skeleton = new Skeleton(skeletonData);
                                 // 3. 应用默认姿势（初始变换）
                                 skeleton.SetToSetupPose(); // 应用默认骨骼和插槽的初始位置
-                                skeleton.UpdateWorldTransform(); // 计算世界变换
+                                skeleton.UpdateWorldTransform(Skeleton.Physics.Update); // 计算世界变换
                                                                  // 4. 查找插槽
                                 Slot slot = skeleton.FindSlot(region.name);
                                 // 5. 获取插槽的父骨骼

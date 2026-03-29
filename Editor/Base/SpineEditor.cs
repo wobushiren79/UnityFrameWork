@@ -52,8 +52,8 @@ public class SpineEditor : Editor
             if (item.Name.Length >= 5 && item.Name.Substring(item.Name.Length - 5).Equals(".json"))
             {
                 //LogUtil.Log($"SpineInit Item Json {item.Name}");
-                TextAsset textAsset = EditorUtil.GetAssetByPath<TextAsset>(targetPath);
-                SpineChangeVersion(targetPath, textAsset);
+                // TextAsset textAsset = EditorUtil.GetAssetByPath<TextAsset>(targetPath);
+                // SpineChangeVersion(targetPath, textAsset);
             }
             else if (item.Name.Length >= 4 && item.Name.Substring(item.Name.Length - 4).Equals(".png"))
             {
