@@ -141,8 +141,8 @@ public class ExcelEditorWindow : EditorWindow
     {
         // 初始化默认路径
         excelFolderPath = Application.dataPath + "/Data/Excel";
-        entityFolderPath = Application.dataPath + "/Scrpits/Bean/MVC/Game";
-        entityFolderPathForFrameWork = Application.dataPath + "/FrameWork/Scrpits/Bean/MVC";
+        entityFolderPath = Application.dataPath + "/Scripts/Bean/MVC/Game";
+        entityFolderPathForFrameWork = Application.dataPath + "/FrameWork/Scripts/Bean/MVC";
         jsonFolderPath = Application.dataPath + "/Resources/JsonText";
 
         InitializeStyles();
@@ -1193,7 +1193,7 @@ public class ExcelEditorWindow : EditorWindow
         {
             path = $"{dir}/LanguageBean.cs";
             string beanPath = Application.dataPath + "/FrameWork/Editor/ScrpitsTemplates/Excel_LanguageEntity.txt";
-            EditorUtil.CreateClass(new Dictionary<string, string>(), beanPath, "LanguageBean", "Assets/FrameWork/Scrpits/Bean/MVC");
+            EditorUtil.CreateClass(new Dictionary<string, string>(), beanPath, "LanguageBean", "Assets/FrameWork/Scripts/Bean/MVC");
         }
         else
         {

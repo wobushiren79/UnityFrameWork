@@ -9,14 +9,14 @@ public class MVCEditorWindow : EditorWindow
 {
     public string mvcClassName = "";
 
-    protected readonly string scrpitsTemplatesPath = "/FrameWork/Editor/ScrpitsTemplates/";
+    protected readonly string scriptsTemplatesPath = "/FrameWork/Editor/ScrpitsTemplates/";
 
     protected int saveType = 1;
-    protected string mvcBeanPath = "Assets/Scrpits/Bean/MVC";
-    protected string mvcViewPath = "Assets/Scrpits/MVC/View";
-    protected string mvcModelPath = "Assets/Scrpits/MVC/Model";
-    protected string mvcControllerPath = "Assets/Scrpits/MVC/Controller";
-    protected string mvcServicePath = "Assets/Scrpits/MVC/Service";
+    protected string mvcBeanPath = "Assets/Scripts/Bean/MVC";
+    protected string mvcViewPath = "Assets/Scripts/MVC/View";
+    protected string mvcModelPath = "Assets/Scripts/MVC/Model";
+    protected string mvcControllerPath = "Assets/Scripts/MVC/Controller";
+    protected string mvcServicePath = "Assets/Scripts/MVC/Service";
 
     [MenuItem("Custom/工具弹窗/创建MVC")]
     static void CreateWindows()
@@ -62,22 +62,22 @@ public class MVCEditorWindow : EditorWindow
     public void CreateMVCClass(string fileName, int saveType)
     {
         //注意，Application.datapath会根据使用平台不同而不同  
-        string beanPath = Application.dataPath + scrpitsTemplatesPath + "MVC_Bean.txt";
-        string viewPath = Application.dataPath + scrpitsTemplatesPath + "MVC_IView.txt";
-        string modelPath = Application.dataPath + scrpitsTemplatesPath + "MVC_Model.txt";
-        string controllerPath = Application.dataPath + scrpitsTemplatesPath + "MVC_Controller.txt";
+        string beanPath = Application.dataPath + scriptsTemplatesPath + "MVC_Bean.txt";
+        string viewPath = Application.dataPath + scriptsTemplatesPath + "MVC_IView.txt";
+        string modelPath = Application.dataPath + scriptsTemplatesPath + "MVC_Model.txt";
+        string controllerPath = Application.dataPath + scriptsTemplatesPath + "MVC_Controller.txt";
         string servicePath = "";
 
         switch (saveType)
         {
             case 1:
-                servicePath = Application.dataPath + scrpitsTemplatesPath + "MVC_Service_SQLite.txt";
+                servicePath = Application.dataPath + scriptsTemplatesPath + "MVC_Service_SQLite.txt";
                 break;
             case 2:
-                servicePath = Application.dataPath + scrpitsTemplatesPath + "MVC_Service_FileJson.txt";
+                servicePath = Application.dataPath + scriptsTemplatesPath + "MVC_Service_FileJson.txt";
                 break;
             case 3:
-                servicePath = Application.dataPath + scrpitsTemplatesPath + "MVC_Service_Excel.txt";
+                servicePath = Application.dataPath + scriptsTemplatesPath + "MVC_Service_Excel.txt";
                 break;
         }
 

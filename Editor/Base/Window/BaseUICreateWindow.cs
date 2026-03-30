@@ -16,14 +16,14 @@ public class BaseUICreateWindow : EditorWindow
         window.Show();
     }
 
-    protected readonly static string scrpitsTemplatesPath_UI = "/FrameWork/Editor/ScrpitsTemplates/UI_BaseUI.txt";
-    protected readonly static string scrpitsTemplatesPath_UIView = "/FrameWork/Editor/ScrpitsTemplates/UI_BaseUIView.txt";
-    protected readonly static string scrpitsTemplatesPath_UIDialog = "/FrameWork/Editor/ScrpitsTemplates/UI_BaseUIDialog.txt";
-    protected readonly static string scrpitsTemplatesPath_UIPopup = "/FrameWork/Editor/ScrpitsTemplates/UI_BaseUIPopup.txt";
-    protected readonly static string scrpitsTemplatesPath_UIToast = "/FrameWork/Editor/ScrpitsTemplates/UI_BaseUIToast.txt";
+    protected readonly static string scriptsTemplatesPath_UI = "/FrameWork/Editor/ScrpitsTemplates/UI_BaseUI.txt";
+    protected readonly static string scriptsTemplatesPath_UIView = "/FrameWork/Editor/ScrpitsTemplates/UI_BaseUIView.txt";
+    protected readonly static string scriptsTemplatesPath_UIDialog = "/FrameWork/Editor/ScrpitsTemplates/UI_BaseUIDialog.txt";
+    protected readonly static string scriptsTemplatesPath_UIPopup = "/FrameWork/Editor/ScrpitsTemplates/UI_BaseUIPopup.txt";
+    protected readonly static string scriptsTemplatesPath_UIToast = "/FrameWork/Editor/ScrpitsTemplates/UI_BaseUIToast.txt";
 
-    public static string pathCreateBase = "Assets/Scrpits/Component/UI";
-    public static string pathCreateGame = "Assets/Scrpits/Component/UI/Game";
+    public static string pathCreateBase = "Assets/Scripts/Component/UI";
+    public static string pathCreateGame = "Assets/Scripts/Component/UI/Game";
     public static string modelName = "";
 
     public static string keyEditorPrefs = "InspectorBaseUICreate";
@@ -319,7 +319,7 @@ public class BaseUICreateWindow : EditorWindow
 
     public void HandleForCreate(int typeCreate)
     {
-        string scrpitsTemplatesPath = "";
+        string scriptsTemplatesPath = "";
 
         GameObject objSelect = Selection.activeGameObject;
         if (objSelect == null)
@@ -332,23 +332,23 @@ public class BaseUICreateWindow : EditorWindow
         switch (typeCreate)
         {
             case 1:
-                scrpitsTemplatesPath = scrpitsTemplatesPath_UI;
+                scriptsTemplatesPath = scriptsTemplatesPath_UI;
                 break;
             case 2:
             case 6:
-                scrpitsTemplatesPath = scrpitsTemplatesPath_UIView;
+                scriptsTemplatesPath = scriptsTemplatesPath_UIView;
                 break;
             case 3:
-                scrpitsTemplatesPath = scrpitsTemplatesPath_UIDialog;
+                scriptsTemplatesPath = scriptsTemplatesPath_UIDialog;
                 break;
             case 4:
-                scrpitsTemplatesPath = scrpitsTemplatesPath_UIPopup;
+                scriptsTemplatesPath = scriptsTemplatesPath_UIPopup;
                 break;
             case 5:
-                scrpitsTemplatesPath = scrpitsTemplatesPath_UIToast;
+                scriptsTemplatesPath = scriptsTemplatesPath_UIToast;
                 break;
         }
-        string templatesPath = Application.dataPath + scrpitsTemplatesPath;
+        string templatesPath = Application.dataPath + scriptsTemplatesPath;
 
         if (!EditorUtil.CheckIsPrefabMode(out var prefabStage))
         {

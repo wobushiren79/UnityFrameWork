@@ -9,7 +9,7 @@ using Unity.VisualScripting;
 [CustomEditor(typeof(BaseUIComponent), true)]
 public class InspectorBaseUIComponent : Editor
 {
-    protected readonly static string scrpitsTemplatesPath = "/FrameWork/Editor/ScrpitsTemplates/UI_BaseUIComponent.txt";
+    protected readonly static string scriptsTemplatesPath = "/FrameWork/Editor/ScrpitsTemplates/UI_BaseUIComponent.txt";
     protected readonly static string classSuffix = "Component";
     protected readonly static string keyEditorPrefs = "InspectorBaseUIComponent";
     
@@ -170,7 +170,7 @@ public class InspectorBaseUIComponent : Editor
         GameObject objSelect = Selection.activeGameObject;
         string createfileName = GetCreateScriptFileName(objSelect);
         string currentFileName = GetCurrentScriptFileName(objSelect);
-        string templatesPath = Application.dataPath + scrpitsTemplatesPath;
+        string templatesPath = Application.dataPath + scriptsTemplatesPath;
 
         if (!EditorUtil.CheckIsPrefabMode(out var prefabStage))
         {
