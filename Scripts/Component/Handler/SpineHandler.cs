@@ -46,6 +46,34 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
         return skeletonAnimation;
     }
 
+    public void SetSkeletonDataAsset(SkeletonAnimation skeletonAnimation, SkeletonDataAsset skeletonDataAsset)
+    {
+        if (skeletonAnimation != null && skeletonDataAsset != null)
+        {
+            skeletonAnimation.skeletonDataAsset = skeletonDataAsset;
+            skeletonAnimation.Initialize(true);
+        }
+    }
+
+    public void SetSkeletonDataAsset(SkeletonGraphic skeletonGraphic, SkeletonDataAsset skeletonDataAsset)
+    {
+        if (skeletonGraphic != null && skeletonDataAsset != null)
+        {
+            skeletonGraphic.skeletonDataAsset = skeletonDataAsset;
+            skeletonGraphic.Initialize(true);
+
+            Atlas atlas = skeletonDataAsset.atlasAssets[0].GetAtlas();
+            if (atlas.Pages.Count > 1)
+            {
+                skeletonGraphic.allowMultipleCanvasRenderers = true;
+            }
+            else
+            {
+                skeletonGraphic.allowMultipleCanvasRenderers = false;
+            }
+        }
+    }
+
     /// <summary>
     /// 设置骨骼数据
     /// </summary>
@@ -53,11 +81,7 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     {
         Action<SkeletonDataAsset> actionForSetData = (skeletonDataAsset) =>
         {
-            if (skeletonAnimation != null && skeletonDataAsset != null)
-            {
-                skeletonAnimation.skeletonDataAsset = skeletonDataAsset;
-                skeletonAnimation.Initialize(true);
-            }
+            SetSkeletonDataAsset(skeletonAnimation, skeletonDataAsset);
         };
 
         if (isSync)
@@ -77,21 +101,7 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     {
         Action<SkeletonDataAsset> actionForSetData = (skeletonDataAsset) =>
         {
-            if (skeletonGraphic != null && skeletonDataAsset != null)
-            {
-                skeletonGraphic.skeletonDataAsset = skeletonDataAsset;
-                skeletonGraphic.Initialize(true);
-
-                Atlas atlas = skeletonDataAsset.atlasAssets[0].GetAtlas();
-                if (atlas.Pages.Count > 1)
-                {
-                    skeletonGraphic.allowMultipleCanvasRenderers = true;
-                }
-                else
-                {
-                    skeletonGraphic.allowMultipleCanvasRenderers = false;
-                }
-            }
+            SetSkeletonDataAsset(skeletonGraphic, skeletonDataAsset);
         };
         if (isSync)
         {
