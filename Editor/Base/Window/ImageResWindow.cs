@@ -93,6 +93,8 @@ public class ImageResWindow : EditorWindow
     private ScaleAlgorithm _scaleAlgorithm = ScaleAlgorithm.Bilinear;
     /// <summary>是否保持宽高比</summary>
     private bool _keepAspectRatio = true;
+    /// <summary>最后一次缩放成功的输出路径</summary>
+    private string _lastResizedOutputPath = "";
     #endregion
 
     #region 枚举
@@ -311,7 +313,15 @@ public class ImageResWindow : EditorWindow
             float avgScale = (scaleX + scaleY) / 2f;
             EditorGUILayout.LabelField($"缩放比例: {avgScale:P0} ({scaleInfo})", EditorStyles.miniLabel);
             
-            EditorGUILayout.LabelField($"路径: {_sourceImagePath}", EditorStyles.miniLabel);
+            // 路径和打开文件夹按钮
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField($"路径: {_sourceImagePath}", EditorStyles.miniLabel, GUILayout.Width(350));
+            if (GUILayout.Button("📂", GUILayout.Width(28), GUILayout.Height(18)))
+            {
+                OpenFolderAndSelectFile(_sourceImagePath);
+            }
+            EditorGUILayout.EndHorizontal();
+            
             EditorGUILayout.EndVertical();
         }
         else
@@ -446,6 +456,54 @@ public class ImageResWindow : EditorWindow
     }
 
     /// <summary>
+    /// 打开文件所在文件夹并选中文件
+    /// </summary>
+    private void OpenFolderAndSelectFile(string filePath)
+    {
+        if (string.IsNullOrEmpty(filePath)) return;
+
+        string fullPath = filePath;
+        if (filePath.StartsWith("Assets/"))
+        {
+            fullPath = Path.Combine(Application.dataPath, "..", filePath).Replace("/", "\\");
+            fullPath = Path.GetFullPath(fullPath);
+        }
+
+        if (File.Exists(fullPath))
+        {
+            EditorUtility.RevealInFinder(fullPath);
+        }
+        else if (Directory.Exists(Path.GetDirectoryName(fullPath)))
+        {
+            EditorUtility.RevealInFinder(Path.GetDirectoryName(fullPath));
+        }
+    }
+
+    /// <summary>
+    /// 打开文件夹
+    /// </summary>
+    private void OpenFolder(string folderPath)
+    {
+        if (string.IsNullOrEmpty(folderPath)) return;
+
+        string fullPath = folderPath;
+        if (folderPath.StartsWith("Assets/"))
+        {
+            fullPath = Path.Combine(Application.dataPath, "..", folderPath).Replace("/", "\\");
+            fullPath = Path.GetFullPath(fullPath);
+        }
+
+        if (Directory.Exists(fullPath))
+        {
+            EditorUtility.RevealInFinder(fullPath);
+        }
+        else if (File.Exists(fullPath))
+        {
+            EditorUtility.RevealInFinder(fullPath);
+        }
+    }
+
+    /// <summary>
     /// 绘制输出设置
     /// </summary>
     private void DrawOutputSettings()
@@ -456,6 +514,10 @@ public class ImageResWindow : EditorWindow
         if (GUILayout.Button("选择", GUILayout.Width(50), GUILayout.Height(18)))
         {
             SelectOutputFolder();
+        }
+        if (GUILayout.Button("📂", GUILayout.Width(28), GUILayout.Height(18)))
+        {
+            OpenFolder(_outputFolder);
         }
         EditorGUILayout.EndHorizontal();
 
@@ -499,9 +561,33 @@ public class ImageResWindow : EditorWindow
             ResizeAndSaveImage();
         }
         GUI.backgroundColor = Color.white;
+
+        // 只有当有上次缩放成功的记录时才显示覆盖按钮
+        if (!string.IsNullOrEmpty(_lastResizedOutputPath) && File.Exists(GetFullOutputPath(_lastResizedOutputPath)))
+        {
+            GUILayout.Space(10);
+            GUI.backgroundColor = new Color(0.9f, 0.6f, 0.3f);
+            if (GUILayout.Button("📥 覆盖原图片", GUILayout.Width(120), GUILayout.Height(28)))
+            {
+                OverwriteOriginalImage();
+            }
+            GUI.backgroundColor = Color.white;
+        }
         
         GUILayout.FlexibleSpace();
         EditorGUILayout.EndHorizontal();
+    }
+
+    /// <summary>
+    /// 获取输出路径的完整路径
+    /// </summary>
+    private string GetFullOutputPath(string outputPath)
+    {
+        if (outputPath.StartsWith("Assets/"))
+        {
+            return Path.Combine(Application.dataPath, "..", outputPath).Replace("/", "\\");
+        }
+        return outputPath;
     }
 
     /// <summary>
@@ -561,6 +647,7 @@ public class ImageResWindow : EditorWindow
 
             _resizeResultMessage = $"图片缩放成功！\n输出路径: {outputPath}\n目标尺寸: {_targetWidth} x {_targetHeight}";
             _resizeResultType = MessageType.Info;
+            _lastResizedOutputPath = outputPath;
 
             Debug.Log($"[图片资源处理] 图片缩放完成: {outputPath}");
         }
@@ -829,6 +916,95 @@ public class ImageResWindow : EditorWindow
             DestroyImmediate(sourceToProcess);
         }
         DestroyImmediate(targetTexture);
+    }
+
+    /// <summary>
+    /// 用缩放后的图片覆盖原图片，并删除输出目录中的新图片
+    /// </summary>
+    private void OverwriteOriginalImage()
+    {
+        if (string.IsNullOrEmpty(_lastResizedOutputPath))
+        {
+            _resizeResultMessage = "没有可覆盖的图片，请先进行缩放操作！";
+            _resizeResultType = MessageType.Warning;
+            return;
+        }
+
+        if (_sourceTexture == null || string.IsNullOrEmpty(_sourceImagePath))
+        {
+            _resizeResultMessage = "源图片信息丢失，无法覆盖！";
+            _resizeResultType = MessageType.Error;
+            return;
+        }
+
+        try
+        {
+            string resizedFilePath = GetFullOutputPath(_lastResizedOutputPath);
+            if (!File.Exists(resizedFilePath))
+            {
+                _resizeResultMessage = "缩放后的图片文件不存在！";
+                _resizeResultType = MessageType.Error;
+                return;
+            }
+
+            // 获取原图片的完整路径
+            string originalFullPath = _sourceImagePath;
+            if (_sourceImagePath.StartsWith("Assets/"))
+            {
+                originalFullPath = Path.Combine(Application.dataPath, "..", _sourceImagePath).Replace("/", "\\");
+                originalFullPath = Path.GetFullPath(originalFullPath);
+            }
+
+            // 备份原图片的meta文件（如果是项目内资源）
+            string originalMetaPath = originalFullPath + ".meta";
+            string tempMetaPath = "";
+            if (File.Exists(originalMetaPath))
+            {
+                tempMetaPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".meta");
+                File.Copy(originalMetaPath, tempMetaPath, true);
+            }
+
+            // 读取缩放后的图片数据
+            byte[] resizedData = File.ReadAllBytes(resizedFilePath);
+
+            // 覆盖原图片
+            File.WriteAllBytes(originalFullPath, resizedData);
+
+            // 恢复meta文件
+            if (!string.IsNullOrEmpty(tempMetaPath) && File.Exists(tempMetaPath))
+            {
+                File.Copy(tempMetaPath, originalMetaPath, true);
+                File.Delete(tempMetaPath);
+            }
+
+            // 删除输出目录中的新图片
+            File.Delete(resizedFilePath);
+            // 同时删除对应的meta文件
+            if (File.Exists(resizedFilePath + ".meta"))
+            {
+                File.Delete(resizedFilePath + ".meta");
+            }
+
+            // 刷新AssetDatabase
+            if (_sourceImagePath.StartsWith("Assets/"))
+            {
+                AssetDatabase.Refresh();
+            }
+
+            // 清除记录
+            _lastResizedOutputPath = "";
+
+            _resizeResultMessage = $"图片覆盖成功！\n原图片已被替换: {_sourceImagePath}\n输出目录的临时文件已删除。";
+            _resizeResultType = MessageType.Info;
+
+            Debug.Log($"[图片资源处理] 图片覆盖完成: {_sourceImagePath}");
+        }
+        catch (Exception ex)
+        {
+            _resizeResultMessage = $"覆盖失败: {ex.Message}";
+            _resizeResultType = MessageType.Error;
+            Debug.LogError($"[图片资源处理] 图片覆盖失败: {ex}");
+        }
     }
     #endregion
 
