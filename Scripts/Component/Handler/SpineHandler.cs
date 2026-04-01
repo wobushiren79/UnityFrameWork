@@ -37,7 +37,7 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     /// </summary>
     public SkeletonAnimation AddSkeletonAnimation(GameObject targetObj, string assetName, Dictionary<string, SpineSkinBean> skinData = null)
     {
-        var skeletonDataAsset = manager.GetSkeletonDataAssetSync(assetName);
+        var skeletonDataAsset = GetSkeletonDataAssetWithMod(assetName);
         SkeletonAnimation skeletonAnimation = SkeletonAnimation.AddToGameObject(targetObj, skeletonDataAsset);
         if (skinData != null)
         {
@@ -86,12 +86,12 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
 
         if (isSync)
         {
-            var skeletonDataAsset = manager.GetSkeletonDataAssetSync(assetName);
+            var skeletonDataAsset = GetSkeletonDataAssetWithMod(assetName);
             actionForSetData?.Invoke(skeletonDataAsset);
         }
         else
         {
-            manager.GetSkeletonDataAsset(assetName, (skeletonDataAsset) =>
+            GetSkeletonDataAssetWithMod(assetName, (skeletonDataAsset) =>
             {
                 actionForSetData?.Invoke(skeletonDataAsset);
             });
@@ -105,12 +105,12 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
         };
         if (isSync)
         {
-            var skeletonDataAsset = manager.GetSkeletonDataAssetSync(assetName);
+            var skeletonDataAsset = GetSkeletonDataAssetWithMod(assetName);
             actionForSetData?.Invoke(skeletonDataAsset);
         }
         else
         {
-            manager.GetSkeletonDataAsset(assetName, (skeletonDataAsset) =>
+            GetSkeletonDataAssetWithMod(assetName, (skeletonDataAsset) =>
             {
                 actionForSetData?.Invoke(skeletonDataAsset);
             });
@@ -123,7 +123,7 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     /// <returns></returns>
     public SkeletonGraphic AddSkeletonGraphic(GameObject targetObj, string assetName, Dictionary<string, SpineSkinBean> skinData, Material material)
     {
-        var skeletonDataAsset = manager.GetSkeletonDataAssetSync(assetName);
+        var skeletonDataAsset = GetSkeletonDataAssetWithMod(assetName);
         SkeletonGraphic skeletonGraphic = SkeletonGraphic.AddSkeletonGraphicComponent(targetObj, skeletonDataAsset, material);
         if (skinData != null)
         {
@@ -137,7 +137,7 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     /// </summary>
     public void ChangeSkeletonSkin(Skeleton skeleton, Dictionary<string, SpineSkinBean> dicSkin)
     {
-        Skin newSkin = new Skin($"skin_{skeleton.Data.Name}");
+        Skin newSkin = new Skin($"skin_{skeleton.Data.Hash}");
         if (dicSkin != null)
         {
             foreach (var itemData in dicSkin)
@@ -233,6 +233,53 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     //    var atals = skeletonDataAsset.atlasAssets[0].GetAtlas();
     //    AtlasRegion atlasRegion = atals.FindRegion(SpriteName);
     //}
+
+    #region Mod资源加载支持
+
+    /// <summary>
+    /// 同步获取SkeletonDataAsset，若assetName属于已加载Mod则走Mod加载路径，并缓存至SpineManager
+    /// </summary>
+    private SkeletonDataAsset GetSkeletonDataAssetWithMod(string assetName)
+    {
+        string modName = ModHandler.Instance.GetModNameForAsset(assetName);
+        if (modName != null)
+        {
+            var modAsset = ModHandler.Instance.LoadAssetSync<SkeletonDataAsset>(modName, assetName);
+            if (modAsset != null)
+            {
+                manager.dicSkeletonDataAsset[$"{assetName}"] = modAsset;
+                return modAsset;
+            }
+        }
+        return manager.GetSkeletonDataAssetSync(assetName);
+    }
+
+    /// <summary>
+    /// 异步获取SkeletonDataAsset，若assetName属于已加载Mod则走Mod加载路径，并缓存至SpineManager
+    /// </summary>
+    private void GetSkeletonDataAssetWithMod(string assetName, Action<SkeletonDataAsset> callback)
+    {
+        string modName = ModHandler.Instance.GetModNameForAsset(assetName);
+        if (modName != null)
+        {
+            ModHandler.Instance.LoadAsset<SkeletonDataAsset>(modName, assetName, (modAsset) =>
+            {
+                if (modAsset != null)
+                {
+                    manager.dicSkeletonDataAsset[$"{assetName}"] = modAsset;
+                    callback?.Invoke(modAsset);
+                }
+                else
+                {
+                    manager.GetSkeletonDataAsset(assetName, callback);
+                }
+            });
+            return;
+        }
+        manager.GetSkeletonDataAsset(assetName, callback);
+    }
+
+    #endregion
 
     #region  动画相关
     /// <summary>

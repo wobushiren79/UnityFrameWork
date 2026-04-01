@@ -15,8 +15,6 @@ public class SpineManager : BaseManager
 
     //所有的皮肤
     public Dictionary<string, Skin> dicSkeletonDataSkin = new Dictionary<string, Skin>();
-    //spine数据路径
-    public string pathSkeletonData = "Assets/LoadResources/Spine";
 
     /// <summary>
     /// 获取spine资源 同步
@@ -25,7 +23,7 @@ public class SpineManager : BaseManager
     {
         if (assetName.IsNull())
             return null;
-        return GetModelForAddressablesSync(dicSkeletonDataAsset, $"{pathSkeletonData}/{assetName}");
+        return GetModelForAddressablesSync(dicSkeletonDataAsset, $"{assetName}");
     }
 
     /// <summary>
@@ -38,7 +36,7 @@ public class SpineManager : BaseManager
             actionForComplete?.Invoke(null);
             return;
         }
-        GetModelForAddressables(dicSkeletonDataAsset, $"{pathSkeletonData}/{assetName}", actionForComplete);
+        GetModelForAddressables(dicSkeletonDataAsset, $"{assetName}", actionForComplete);
     }
 
     /// <summary>

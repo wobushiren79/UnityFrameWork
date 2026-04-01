@@ -44,6 +44,134 @@ public partial class ModManager : BaseManager
     private Dictionary<string, AsyncOperationHandle> dicListAssetHandles = new Dictionary<string, AsyncOperationHandle>();
 
     /// <summary>
+    /// 已加载的Mod资源Key集合
+    /// key: modName, value: 该Mod包含的所有资源地址集合（string类型Key）
+    /// </summary>
+    private Dictionary<string, HashSet<string>> dicModAssetKeys = new Dictionary<string, HashSet<string>>();
+
+    /// <summary>
+    /// 记录Mod的所有资源Key（string类型），加载Catalog成功后调用
+    /// </summary>
+    private void RecordModAssetKeys(string modName, IResourceLocator locator)
+    {
+        var keys = new HashSet<string>();
+        foreach (var key in locator.Keys)
+        {
+            if (key is string strKey)
+                keys.Add(strKey);
+        }
+        dicModAssetKeys[modName] = keys;
+    }
+
+    /// <summary>
+    /// 判断指定assetKey是否属于已加载的某个Mod
+    /// </summary>
+    public bool IsModAsset(string assetKey)
+    {
+        foreach (var keys in dicModAssetKeys.Values)
+        {
+            if (keys.Contains(assetKey))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// 获取包含指定assetKey的Mod名称，未找到返回null
+    /// </summary>
+    public string GetModNameForAsset(string assetKey)
+    {
+        foreach (var kvp in dicModAssetKeys)
+        {
+            if (kvp.Value.Contains(assetKey))
+                return kvp.Key;
+        }
+        return null;
+    }
+
+    #region 初始化
+
+    /// <summary>
+    /// 初始化所有Mod：扫描ModRoot目录，加载所有可用Mod的Catalog并记录资源Key（异步回调）
+    /// </summary>
+    public void InitializeAllMods(Action<bool> callBack)
+    {
+        var availableMods = GetAvailableModNames();
+        if (availableMods.Count == 0)
+        {
+            LogUtil.Log("[Mod] 未发现可用Mod");
+            callBack?.Invoke(true);
+            return;
+        }
+
+        int total = availableMods.Count;
+        int completed = 0;
+        bool allSuccess = true;
+
+        foreach (var modName in availableMods)
+        {
+            LoadModCatalog(modName, (success) =>
+            {
+                if (!success) allSuccess = false;
+                completed++;
+                if (completed == total)
+                {
+                    LogUtil.Log($"[Mod] 初始化完成，共加载 {completed} 个Mod，成功: {allSuccess}");
+                    callBack?.Invoke(allSuccess);
+                }
+            });
+        }
+    }
+
+    /// <summary>
+    /// 初始化所有Mod：扫描ModRoot目录，加载所有可用Mod的Catalog并记录资源Key（异步await）
+    /// </summary>
+    public async Task<bool> InitializeAllModsAsync()
+    {
+        var availableMods = GetAvailableModNames();
+        if (availableMods.Count == 0)
+        {
+            LogUtil.Log("[Mod] 未发现可用Mod");
+            return true;
+        }
+
+        bool allSuccess = true;
+        foreach (var modName in availableMods)
+        {
+            bool success = await LoadModCatalogAsync(modName);
+            if (!success) allSuccess = false;
+        }
+
+        LogUtil.Log($"[Mod] 初始化完成，共处理 {availableMods.Count} 个Mod，成功: {allSuccess}");
+        return allSuccess;
+    }
+
+    /// <summary>
+    /// 初始化所有Mod：扫描ModRoot目录，加载所有可用Mod的Catalog并记录资源Key（同步）
+    /// </summary>
+    public bool InitializeAllModsSync()
+    {
+        var availableMods = GetAvailableModNames();
+        if (availableMods.Count == 0)
+        {
+            LogUtil.Log("[Mod] 未发现可用Mod");
+            return true;
+        }
+
+        bool allSuccess = true;
+        foreach (var modName in availableMods)
+        {
+            bool success = LoadModCatalogSync(modName);
+            if (!success) allSuccess = false;
+        }
+
+        LogUtil.Log($"[Mod] 初始化完成，共处理 {availableMods.Count} 个Mod，成功: {allSuccess}");
+        return allSuccess;
+    }
+
+    #endregion
+
+    /// <summary>
     /// 获取Mods根目录
     /// 编辑器模式与打包项目路径相同：与 Assets / GameName_Data 同级的 Mods 目录
     /// </summary>
@@ -124,6 +252,7 @@ public partial class ModManager : BaseManager
                         // 依赖下载成功后才写入缓存，避免半初始化状态
                         dicModLocators[modName] = locator;
                         dicCatalogHandles[modName] = handle;
+                        RecordModAssetKeys(modName, locator);
                         LogUtil.Log($"[Mod] Catalog+依赖加载成功: {modName}");
                         callBack?.Invoke(true);
                     }
@@ -187,6 +316,7 @@ public partial class ModManager : BaseManager
                 // 依赖下载成功后才写入缓存
                 dicModLocators[modName] = locator;
                 dicCatalogHandles[modName] = handle;
+                RecordModAssetKeys(modName, locator);
                 LogUtil.Log($"[Mod] Catalog+依赖加载成功: {modName}");
                 return true;
             }
@@ -246,6 +376,7 @@ public partial class ModManager : BaseManager
                 // 依赖下载成功后才写入缓存
                 dicModLocators[modName] = locator;
                 dicCatalogHandles[modName] = handle;
+                RecordModAssetKeys(modName, locator);
                 LogUtil.Log($"[Mod] Catalog+依赖同步加载成功: {modName}");
                 return true;
             }
@@ -524,6 +655,7 @@ public partial class ModManager : BaseManager
             dicCatalogHandles.Remove(modName);
         }
 
+        dicModAssetKeys.Remove(modName);
         LogUtil.Log($"[Mod] Mod已卸载: {modName}");
     }
 
@@ -558,6 +690,7 @@ public partial class ModManager : BaseManager
         }
         dicCatalogHandles.Clear();
 
+        dicModAssetKeys.Clear();
         LogUtil.Log("[Mod] 所有Mod已卸载");
     }
 

@@ -9,6 +9,54 @@ using UnityEngine;
 /// </summary>
 public partial class ModHandler : BaseHandler<ModHandler, ModManager>
 {
+    #region 初始化
+
+    /// <summary>
+    /// 初始化所有Mod：扫描ModRoot，加载全部可用Mod的Catalog并记录资源Key（异步回调）
+    /// </summary>
+    public void InitializeAllMods(Action<bool> callBack)
+    {
+        manager.InitializeAllMods(callBack);
+    }
+
+    /// <summary>
+    /// 初始化所有Mod：扫描ModRoot，加载全部可用Mod的Catalog并记录资源Key（异步await）
+    /// </summary>
+    public async Task<bool> InitializeAllModsAsync()
+    {
+        return await manager.InitializeAllModsAsync();
+    }
+
+    /// <summary>
+    /// 初始化所有Mod：扫描ModRoot，加载全部可用Mod的Catalog并记录资源Key（同步）
+    /// </summary>
+    public bool InitializeAllModsSync()
+    {
+        return manager.InitializeAllModsSync();
+    }
+
+    #endregion
+
+    #region 查询（含资源归属）
+
+    /// <summary>
+    /// 判断指定assetKey是否属于已加载的某个Mod
+    /// </summary>
+    public bool IsModAsset(string assetKey)
+    {
+        return manager.IsModAsset(assetKey);
+    }
+
+    /// <summary>
+    /// 获取包含指定assetKey的Mod名称，未找到返回null
+    /// </summary>
+    public string GetModNameForAsset(string assetKey)
+    {
+        return manager.GetModNameForAsset(assetKey);
+    }
+
+    #endregion
+
     #region Catalog 加载 / 卸载
 
     /// <summary>
