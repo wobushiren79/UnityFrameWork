@@ -1192,7 +1192,7 @@ public class ExcelEditorWindow : EditorWindow
         if (isLanguage)
         {
             path = $"{dir}/LanguageBean.cs";
-            string beanPath = Application.dataPath + "/FrameWork/Editor/ScrpitsTemplates/Excel_LanguageEntity.txt";
+            string beanPath = Application.dataPath + "/FrameWork/Editor/ScriptsTemplates/Excel_LanguageEntity.txt";
             EditorUtil.CreateClass(new Dictionary<string, string>(), beanPath, "LanguageBean", "Assets/FrameWork/Scripts/Bean/MVC");
         }
         else

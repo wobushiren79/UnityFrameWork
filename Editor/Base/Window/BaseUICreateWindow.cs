@@ -5,22 +5,40 @@ using UnityEditor.Toolbars;
 using UnityEngine;
 using UnityEngine.UIElements;
 
+public static class IconHelper
+{
+    /// <summary>
+    /// 安全地获取图标，如果找不到则返回 null
+    /// </summary>
+    public static Texture2D GetIcon(string iconName)
+    {
+        if (string.IsNullOrEmpty(iconName))
+            return null;
+        
+        var content = EditorGUIUtility.IconContent(iconName);
+        return content?.image as Texture2D;
+    }
+}
+
 public class BaseUICreateWindow : EditorWindow
 {
     [MenuItem("Custom/工具弹窗/UI脚本创建")]
     static void CreateWindows()
     {
         BaseUICreateWindow window = GetWindow<BaseUICreateWindow>();
-        window.titleContent = new GUIContent("UI脚本创建工具", EditorGUIUtility.IconContent("d_ScriptableObject Icon").image);
+        var titleIcon = IconHelper.GetIcon("ScriptableObject Icon") ?? IconHelper.GetIcon("cs Script Icon");
+        window.titleContent = titleIcon != null 
+            ? new GUIContent("UI脚本创建工具", titleIcon)
+            : new GUIContent("UI脚本创建工具");
         window.minSize = new Vector2(440, 560);
         window.Show();
     }
 
-    protected readonly static string scriptsTemplatesPath_UI = "/FrameWork/Editor/ScrpitsTemplates/UI_BaseUI.txt";
-    protected readonly static string scriptsTemplatesPath_UIView = "/FrameWork/Editor/ScrpitsTemplates/UI_BaseUIView.txt";
-    protected readonly static string scriptsTemplatesPath_UIDialog = "/FrameWork/Editor/ScrpitsTemplates/UI_BaseUIDialog.txt";
-    protected readonly static string scriptsTemplatesPath_UIPopup = "/FrameWork/Editor/ScrpitsTemplates/UI_BaseUIPopup.txt";
-    protected readonly static string scriptsTemplatesPath_UIToast = "/FrameWork/Editor/ScrpitsTemplates/UI_BaseUIToast.txt";
+    protected readonly static string scriptsTemplatesPath_UI = "/FrameWork/Editor/ScriptsTemplates/UI_BaseUI.txt";
+    protected readonly static string scriptsTemplatesPath_UIView = "/FrameWork/Editor/ScriptsTemplates/UI_BaseUIView.txt";
+    protected readonly static string scriptsTemplatesPath_UIDialog = "/FrameWork/Editor/ScriptsTemplates/UI_BaseUIDialog.txt";
+    protected readonly static string scriptsTemplatesPath_UIPopup = "/FrameWork/Editor/ScriptsTemplates/UI_BaseUIPopup.txt";
+    protected readonly static string scriptsTemplatesPath_UIToast = "/FrameWork/Editor/ScriptsTemplates/UI_BaseUIToast.txt";
 
     public static string pathCreateBase = "Assets/Scripts/Component/UI";
     public static string pathCreateGame = "Assets/Scripts/Component/UI/Game";
@@ -51,15 +69,15 @@ public class BaseUICreateWindow : EditorWindow
 
     private ViewCreateTarget _viewCreateTarget = ViewCreateTarget.UI;
 
-    // 按钮样式配置
+    // 按钮样式配置 - 使用通用的Unity内置图标
     private static readonly (string label, string icon, int type)[] ScriptButtons = new[]
     {
-        ("UI 脚本",       "d_RawImage Icon",       1),
-        ("View 脚本",     "d_Image Icon",          2),
-        ("Dialog 脚本",   "d_CanvasGroup Icon",    3),
-        ("Popup 脚本",    "d_Canvas Icon",         4),
-        ("Toast 脚本",    "d_Text Icon",           5),
-        ("Common 脚本",   "d_GridLayoutGroup Icon",6),
+        ("UI 脚本",       "UnityLogo",           1),
+        ("View 脚本",     "ViewToolOrbit",       2),
+        ("Dialog 脚本",   "Toolbar Plus",        3),
+        ("Popup 脚本",    "Toolbar Minus",       4),
+        ("Toast 脚本",    "UnityEditor.Notification", 5),
+        ("Common 脚本",   "GridLayoutGroup Icon",6),
     };
 
     [InitializeOnLoadMethod]
@@ -130,9 +148,21 @@ public class BaseUICreateWindow : EditorWindow
     private void DrawHeader()
     {
         EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+        
+        // 左侧提示
+        var logoIcon = IconHelper.GetIcon("UnityLogo");
+        if (logoIcon != null)
+            GUILayout.Label(logoIcon, GUILayout.Width(20), GUILayout.Height(20));
+        GUILayout.Label("UI脚本创建工具", EditorStyles.boldLabel);
+        
         GUILayout.FlexibleSpace();
-        if (GUILayout.Button(new GUIContent(" 刷新", EditorGUIUtility.IconContent("d_Refresh").image),
-            EditorStyles.toolbarButton, GUILayout.Width(80)))
+        
+        // 刷新按钮 - 带图标
+        var refreshIcon = IconHelper.GetIcon("Refresh");
+        GUIContent refreshContent = refreshIcon != null 
+            ? new GUIContent(" 刷新名称", refreshIcon)
+            : new GUIContent(" 刷新名称");
+        if (GUILayout.Button(refreshContent, EditorStyles.toolbarButton, GUILayout.Width(90)))
         {
             HandleForRefresh();
         }
@@ -142,56 +172,172 @@ public class BaseUICreateWindow : EditorWindow
     private void DrawSettingsSection()
     {
         EditorGUILayout.BeginVertical("box");
+        
+        // 标题栏带图标
+        EditorGUILayout.BeginHorizontal();
+        var settingsIcon = IconHelper.GetIcon("SettingsIcon");
+        if (settingsIcon != null)
+            GUILayout.Label(settingsIcon, GUILayout.Width(20), GUILayout.Height(20));
         EditorGUILayout.LabelField("基本设置", EditorStyles.boldLabel);
+        EditorGUILayout.EndHorizontal();
+        
         DrawSeparator();
 
+        // 模块名字输入 - 带图标
         EditorGUILayout.BeginHorizontal();
-        EditorGUILayout.LabelField("模块名字", GUILayout.Width(60));
-        string newModelName = EditorGUILayout.TextField(modelName);
+        var textIcon = IconHelper.GetIcon("TextAsset Icon");
+        if (textIcon != null)
+            GUILayout.Label(textIcon, GUILayout.Width(16), GUILayout.Height(16));
+        EditorGUILayout.LabelField("模块名字", GUILayout.Width(70));
+        string newModelName = EditorGUILayout.TextField(modelName, EditorStyles.textField);
         if (newModelName != modelName)
         {
             modelName = newModelName;
         }
         EditorGUILayout.EndHorizontal();
 
+        EditorGUILayout.Space(4);
+
+        // 生成路径输入 - 带图标
         EditorGUILayout.BeginHorizontal();
-        EditorGUILayout.LabelField("生成路径", GUILayout.Width(60));
-        pathCreateGame = EditorGUILayout.TextField(pathCreateGame);
+        var folderIcon = IconHelper.GetIcon("Folder Icon");
+        if (folderIcon != null)
+            GUILayout.Label(folderIcon, GUILayout.Width(16), GUILayout.Height(16));
+        EditorGUILayout.LabelField("生成路径", GUILayout.Width(70));
+        pathCreateGame = EditorGUILayout.TextField(pathCreateGame, EditorStyles.textField);
         EditorGUILayout.EndHorizontal();
 
-        // 显示当前选中对象信息
+        EditorGUILayout.Space(6);
+
+        // 显示当前选中对象信息 - 美化版
         GameObject selected = Selection.activeGameObject;
         if (selected != null)
         {
-            EditorGUILayout.Space(2);
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.BeginHorizontal();
+            var selectableIcon = IconHelper.GetIcon("Selectable Icon");
+        if (selectableIcon != null)
+            GUILayout.Label(selectableIcon, GUILayout.Width(16), GUILayout.Height(16));
+            EditorGUILayout.LabelField("当前选中对象", EditorStyles.miniBoldLabel);
+            EditorGUILayout.EndHorizontal();
+            
             EditorGUI.BeginDisabledGroup(true);
-            EditorGUILayout.ObjectField("当前选中", selected, typeof(GameObject), true);
+            EditorGUILayout.ObjectField(selected, typeof(GameObject), true, GUILayout.Height(18));
             EditorGUI.EndDisabledGroup();
+            
+            // 显示预览名称
+            string previewName = GetCreateScriptFileName(selected);
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("生成文件名:", EditorStyles.miniLabel, GUILayout.Width(70));
+            EditorGUILayout.LabelField(previewName, EditorStyles.miniBoldLabel);
+            EditorGUILayout.EndHorizontal();
+            
+            EditorGUILayout.EndVertical();
+        }
+        else
+        {
+            EditorGUILayout.HelpBox("未选中对象，请在 Hierarchy 中选中一个 GameObject", MessageType.Info);
         }
 
         EditorGUILayout.EndVertical();
     }
 
+    // 按钮样式缓存
+    private GUIStyle _buttonStyle;
+    private GUIStyle _createButtonStyle;
+    private GUIStyle _toolbarButtonStyle;
+
+    private void InitStyles()
+    {
+        if (_buttonStyle == null)
+        {
+            _buttonStyle = new GUIStyle(GUI.skin.button);
+            _buttonStyle.alignment = TextAnchor.MiddleLeft;
+            _buttonStyle.padding = new RectOffset(8, 8, 4, 4);
+            _buttonStyle.fontSize = 11;
+        }
+        if (_createButtonStyle == null)
+        {
+            _createButtonStyle = new GUIStyle(GUI.skin.button);
+            _createButtonStyle.alignment = TextAnchor.MiddleCenter;
+            _createButtonStyle.fontStyle = FontStyle.Bold;
+            _createButtonStyle.fontSize = 12;
+            _createButtonStyle.padding = new RectOffset(8, 8, 6, 6);
+            // 使用深绿色背景
+            _createButtonStyle.normal.background = MakeTex(2, 2, new Color(0.2f, 0.6f, 0.3f, 1f));
+            _createButtonStyle.normal.textColor = Color.white;
+            _createButtonStyle.hover.background = MakeTex(2, 2, new Color(0.3f, 0.7f, 0.4f, 1f));
+            _createButtonStyle.hover.textColor = Color.white;
+            _createButtonStyle.active.background = MakeTex(2, 2, new Color(0.15f, 0.5f, 0.25f, 1f));
+            _createButtonStyle.active.textColor = Color.white;
+        }
+        if (_toolbarButtonStyle == null)
+        {
+            _toolbarButtonStyle = new GUIStyle(EditorStyles.toolbarButton);
+            _toolbarButtonStyle.alignment = TextAnchor.MiddleLeft;
+            _toolbarButtonStyle.padding = new RectOffset(6, 6, 2, 2);
+        }
+    }
+
+    private Texture2D MakeTex(int width, int height, Color color)
+    {
+        Color[] pix = new Color[width * height];
+        for (int i = 0; i < pix.Length; i++)
+            pix[i] = color;
+        Texture2D result = new Texture2D(width, height);
+        result.SetPixels(pix);
+        result.Apply();
+        return result;
+    }
+
     private void DrawCreateButtonsSection()
     {
+        InitStyles();
+
         EditorGUILayout.BeginVertical("box");
+        
+        // 标题栏带图标
+        EditorGUILayout.BeginHorizontal();
+        var scriptIcon = IconHelper.GetIcon("cs Script Icon");
+        if (scriptIcon != null)
+            GUILayout.Label(scriptIcon, GUILayout.Width(20), GUILayout.Height(20));
         EditorGUILayout.LabelField("创建脚本", EditorStyles.boldLabel);
+        EditorGUILayout.EndHorizontal();
+        
         DrawSeparator();
 
-        // View 脚本路径选择
+        // View 脚本路径选择 - 美化版
         EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-        EditorGUILayout.LabelField("View 脚本生成位置", EditorStyles.miniLabel);
+        EditorGUILayout.BeginHorizontal();
+        var folderIcon2 = IconHelper.GetIcon("Folder Icon");
+        if (folderIcon2 != null)
+            GUILayout.Label(folderIcon2, GUILayout.Width(16), GUILayout.Height(16));
+        EditorGUILayout.LabelField("View 脚本生成位置", EditorStyles.miniBoldLabel);
+        EditorGUILayout.EndHorizontal();
+        
+        EditorGUILayout.Space(2);
         _viewCreateTarget = (ViewCreateTarget)GUILayout.Toolbar(
-            (int)_viewCreateTarget, ViewCreateTargetLabels, GUILayout.Height(22));
+            (int)_viewCreateTarget, ViewCreateTargetLabels, GUILayout.Height(24));
+        
+        EditorGUILayout.Space(2);
         string viewPreviewPath = GetViewCreatePath();
         EditorGUI.BeginDisabledGroup(true);
-        EditorGUILayout.TextField(viewPreviewPath);
+        EditorGUILayout.TextField(viewPreviewPath, EditorStyles.textField);
         EditorGUI.EndDisabledGroup();
         EditorGUILayout.EndVertical();
 
-        EditorGUILayout.Space(4);
+        EditorGUILayout.Space(6);
 
-        // 两列按钮布局
+        // 按钮分组标题
+        EditorGUILayout.BeginHorizontal();
+        var unityIcon = IconHelper.GetIcon("UnityLogo");
+        if (unityIcon != null)
+            GUILayout.Label(unityIcon, GUILayout.Width(16), GUILayout.Height(16));
+        EditorGUILayout.LabelField("点击生成对应脚本", EditorStyles.miniBoldLabel);
+        EditorGUILayout.EndHorizontal();
+        EditorGUILayout.Space(2);
+
+        // 两列按钮布局 - 美化版
         int columns = 2;
         for (int i = 0; i < ScriptButtons.Length; i += columns)
         {
@@ -199,17 +345,17 @@ public class BaseUICreateWindow : EditorWindow
             for (int j = 0; j < columns && i + j < ScriptButtons.Length; j++)
             {
                 var btn = ScriptButtons[i + j];
-                GUIContent content = new GUIContent(
-                    $" 生成 {btn.label}",
-                    EditorGUIUtility.IconContent(btn.icon).image
-                );
-                if (GUILayout.Button(content, GUILayout.Height(32)))
+                var btnIcon = IconHelper.GetIcon(btn.icon);
+                GUIContent content = btnIcon != null 
+                    ? new GUIContent($" {btn.label}", btnIcon)
+                    : new GUIContent($" {btn.label}");
+                if (GUILayout.Button(content, _createButtonStyle, GUILayout.Height(36)))
                 {
-                    HandleForCreate(btn.type);
+                    HandleForCreateWithConfirm(btn.type, btn.label);
                 }
             }
             EditorGUILayout.EndHorizontal();
-            EditorGUILayout.Space(2);
+            EditorGUILayout.Space(3);
         }
 
         EditorGUILayout.EndVertical();
@@ -219,19 +365,72 @@ public class BaseUICreateWindow : EditorWindow
     {
         if (!string.IsNullOrEmpty(_statusMessage))
         {
+            EditorGUILayout.BeginVertical("box");
+            
+            EditorGUILayout.BeginHorizontal();
+            // 根据状态类型显示不同图标
+            string statusIconName = _statusType switch
+            {
+                MessageType.Error => "console.erroricon",
+                MessageType.Warning => "console.warnicon",
+                MessageType.Info => "console.infoicon",
+                _ => "console.infoicon"
+            };
+            Texture2D statusIcon = IconHelper.GetIcon(statusIconName);
+            if (statusIcon != null)
+                GUILayout.Label(statusIcon, GUILayout.Width(20), GUILayout.Height(20));
+            EditorGUILayout.LabelField("操作结果", EditorStyles.boldLabel);
+            EditorGUILayout.EndHorizontal();
+            
+            EditorGUILayout.Space(2);
             EditorGUILayout.HelpBox(_statusMessage, _statusType);
             EditorGUILayout.Space(2);
-            if (GUILayout.Button("清除提示", GUILayout.Height(20)))
+            
+            // 清除按钮 - 居中
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            var closeIcon = IconHelper.GetIcon("winbtn_win_close");
+            GUIContent closeContent = closeIcon != null 
+                ? new GUIContent(" 清除提示", closeIcon)
+                : new GUIContent(" 清除提示");
+            if (GUILayout.Button(closeContent, GUILayout.Width(100), GUILayout.Height(24)))
             {
                 _statusMessage = "";
             }
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+            
+            EditorGUILayout.EndVertical();
         }
     }
 
     private void DrawCenteredMessage(string message, MessageType type)
     {
         GUILayout.FlexibleSpace();
+        
+        EditorGUILayout.BeginVertical("box", GUILayout.MaxWidth(400));
+        EditorGUILayout.Space(20);
+        
+        // 居中显示图标
+        EditorGUILayout.BeginHorizontal();
+        GUILayout.FlexibleSpace();
+        string iconName = type switch
+        {
+            MessageType.Error => "console.erroricon.sml",
+            MessageType.Warning => "console.warnicon.sml",
+            _ => "console.infoicon.sml"
+        };
+        Texture2D icon = IconHelper.GetIcon(iconName);
+        if (icon != null)
+            GUILayout.Label(icon, GUILayout.Width(32), GUILayout.Height(32));
+        GUILayout.FlexibleSpace();
+        EditorGUILayout.EndHorizontal();
+        
+        EditorGUILayout.Space(10);
         EditorGUILayout.HelpBox(message, type);
+        EditorGUILayout.Space(20);
+        EditorGUILayout.EndVertical();
+        
         GUILayout.FlexibleSpace();
     }
 
@@ -317,7 +516,71 @@ public class BaseUICreateWindow : EditorWindow
         SetStatus($"已刷新模块名: {modelName} (未匹配到已有目录)", MessageType.Info);
     }
 
-    public void HandleForCreate(int typeCreate)
+    /// <summary>
+    /// 带确认弹窗的创建处理
+    /// </summary>
+    public void HandleForCreateWithConfirm(int typeCreate, string scriptTypeName)
+    {
+        GameObject objSelect = Selection.activeGameObject;
+        if (objSelect == null)
+        {
+            SetStatus("请先选中一个 GameObject", MessageType.Warning);
+            return;
+        }
+
+        string createfileName = GetCreateScriptFileName(objSelect);
+        string pathCreateFinal = GetCreatePath(typeCreate);
+        
+        // 确认弹窗
+        string title = $"确认创建 {scriptTypeName}";
+        string message = $"确定要创建以下脚本吗?\n\n" +
+                        $"脚本名称: {createfileName}\n" +
+                        $"脚本类型: {scriptTypeName}\n" +
+                        $"生成路径: {pathCreateFinal}\n\n" +
+                        $"点击 [确定] 继续生成，点击 [取消] 返回。";
+        string okButton = "确定生成";
+        string cancelButton = "取消";
+
+        if (EditorUtility.DisplayDialog(title, message, okButton, cancelButton))
+        {
+            HandleForCreate(typeCreate, true);
+        }
+    }
+
+    /// <summary>
+    /// 获取创建路径（用于预览）
+    /// </summary>
+    private string GetCreatePath(int typeCreate)
+    {
+        if (typeCreate == 2)
+        {
+            return GetViewCreatePath();
+        }
+        else if (typeCreate == 3)
+        {
+            return $"{pathCreateBase}/Dialog";
+        }
+        else if (typeCreate == 4)
+        {
+            return $"{pathCreateBase}/Popup";
+        }
+        else if (typeCreate == 5)
+        {
+            return $"{pathCreateBase}/Toast";
+        }
+        else if (typeCreate == 6)
+        {
+            return modelName.IsNull()
+                ? $"{pathCreateBase}/Common"
+                : $"{pathCreateBase}/Common/{modelName}";
+        }
+        else
+        {
+            return $"{pathCreateGame}/{modelName}";
+        }
+    }
+
+    public void HandleForCreate(int typeCreate, bool skipConfirm = false)
     {
         string scriptsTemplatesPath = "";
 

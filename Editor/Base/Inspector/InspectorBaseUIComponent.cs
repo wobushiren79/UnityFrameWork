@@ -9,7 +9,7 @@ using Unity.VisualScripting;
 [CustomEditor(typeof(BaseUIComponent), true)]
 public class InspectorBaseUIComponent : Editor
 {
-    protected readonly static string scriptsTemplatesPath = "/FrameWork/Editor/ScrpitsTemplates/UI_BaseUIComponent.txt";
+    protected readonly static string scriptsTemplatesPath = "/FrameWork/Editor/ScriptsTemplates/UI_BaseUIComponent.txt";
     protected readonly static string classSuffix = "Component";
     protected readonly static string keyEditorPrefs = "InspectorBaseUIComponent";
     
@@ -200,15 +200,32 @@ public class InspectorBaseUIComponent : Editor
     /// </summary>
     public static void HandleForSetUICompontData(BaseUIInit uiComponent = null)
     {
-        GameObject objSelect = Selection.activeGameObject;
-        if (objSelect == null)
-            return;
+        GameObject objSelect = null;
+        
+        // 优先从 HierarchySelect 获取（用于代码生成后的自动绑定）
         if (uiComponent == null)
         {
+            uiComponent = HierarchySelect.baseUIComponent;
+            if (uiComponent != null)
+            {
+                objSelect = uiComponent.gameObject;
+            }
+        }
+        
+        // 如果 HierarchySelect 没有，尝试从 Selection 获取（用于手动点击设置）
+        if (uiComponent == null)
+        {
+            objSelect = Selection.activeGameObject;
+            if (objSelect == null)
+                return;
             uiComponent = objSelect.GetComponent<BaseUIComponent>();
         }
         if (uiComponent == null)
             return;
+        if (objSelect == null)
+        {
+            objSelect = uiComponent.gameObject;
+        }
         Dictionary<string, Type> dicData = ReflexUtil.GetAllNameAndType(uiComponent);
         foreach (var itemData in dicData)
         {

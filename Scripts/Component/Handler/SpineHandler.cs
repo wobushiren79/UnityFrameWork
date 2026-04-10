@@ -137,6 +137,11 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     /// </summary>
     public void ChangeSkeletonSkin(Skeleton skeleton, Dictionary<string, SpineSkinBean> dicSkin)
     {
+        if (skeleton == null || skeleton.Data == null)
+        {
+            LogUtil.LogError("ChangeSkeletonSkin失败 缺少Skeleton资源");
+            return;
+        }
         Skin newSkin = new Skin($"skin_{skeleton.Data.Hash}");
         if (dicSkin != null)
         {
