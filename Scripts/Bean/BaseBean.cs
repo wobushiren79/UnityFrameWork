@@ -4,9 +4,9 @@ using System;
 using System.Collections.Generic;
 
 [Serializable]
-public class BaseBean 
+public class BaseBean
 {
-    public long id;//id
+    
 }
 
 public class BaseCfg<E, T> where T : BaseBean

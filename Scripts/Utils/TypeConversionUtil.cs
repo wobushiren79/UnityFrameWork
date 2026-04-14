@@ -359,25 +359,6 @@ public class TypeConversionUtil
     }
 
     /// <summary>
-    /// list转map 需集成baseBean
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="listData"></param>
-    /// <returns></returns>
-    public static Dictionary<long, T> ListToMap<T>(List<T> listData) where T : BaseBean
-    {
-        Dictionary<long, T> map = new Dictionary<long, T>();
-        if (listData == null)
-            return map;
-        for (int i = 0; i < listData.Count; i++)
-        {
-            T itemData = listData[i];
-            map.Add(itemData.id, itemData);
-        }
-        return map;
-    }
-
-    /// <summary>
     /// map转list
     /// </summary>
     /// <typeparam name="T"></typeparam>

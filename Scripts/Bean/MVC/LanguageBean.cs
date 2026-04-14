@@ -3,6 +3,7 @@ using System.Collections.Generic;
 [Serializable]
 public partial class LanguageBean : BaseBean
 {
+	public long id;
 	/// <summary>
 	///内容
 	/// </summary>
