@@ -526,11 +526,13 @@ public class SpineWindow : EditorWindow
     /// </summary>
     public static Texture2D CreateRegionTexture(AtlasRegion region, Texture2D source)
     {
-        bool isRotated = region.rotate;
+        bool isRotated = region.rotate || region.degrees == 90;
 
-        // 计算实际提取尺寸（旋转时需要交换宽高）
-        int extractWidth = isRotated ? region.height : region.width;
-        int extractHeight = isRotated ? region.width : region.height;
+        // Spine 4.2 中 rotate=90 时 region.width/height 已被自动交换为图集尺寸，
+        // 而 3.8 中 width/height 仍是原始尺寸。统一使用 originalWidth/Height 来计算
+        // 图集上的实际裁剪尺寸，确保两个版本兼容。
+        int extractWidth = isRotated ? region.originalHeight : region.width;
+        int extractHeight = isRotated ? region.originalWidth : region.height;
 
         // 坐标转换（y坐标计算要使用实际提取高度）
         int x = region.x;
