@@ -341,61 +341,74 @@ public class SpineWindow : EditorWindow
             // 如果不止1张图片 需要进行合并
             if (targetRegions.Count > 1)
             {
-                Texture2D originTex = null;
-                foreach (var itemTemp in targetRegions)
+                // 收集绘制项并按插槽绘制顺序排序（slot index 小的先画，在下层）
+                var sortedRegions = new List<(AtlasRegion region, RegionAttachment attachment, int slotIndex)>();
+                foreach (SkinEntry entry in skin.Attachments)
                 {
-                    foreach (AtlasRegion region in atlas.Regions)
+                    if (!(entry.Attachment is RegionAttachment regionAtt)) continue;
+
+                    AtlasRegion atlasRegion = regionAtt.Region as AtlasRegion;
+                    if (atlasRegion == null) continue;
+
+                    string regionName = atlasRegion.name;
+                    if (!targetRegions.Contains(regionName)) continue;
+
+                    // filter
+                    if (!filterSkinName.IsNull())
                     {
-                        if (itemTemp.Equals(region.name))
+                        bool passFilter = false;
+                        List<string> listFilter = filterSkinName.SplitForListStr(',');
+                        foreach (var itemFilter in listFilter)
                         {
-                            System.Action actionStartMerge = () =>
+                            string regionNameFirst = regionName.Split('_')[0];
+                            if (regionNameFirst.Equals(itemFilter))
                             {
-                                RegionAttachment targetAttachment = null;
-                                foreach (SkinEntry entry in skin.Attachments)
-                                {
-                                    if (entry.Attachment is RegionAttachment regionAtt && regionAtt.Name.Equals(region.name))
-                                    {
-                                        targetAttachment = regionAtt;
-                                        break;
-                                    }
-                                }
-                                // 2. 创建临时的 Skeleton 实例
-                                Skeleton skeleton = new Skeleton(skeletonData);
-                                // 3. 应用默认姿势（初始变换）
-                                skeleton.SetToSetupPose(); // 应用默认骨骼和插槽的初始位置
-                                skeleton.UpdateWorldTransform(Skeleton.Physics.Update); // 计算世界变换
-                                                                 // 4. 查找插槽
-                                Slot slot = skeleton.FindSlot(region.name);
-                                // 5. 获取插槽的父骨骼
-                                Bone bone = slot.Bone;
-                                // 6. 计算世界坐标
-                                // 将附件的本地偏移转换为世界坐标
-                                bone.LocalToWorld(targetAttachment.X, targetAttachment.Y, out float worldX, out float worldY);
-
-                                Texture2D newTex = CreateRegionTexture(region, sourceTexture);
-                                originTex = MergeTexturesForOverlay(originTex, newTex, worldX, worldY);
-                            };
-
-
-                            if (filterSkinName.IsNull())
-                            {
-                                actionStartMerge?.Invoke();
-                            }
-                            else
-                            {
-                                List<string> listFilter = filterSkinName.SplitForListStr(',');
-                                foreach (var itemFilter in listFilter)
-                                {
-                                    string regionNameFirst = region.name.Split('_')[0];
-                                    if (regionNameFirst.Equals(itemFilter))
-                                    {
-                                        actionStartMerge?.Invoke();
-                                        break;
-                                    }
-                                }
+                                passFilter = true;
+                                break;
                             }
                         }
+                        if (!passFilter) continue;
                     }
+
+                    // 查找 atlas region
+                    foreach (AtlasRegion region in atlas.Regions)
+                    {
+                        if (region.name.Equals(regionName))
+                        {
+                            sortedRegions.Add((region, regionAtt, entry.SlotIndex));
+                            break;
+                        }
+                    }
+                }
+
+                // 按绘制顺序排序
+                sortedRegions.Sort((a, b) => a.slotIndex.CompareTo(b.slotIndex));
+
+                Texture2D originTex = null;
+                foreach (var item in sortedRegions)
+                {
+                    AtlasRegion region = item.region;
+                    System.Action actionStartMerge = () =>
+                    {
+                        RegionAttachment targetAttachment = item.attachment;
+                        // 2. 创建临时的 Skeleton 实例
+                        Skeleton skeleton = new Skeleton(skeletonData);
+                        // 3. 应用默认姿势（初始变换）
+                        skeleton.SetToSetupPose(); // 应用默认骨骼和插槽的初始位置
+                        skeleton.UpdateWorldTransform(Skeleton.Physics.Update); // 计算世界变换
+                        // 4. 查找插槽
+                        Slot slot = skeleton.FindSlot(region.name);
+                        // 5. 获取插槽的父骨骼
+                        Bone bone = slot.Bone;
+                        // 6. 计算世界坐标
+                        // 将附件的本地偏移转换为世界坐标
+                        bone.LocalToWorld(targetAttachment.X, targetAttachment.Y, out float worldX, out float worldY);
+
+                        Texture2D newTex = CreateRegionTexture(region, sourceTexture);
+                        originTex = MergeTexturesForOverlay(originTex, newTex, worldX, worldY);
+                    };
+
+                    actionStartMerge?.Invoke();
                 }
 
                 if (originTex != null)
