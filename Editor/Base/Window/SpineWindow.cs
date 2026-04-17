@@ -5,8 +5,6 @@ using Spine.Unity;
 using System.Collections.Generic;
 using System.IO;
 using static Spine.Skin;
-using Spine.Unity.AttachmentTools;
-using Unity.VisualScripting;
 
 public class SpineWindow : EditorWindow
 {

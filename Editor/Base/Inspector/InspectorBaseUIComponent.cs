@@ -3,7 +3,6 @@ using UnityEditor;
 using UnityEngine;
 using System.Text;
 using System;
-using Unity.VisualScripting;
 
 [InitializeOnLoad]
 [CustomEditor(typeof(BaseUIComponent), true)]
