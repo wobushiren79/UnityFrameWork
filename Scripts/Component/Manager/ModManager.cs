@@ -50,6 +50,12 @@ public partial class ModManager : BaseManager
     private Dictionary<string, HashSet<string>> dicModAssetKeys = new Dictionary<string, HashSet<string>>();
 
     /// <summary>
+    /// 记录Mod的JsonText文件
+    /// key: modName, value: 该Mod下JsonText文件夹中的txt文件名集合（不含扩展名）
+    /// </summary>
+    private Dictionary<string, HashSet<string>> dicModJsonTextFiles = new Dictionary<string, HashSet<string>>();
+
+    /// <summary>
     /// 记录Mod的所有资源Key（string类型），加载Catalog成功后调用
     /// </summary>
     private void RecordModAssetKeys(string modName, IResourceLocator locator)
@@ -110,6 +116,7 @@ public partial class ModManager : BaseManager
 
         foreach (var modName in availableMods)
         {
+            ScanModJsonTextFiles(modName);
             LoadModCatalog(modName, (success) =>
             {
                 if (!success) allSuccess = false;
@@ -138,6 +145,7 @@ public partial class ModManager : BaseManager
         bool allSuccess = true;
         foreach (var modName in availableMods)
         {
+            ScanModJsonTextFiles(modName);
             bool success = await LoadModCatalogAsync(modName);
             if (!success) allSuccess = false;
         }
@@ -161,6 +169,7 @@ public partial class ModManager : BaseManager
         bool allSuccess = true;
         foreach (var modName in availableMods)
         {
+            ScanModJsonTextFiles(modName);
             bool success = LoadModCatalogSync(modName);
             if (!success) allSuccess = false;
         }
@@ -253,6 +262,7 @@ public partial class ModManager : BaseManager
                         dicModLocators[modName] = locator;
                         dicCatalogHandles[modName] = handle;
                         RecordModAssetKeys(modName, locator);
+                        RebuildModIds();
                         LogUtil.Log($"[Mod] Catalog+依赖加载成功: {modName}");
                         callBack?.Invoke(true);
                     }
@@ -317,6 +327,7 @@ public partial class ModManager : BaseManager
                 dicModLocators[modName] = locator;
                 dicCatalogHandles[modName] = handle;
                 RecordModAssetKeys(modName, locator);
+                RebuildModIds();
                 LogUtil.Log($"[Mod] Catalog+依赖加载成功: {modName}");
                 return true;
             }
@@ -377,6 +388,7 @@ public partial class ModManager : BaseManager
                 dicModLocators[modName] = locator;
                 dicCatalogHandles[modName] = handle;
                 RecordModAssetKeys(modName, locator);
+                RebuildModIds();
                 LogUtil.Log($"[Mod] Catalog+依赖同步加载成功: {modName}");
                 return true;
             }
@@ -655,6 +667,7 @@ public partial class ModManager : BaseManager
             dicCatalogHandles.Remove(modName);
         }
 
+        dicModJsonTextFiles.Remove(modName);
         dicModAssetKeys.Remove(modName);
         LogUtil.Log($"[Mod] Mod已卸载: {modName}");
     }
@@ -690,7 +703,11 @@ public partial class ModManager : BaseManager
         }
         dicCatalogHandles.Clear();
 
+        dicModJsonTextFiles.Clear();
         dicModAssetKeys.Clear();
+        modIdMap.Clear();
+        occupiedModIds.Clear();
+        // 注意：不删除持久化的ModIdMap.json，保证下次加载时旧ModID不变
         LogUtil.Log("[Mod] 所有Mod已卸载");
     }
 
@@ -720,4 +737,135 @@ public partial class ModManager : BaseManager
         }
         return modNames;
     }
+
+    #region JsonText
+
+    /// <summary>
+    /// 扫描指定Mod目录下的JsonText文件夹，记录txt文件名（不含扩展名）
+    /// </summary>
+    private void ScanModJsonTextFiles(string modName)
+    {
+        string jsonTextPath = Path.Combine(GetModPath(modName), "JsonText").Replace("\\", "/");
+        if (!Directory.Exists(jsonTextPath))
+            return;
+
+        var files = new HashSet<string>();
+        foreach (var filePath in Directory.GetFiles(jsonTextPath, "*.txt"))
+        {
+            string fileNameWithoutExt = Path.GetFileNameWithoutExtension(filePath);
+            files.Add(fileNameWithoutExt);
+        }
+
+        if (files.Count > 0)
+            dicModJsonTextFiles[modName] = files;
+    }
+
+    /// <summary>
+    /// Mod名称到已分配modId的映射（运行时内存缓存）
+    /// </summary>
+    private Dictionary<string, int> modIdMap = new Dictionary<string, int>();
+
+    /// <summary>
+    /// 已占用的modId集合（运行时内存缓存，用于冲突检测）
+    /// </summary>
+    private HashSet<int> occupiedModIds = new HashSet<int>();
+
+    /// <summary>
+    /// 根据当前已加载的所有Mod重新构建modId映射，按Mod名称排序后统一分配。
+    /// 通过GameDataManager持久化映射保证：同一modName跨会话始终获得相同ID、
+    /// 新增Mod不会导致旧ModID变化。
+    /// </summary>
+    private void RebuildModIds()
+    {
+        ModIdMapBean modIdMapBean = null;
+        if (GameDataHandler.Instance != null && GameDataHandler.Instance.manager != null)
+            modIdMapBean = GameDataHandler.Instance.manager.GetModIdMap();
+
+        if (modIdMapBean != null && modIdMapBean.modIdMap != null)
+        {
+            modIdMap = new Dictionary<string, int>(modIdMapBean.modIdMap);
+            occupiedModIds = new HashSet<int>(modIdMap.Values);
+        }
+        else
+        {
+            modIdMap = new Dictionary<string, int>();
+            occupiedModIds = new HashSet<int>();
+        }
+
+        var loadedModNames = new List<string>(dicModLocators.Keys);
+        loadedModNames.Sort(StringComparer.Ordinal);
+
+        bool changed = false;
+        foreach (var modName in loadedModNames)
+        {
+            // 已在持久化映射中的Mod直接保留原ID
+            if (modIdMap.ContainsKey(modName))
+                continue;
+
+            // 新Mod顺序分配第一个空闲ID
+            int finalId = 1;
+            while (occupiedModIds.Contains(finalId))
+                finalId++;
+
+            modIdMap[modName] = finalId;
+            occupiedModIds.Add(finalId);
+            changed = true;
+        }
+
+        if (changed && GameDataHandler.Instance != null && GameDataHandler.Instance.manager != null)
+        {
+            if (modIdMapBean == null)
+                modIdMapBean = new ModIdMapBean();
+            modIdMapBean.modIdMap = new Dictionary<string, int>(modIdMap);
+            GameDataHandler.Instance.manager.modIdMapBean = modIdMapBean;
+            GameDataHandler.Instance.manager.SaveModIdMap();
+        }
+    }
+
+    /// <summary>
+    /// 获取指定Mod的modId
+    /// </summary>
+    /// <param name="modName">Mod名称</param>
+    /// <returns>modId（1~9999），若未分配则返回1</returns>
+    public int GetModId(string modName)
+    {
+        if (modIdMap.TryGetValue(modName, out int modId))
+            return modId;
+        return 1;
+    }
+
+    /// <summary>
+    /// 检查是否有已加载的Mod包含指定fileName的JsonText文件
+    /// </summary>
+    public bool HasModJsonTextFile(string fileName)
+    {
+        foreach (var files in dicModJsonTextFiles.Values)
+        {
+            if (files.Contains(fileName))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// 获取包含指定fileName的所有Mod的JsonText文件路径和mod信息
+    /// </summary>
+    public List<(int modId, string modName, string filePath)> GetModJsonTextFileInfos(string fileName)
+    {
+        var result = new List<(int modId, string modName, string filePath)>();
+        foreach (var kvp in dicModJsonTextFiles)
+        {
+            if (kvp.Value.Contains(fileName))
+            {
+                string modName = kvp.Key;
+                int modId = GetModId(modName);
+                string filePath = Path.Combine(GetModPath(modName), "JsonText", $"{fileName}.txt").Replace("\\", "/");
+                if (File.Exists(filePath))
+                    result.Add((modId, modName, filePath));
+            }
+        }
+        return result;
+    }
+
+    #endregion
 }

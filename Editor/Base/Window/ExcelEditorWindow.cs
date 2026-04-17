@@ -1221,8 +1221,8 @@ public class ExcelEditorWindow : EditorWindow
                     keyTypeName = typeName;
                 }
 
-                // if (cellName.Equals("id"))
-                //     continue;
+                if (cellName.Equals("id"))
+                    continue;
                 sb.AppendLine("\t/// <summary>");
                 sb.AppendLine($"\t///{remarkName}");
                 sb.AppendLine("\t/// </summary>");
