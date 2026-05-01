@@ -1,27 +1,32 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 
-public partial class GameDataManager : BaseManager, IGameConfigView, IModIdMapView
+public partial class GameDataManager
 {
-    //游戏设置
     public GameConfigBean gameConfig;
-    public GameConfigController controllerForGameConfig;
+    private BaseDataService<GameConfigBean> gameConfigService;
 
-    //ModID映射
     public ModIdMapBean modIdMapBean;
-    public ModIdMapController controllerForModIdMap;
+    private BaseDataService<ModIdMapBean> modIdMapService;
 
     /// <summary>
     /// 获取游戏设置
     /// </summary>
-    /// <returns></returns>
     public GameConfigBean GetGameConfig()
     {
         if (gameConfig == null)
-            gameConfig = new GameConfigBean();
+        {
+            gameConfigService ??= new BaseDataService<GameConfigBean>("GameConfig")
+            {
+                JsonType = JsonTypeEnum.System
+            };
+            gameConfig = gameConfigService.Load();
+            if (gameConfig == null)
+                gameConfig = new GameConfigBean();
+        }
         return gameConfig;
     }
 
@@ -30,7 +35,14 @@ public partial class GameDataManager : BaseManager, IGameConfigView, IModIdMapVi
     /// </summary>
     public void SaveGameConfig()
     {
-        controllerForGameConfig.SaveGameConfigData(gameConfig);
+        if (gameConfig != null)
+        {
+            gameConfigService ??= new BaseDataService<GameConfigBean>("GameConfig")
+            {
+                JsonType = JsonTypeEnum.System
+            };
+            gameConfigService.Save(gameConfig);
+        }
     }
 
     /// <summary>
@@ -39,9 +51,12 @@ public partial class GameDataManager : BaseManager, IGameConfigView, IModIdMapVi
     public ModIdMapBean GetModIdMap()
     {
         if (modIdMapBean == null)
-            modIdMapBean = controllerForModIdMap.GetModIdMapData();
-        if (modIdMapBean == null)
-            modIdMapBean = new ModIdMapBean();
+        {
+            modIdMapService ??= new BaseDataService<ModIdMapBean>("ModIdMap");
+            modIdMapBean = modIdMapService.Load();
+            if (modIdMapBean == null)
+                modIdMapBean = new ModIdMapBean();
+        }
         return modIdMapBean;
     }
 
@@ -51,48 +66,9 @@ public partial class GameDataManager : BaseManager, IGameConfigView, IModIdMapVi
     public void SaveModIdMap()
     {
         if (modIdMapBean != null)
-            controllerForModIdMap.SaveModIdMapData(modIdMapBean);
+        {
+            modIdMapService ??= new BaseDataService<ModIdMapBean>("ModIdMap");
+            modIdMapService.Save(modIdMapBean);
+        }
     }
-
-    #region 回调
-    public void GetGameConfigFail()
-    {
-
-    }
-
-    public void GetGameConfigSuccess(GameConfigBean configBean)
-    {
-        gameConfig = configBean;
-    }
-
-    public void SetGameConfigFail()
-    {
-
-    }
-
-    public void SetGameConfigSuccess(GameConfigBean configBean)
-    {
-
-    }
-
-    public void GetModIdMapFail()
-    {
-
-    }
-
-    public void GetModIdMapSuccess(ModIdMapBean bean)
-    {
-        modIdMapBean = bean;
-    }
-
-    public void SetModIdMapFail()
-    {
-
-    }
-
-    public void SetModIdMapSuccess(ModIdMapBean bean)
-    {
-
-    }
-    #endregion
 }
