@@ -904,7 +904,7 @@ public class ExcelEditorWindow : EditorWindow
             // 从第 4 行开始读取数据（前 3 行为元数据：属性名、字段名、描述）
             for (int row = 4; row <= rowCount; row++)
             {
-                object o = assembly.CreateInstance(type.ToString());
+                Dictionary<string, object> dictData = new Dictionary<string, object>();
 
                 // 遍历所有列
                 for (int column = 1; column <= columnCount; column++)
@@ -915,17 +915,24 @@ public class ExcelEditorWindow : EditorWindow
                     if (sheetCellName.Equals("remark"))
                         continue;
 
-                    // 处理多语言列（content_语言名格式）
-                    if (sheetCellName.Contains("content_"))
+                    //ID也要保存
+                    if (sheetCellName.Equals("id"))
                     {
-                        // 只处理当前语种对应的列
-                        if (!languageName.Equals(sheetCellName.Substring("content_".Length)))
-                            continue;
 
-                        hasLanguageData = true;
-                        sheetCellName = "content";
                     }
-
+                    else
+                    {
+                        // 处理多语言列（content_语言名格式）
+                        if (sheetCellName.Contains($"_{languageName}"))
+                        {
+                            hasLanguageData = true;
+                            sheetCellName = $"{sheetCellName.Replace($"_{languageName}", "")}";
+                        }
+                        else
+                        {
+                            continue;
+                        }
+                    }
                     // 获取字段信息
                     FieldInfo fieldInfo = type.GetField(sheetCellName);
                     if (fieldInfo == null)
@@ -937,24 +944,21 @@ public class ExcelEditorWindow : EditorWindow
                     // 读取单元格数据
                     string textData = sheet.Cells[row, column].Text;
 
-                    // 空值处理：数值类型默认为 0
+                    // 空值处理：没有值的字段不保存到json
                     if (textData.IsNull())
                     {
-                        if (fieldInfo.FieldType == typeof(int)
-                            || fieldInfo.FieldType == typeof(float)
-                            || fieldInfo.FieldType == typeof(double)
-                            || fieldInfo.FieldType == typeof(long))
-                        {
-                            textData = "0";
-                        }
+                        continue;
                     }
 
                     // 类型转换并赋值
                     object value = Convert.ChangeType(textData, fieldInfo.FieldType);
-                    type.GetField(sheetCellName).SetValue(o, value);
+                    dictData[sheetCellName] = value;
                 }
 
-                listData.Add(o);
+                if (dictData.Count > 0)
+                {
+                    listData.Add(dictData);
+                }
             }
 
             // 跳过没有当前语种数据的语言
@@ -1001,6 +1005,14 @@ public class ExcelEditorWindow : EditorWindow
                 if (sheetCellName.Contains("[language]"))
                 {
                     sheetCellName = sheetCellName.Replace("[language]", "");
+                }
+                else if (sheetCellName.Contains("[language_1]"))
+                {
+                    sheetCellName = sheetCellName.Replace("[language_1]", "");
+                }
+                else if (sheetCellName.Contains("[language_2]"))
+                {
+                    sheetCellName = sheetCellName.Replace("[language_2]", "");
                 }
 
                 // 获取字段信息
@@ -1234,6 +1246,22 @@ public class ExcelEditorWindow : EditorWindow
                     sb.AppendLine($"\tpublic {typeName} {originCellName};");
                     sb.AppendLine($"\t[JsonIgnore]");
                     sb.AppendLine($"\tpublic string {originCellName}_language {{ get {{ return TextHandler.Instance.GetTextById({sheet.Name}Cfg.fileName, {originCellName}); }} }}");
+                }
+                //如果是多语言指向
+                else if (cellName.Contains("[language_1]"))
+                {
+                    string originCellName = cellName.Replace("[language_1]", "");
+                    sb.AppendLine($"\tpublic {typeName} {originCellName};");
+                    sb.AppendLine($"\t[JsonIgnore]");
+                    sb.AppendLine($"\tpublic string {originCellName}_language {{ get {{ return TextHandler.Instance.GetTextById({sheet.Name}Cfg.fileName, {originCellName}, 1); }} }}");
+                }
+                //如果是多语言指向
+                else if (cellName.Contains("[language_2]"))
+                {
+                    string originCellName = cellName.Replace("[language_2]", "");
+                    sb.AppendLine($"\tpublic {typeName} {originCellName};");
+                    sb.AppendLine($"\t[JsonIgnore]");
+                    sb.AppendLine($"\tpublic string {originCellName}_language {{ get {{ return TextHandler.Instance.GetTextById({sheet.Name}Cfg.fileName, {originCellName}, 2); }} }}");
                 }
                 else
                 {

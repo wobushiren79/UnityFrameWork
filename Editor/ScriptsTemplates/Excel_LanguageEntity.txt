@@ -4,14 +4,19 @@ using System.Collections.Generic;
 public partial class LanguageBean : BaseBean
 {
 	/// <summary>
-	///序号
-	/// </summary>
-	public long id;
-	
-	/// <summary>
 	///内容
 	/// </summary>
 	public string content;
+	
+	/// <summary>
+	///内容-1
+	/// </summary>
+	public string content_1;
+
+	/// <summary>
+	///内容-2
+	/// </summary>
+	public string content_2;
 }
 public partial class LanguageCfg : BaseCfg<long, LanguageBean>
 {
