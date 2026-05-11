@@ -1245,9 +1245,8 @@ public class ExcelEditorWindow : EditorWindow
                     string originCellName = cellName.Replace("[language]", "");
                     sb.AppendLine($"\tpublic {typeName} {originCellName};");
                     sb.AppendLine($"\t[JsonIgnore]");
-                    sb.AppendLine($"\tpublic string {originCellName}_language => _{originCellName}_language ??= TextHandler.Instance.GetTextById({sheet.Name}Cfg.fileName, {originCellName});");
-                    sb.AppendLine($"\t[JsonIgnore]");
-                    sb.AppendLine($"\tprivate string _{originCellName}_language;");
+                    sb.AppendLine($"\tpublic string {originCellName}_language {{ get => _{originCellName}_language.Get(() => TextHandler.Instance.GetTextById({sheet.Name}Cfg.fileName, {originCellName})); set => _{originCellName}_language.Set(value); }}");
+                    sb.AppendLine($"\tprivate LanguageCache _{originCellName}_language;");
                 }
                 //如果是多语言指向
                 else if (cellName.Contains("[language_1]"))
@@ -1255,9 +1254,8 @@ public class ExcelEditorWindow : EditorWindow
                     string originCellName = cellName.Replace("[language_1]", "");
                     sb.AppendLine($"\tpublic {typeName} {originCellName};");
                     sb.AppendLine($"\t[JsonIgnore]");
-                    sb.AppendLine($"\tpublic string {originCellName}_language => _{originCellName}_language ??= TextHandler.Instance.GetTextById({sheet.Name}Cfg.fileName, {originCellName}, 1);");
-                    sb.AppendLine($"\t[JsonIgnore]");
-                    sb.AppendLine($"\tprivate string _{originCellName}_language;");
+                    sb.AppendLine($"\tpublic string {originCellName}_language {{ get => _{originCellName}_language.Get(() => TextHandler.Instance.GetTextById({sheet.Name}Cfg.fileName, {originCellName}, 1)); set => _{originCellName}_language.Set(value); }}");
+                    sb.AppendLine($"\tprivate LanguageCache _{originCellName}_language;");
                 }
                 //如果是多语言指向
                 else if (cellName.Contains("[language_2]"))
@@ -1265,9 +1263,8 @@ public class ExcelEditorWindow : EditorWindow
                     string originCellName = cellName.Replace("[language_2]", "");
                     sb.AppendLine($"\tpublic {typeName} {originCellName};");
                     sb.AppendLine($"\t[JsonIgnore]");
-                    sb.AppendLine($"\tpublic string {originCellName}_language => _{originCellName}_language ??= TextHandler.Instance.GetTextById({sheet.Name}Cfg.fileName, {originCellName}, 2);");
-                    sb.AppendLine($"\t[JsonIgnore]");
-                    sb.AppendLine($"\tprivate string _{originCellName}_language;");
+                    sb.AppendLine($"\tpublic string {originCellName}_language {{ get => _{originCellName}_language.Get(() => TextHandler.Instance.GetTextById({sheet.Name}Cfg.fileName, {originCellName}, 2)); set => _{originCellName}_language.Set(value); }}");
+                    sb.AppendLine($"\tprivate LanguageCache _{originCellName}_language;");
                 }
                 else
                 {
