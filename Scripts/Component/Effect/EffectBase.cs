@@ -64,20 +64,16 @@ public class EffectBase : BaseMonoBehaviour
     /// </summary>
     public virtual void PlayEffect(string sendEvent = "OnPlay")
     {
-        if (!listPS.IsNull())
+        if (mainPS != null)
         {
-            //如果有主粒子 播放主粒子就行
-            if (mainPS != null)
+            mainPS.Play();
+        }
+        else if (!listPS.IsNull())
+        {
+            for (int i = 0; i < listPS.Count; i++)
             {
-                mainPS.Play();
-            }
-            else
-            {
-                for (int i = 0; i < listPS.Count; i++)
-                {
-                    ParticleSystem itemPS = listPS[i];
-                    itemPS.Play();
-                }
+                ParticleSystem itemPS = listPS[i];
+                itemPS.Play();
             }
         }
         if (!listVE.IsNull())
