@@ -225,6 +225,9 @@ public class SpineWindow : EditorWindow
                 Debug.LogError("没有骨架数据");
                 return;
             }
+
+            // 预先收集所有需要处理的皮肤任务
+            var skinTasks = new List<(SkeletonDataAsset asset, Skin skin)>();
             foreach (var skeletonDataAsset in listSkeletonDataAsset)
             {
                 var skeletonData = skeletonDataAsset.GetSkeletonData(true);
@@ -250,18 +253,32 @@ public class SpineWindow : EditorWindow
                     listTargetSkin.Add(targetSkin);
                 }
 
-                foreach (var itemSkin in listTargetSkin)
+                foreach (var skin in listTargetSkin)
                 {
-                    // 提取并保存纹理
-                    ExtractAndSaveTextures(skeletonDataAsset, itemSkin, outputPath, filterSkinName);
+                    skinTasks.Add((skeletonDataAsset, skin));
                 }
             }
+
+            // 处理每个皮肤并显示进度
+            for (int i = 0; i < skinTasks.Count; i++)
+            {
+                var (asset, skin) = skinTasks[i];
+                EditorUtility.DisplayProgressBar("提取皮肤纹理",
+                    $"正在处理: {asset.name} - {skin.Name} ({i + 1}/{skinTasks.Count})",
+                    (float)(i + 1) / skinTasks.Count);
+                ExtractAndSaveTextures(asset, skin, outputPath, filterSkinName);
+            }
+
             AssetDatabase.Refresh();
             Debug.Log($"提取完成！，已保存至：{outputPath}");
         }
         catch (System.Exception ex)
         {
             Debug.LogError($"提取过程中发生错误：{ex.Message}\n{ex.StackTrace}");
+        }
+        finally
+        {
+            EditorUtility.ClearProgressBar();
         }
     }
 

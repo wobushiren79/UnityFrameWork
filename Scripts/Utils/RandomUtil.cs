@@ -279,4 +279,15 @@ public class RandomUtil
             return Random.onUnitSphere.normalized * radius + centerPosition;
         }
     }
+
+    /// <summary>
+    /// 获取随机范围内的坐标
+    /// </summary>
+    /// <param name="centerPosition"></param>
+    /// <param name="randomOffset"></param>
+    /// <returns></returns>
+    public static Vector3 GetRandomVector3(Vector3 centerPosition, float randomOffset)
+    {
+        return new Vector3(Random.Range(-randomOffset, randomOffset), Random.Range(-randomOffset, randomOffset), Random.Range(-randomOffset, randomOffset)) + centerPosition;
+    }
 }

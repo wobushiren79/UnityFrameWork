@@ -812,7 +812,7 @@ public partial class ModManager : BaseManager
             changed = true;
         }
 
-        if (changed && GameDataHandler.Instance != null && GameDataHandler.Instance.manager != null)
+        if (changed)
         {
             if (modIdMapBean == null)
                 modIdMapBean = new ModIdMapBean();

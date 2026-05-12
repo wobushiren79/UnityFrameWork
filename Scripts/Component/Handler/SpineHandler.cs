@@ -292,14 +292,14 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     /// </summary>
     public TrackEntry PlayAnim(
         SkeletonAnimation skeletonAnimation, SpineAnimationStateEnum spineAnimationState, bool isLoop,
-        string animNameAppoint = null, float animStartTime = 0)
+        string animNameAppoint = null, float animStartTime = 0, float animSpeed = 1)
     {
         if (skeletonAnimation == null)
         {
             LogUtil.LogError("播放动画失败 缺少SkeletonAnimation资源");
             return null;
         }
-        return PlayAnim(skeletonAnimation.skeletonDataAsset, skeletonAnimation.AnimationState, spineAnimationState, isLoop, animNameAppoint, animStartTime);
+        return PlayAnim(skeletonAnimation.skeletonDataAsset, skeletonAnimation.AnimationState, spineAnimationState, isLoop, animNameAppoint, animStartTime, animSpeed);
     }
 
     /// <summary>
@@ -307,14 +307,14 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     /// </summary>
     public TrackEntry PlayAnim(
         SkeletonGraphic skeletonGraphic, SpineAnimationStateEnum spineAnimationState, bool isLoop,
-        string animNameAppoint = null, float animStartTime = 0)
+        string animNameAppoint = null, float animStartTime = 0, float animSpeed = 1)
     {
         if (skeletonGraphic == null)
         {
             LogUtil.LogError("播放动画失败 缺少SkeletonGraphic资源");
             return null;
         }
-        return PlayAnim(skeletonGraphic.skeletonDataAsset, skeletonGraphic.AnimationState, spineAnimationState, isLoop, animNameAppoint, animStartTime);
+        return PlayAnim(skeletonGraphic.skeletonDataAsset, skeletonGraphic.AnimationState, spineAnimationState, isLoop, animNameAppoint, animStartTime, animSpeed);
     }
 
     /// <summary>
@@ -322,7 +322,7 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     /// </summary>
     public TrackEntry PlayAnim(
         SkeletonDataAsset skeletonDataAsset, Spine.AnimationState animationState, SpineAnimationStateEnum spineAnimationState, bool isLoop,
-        string animNameAppoint = null, float animStartTime = 0)
+        string animNameAppoint = null, float animStartTime = 0, float animSpeed = 1)
     {
         if (skeletonDataAsset == null)
         {
@@ -349,6 +349,10 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
         {
             trackEntry.TrackTime = animStartTime;
         }
+        if (trackEntry != null)
+        {
+            trackEntry.TimeScale = animSpeed;
+        }
         return trackEntry;
     }
 
@@ -357,14 +361,14 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     /// </summary>
     public TrackEntry AddAnimation(
         SkeletonAnimation skeletonAnimation, int trackIndex, SpineAnimationStateEnum spineAnimationState, bool isLoop, float delay,
-        string animNameAppoint = null, float animStartTime = 0)
+        string animNameAppoint = null, float animStartTime = 0, float animSpeed = 1)
     {
         if (skeletonAnimation == null)
         {
             LogUtil.LogError("播放动画失败 缺少SkeletonAnimation资源");
             return null;
         }
-        return AddAnimation(skeletonAnimation.skeletonDataAsset, skeletonAnimation.AnimationState, trackIndex, spineAnimationState, isLoop, delay, animNameAppoint, animStartTime);
+        return AddAnimation(skeletonAnimation.skeletonDataAsset, skeletonAnimation.AnimationState, trackIndex, spineAnimationState, isLoop, delay, animNameAppoint, animStartTime, animSpeed);
     }
 
     /// <summary>
@@ -372,14 +376,14 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     /// </summary>
     public TrackEntry AddAnimation(
         SkeletonGraphic skeletonGraphic, int trackIndex, SpineAnimationStateEnum spineAnimationState, bool isLoop, float delay,
-        string animNameAppoint = null, float animStartTime = 0)
+        string animNameAppoint = null, float animStartTime = 0, float animSpeed = 1)
     {
         if (skeletonGraphic == null)
         {
             LogUtil.LogError("播放动画失败 缺少SkeletonGraphic资源");
             return null;
         }
-        return AddAnimation(skeletonGraphic.skeletonDataAsset, skeletonGraphic.AnimationState, trackIndex, spineAnimationState, isLoop, delay, animNameAppoint, animStartTime);
+        return AddAnimation(skeletonGraphic.skeletonDataAsset, skeletonGraphic.AnimationState, trackIndex, spineAnimationState, isLoop, delay, animNameAppoint, animStartTime, animSpeed);
     }
 
     /// <summary>
@@ -387,7 +391,7 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     /// </summary>
     public TrackEntry AddAnimation(
         SkeletonDataAsset skeletonDataAsset, Spine.AnimationState animationState, int trackIndex, SpineAnimationStateEnum spineAnimationState, bool isLoop, float delay,
-        string animNameAppoint = null, float animStartTime = 0)
+        string animNameAppoint = null, float animStartTime = 0, float animSpeed = 1)
     {
         if (animationState == null)
             return null;
@@ -410,6 +414,10 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
         if (animStartTime != 0)
         {
             trackEntry.TrackTime = animStartTime;
+        }
+        if (trackEntry != null)
+        {
+            trackEntry.TimeScale = animSpeed;
         }
         return trackEntry;
     }

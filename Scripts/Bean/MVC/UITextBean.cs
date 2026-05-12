@@ -9,7 +9,8 @@ public partial class UITextBean : BaseBean
 	/// </summary>
 	public long content;
 	[JsonIgnore]
-	public string content_language { get { return TextHandler.Instance.GetTextById(UITextCfg.fileName, content); } }
+	public string content_language { get => _content_language.Get(() => TextHandler.Instance.GetTextById(UITextCfg.fileName, content)); set => _content_language.Set(value); }
+	private LanguageCache _content_language;
 	/// <summary>
 	///内容
 	/// </summary>

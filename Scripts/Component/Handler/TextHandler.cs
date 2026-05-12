@@ -29,25 +29,25 @@ public partial class TextHandler : BaseHandler<TextHandler, TextManager>
     /// <summary>
     /// 通过ID获取文本-UIText
     /// </summary>
-    public string GetTextById(long id)
+    public string GetTextById(long id, int contentIndex = 0)
     {
-        return manager.GetTextById(UITextCfg.fileName, id);
+        return manager.GetTextById(UITextCfg.fileName, id, contentIndex);
     }
 
     /// <summary>
     /// 通过ID获取文本
     /// </summary>
-    public string GetTextById(string cfgName, long id)
+    public string GetTextById(string cfgName, long id, int contentIndex = 0)
     {
-        return manager.GetTextById(cfgName, id);
+        return manager.GetTextById(cfgName, id, contentIndex);
     }
 
     /// <summary>
     /// 通过ID获取文本
     /// </summary>
-    public string GetTextByIdNoBreakingSpace(string cfgName, long id)
+    public string GetTextByIdNoBreakingSpace(string cfgName, long id, int contentIndex = 0)
     {
-        return manager.GetTextById(cfgName, id).Replace(" ", noBreakingSpace);
+        return manager.GetTextById(cfgName, id, contentIndex).Replace(" ", noBreakingSpace);
     }
 
     /// <summary>
