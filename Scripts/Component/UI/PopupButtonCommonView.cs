@@ -50,6 +50,9 @@ public class PopupButtonCommonView : BaseUIView, IPointerEnterHandler, IPointerE
     public void ShowPopupUI()
     {
         PopupShowView popupShowView = UIHandler.Instance.ShowPopup(new PopupBean(popupEnum));
+        //把当前按钮注册为弹窗的触发对象，弹窗会自检该对象是否还激活；
+        //一旦按钮意外关闭（OnPointerExit不会被触发），弹窗会通过该回调自动调用ClearData隐藏自身
+        popupShowView.SetTrigger(gameObject, ClearData);
         PopupShowCommonView popupShowCommonView = popupShowView as PopupShowCommonView;
         popupShowCommonView.SetData(targetData);
     }
