@@ -168,6 +168,55 @@ public class TextureUtil
     }
 
     /// <summary>
+    /// sprite转Texture2d - 走 GPU Blit (适用于不可读图集/压缩纹理)
+    /// </summary>
+    /// <param name="sprite">源 Sprite (可以来自不可读的 SpriteAtlas)</param>
+    /// <param name="filterMode">过滤模式</param>
+    /// <param name="pixelScale">输出贴图相对原 Sprite 的整数放大倍数 (Point过滤保持像素锐利)</param>
+    /// <returns>独立的 RGBA32 Texture2D, 用完需自行 Object.Destroy</returns>
+    public static Texture2D SpriteToTexture2DByBlit(Sprite sprite, FilterMode filterMode = FilterMode.Point, int pixelScale = 1)
+    {
+        if (sprite == null || sprite.texture == null)
+            return null;
+        Texture srcTex = sprite.texture;
+        Rect r = sprite.textureRect;
+        int srcW = (int)r.width;
+        int srcH = (int)r.height;
+        if (srcW <= 0 || srcH <= 0)
+            return null;
+        if (pixelScale < 1) pixelScale = 1;
+        int dstW = srcW * pixelScale;
+        int dstH = srcH * pixelScale;
+
+        //仅 blit Sprite 在图集中的区域到一张目标尺寸的 RT
+        Vector2 scale = new Vector2(r.width / srcTex.width, r.height / srcTex.height);
+        Vector2 offset = new Vector2(r.x / srcTex.width, r.y / srcTex.height);
+
+        //临时把源 atlas 设为 Point 过滤, 放大不会被双线性糊掉; 完成后还原
+        FilterMode prevSrcFilter = srcTex.filterMode;
+        if (filterMode == FilterMode.Point)
+            srcTex.filterMode = FilterMode.Point;
+
+        RenderTexture rt = RenderTexture.GetTemporary(dstW, dstH, 0, RenderTextureFormat.ARGB32);
+        Graphics.Blit(srcTex, rt, scale, offset);
+
+        RenderTexture prev = RenderTexture.active;
+        RenderTexture.active = rt;
+
+        Texture2D tex = new Texture2D(dstW, dstH, TextureFormat.RGBA32, false);
+        tex.ReadPixels(new Rect(0, 0, dstW, dstH), 0, 0);
+        tex.Apply();
+        tex.filterMode = filterMode;
+
+        RenderTexture.active = prev;
+        RenderTexture.ReleaseTemporary(rt);
+
+        //还原 atlas 的 filterMode
+        srcTex.filterMode = prevSrcFilter;
+        return tex;
+    }
+
+    /// <summary>
     /// 重新定义texture2D大小（拉长）
     /// </summary>
     /// <param name="texture2D"></param>
