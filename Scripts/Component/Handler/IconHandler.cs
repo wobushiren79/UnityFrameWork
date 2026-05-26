@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
@@ -7,6 +7,11 @@ using UnityEngine.U2D;
 
 public partial class IconHandler : BaseHandler<IconHandler, IconManager>
 {
+    /// <summary>
+    /// 框架默认 UI 图集 tag。游戏层通过约定 AtlasFor{tag} 拼接成实际图集文件名。
+    /// </summary>
+    public const string AtlasTagUI = "UI";
+
     //是否初始化图集
     protected bool isInitAtlas = false;
 
@@ -24,7 +29,7 @@ public partial class IconHandler : BaseHandler<IconHandler, IconManager>
         // 1. 自定义加载 ab 的逻辑. (这里最好不要用异步加载的方式, 否则会闪现一下空白图片, 因为此时资源还未被加载出来)
         string pathSpriteatlas = $"{IconManager.PathSpriteAtlas}/{tag}.spriteatlas";
         SpriteAtlas loadAtlas = LoadAddressablesUtil.LoadAssetSync<SpriteAtlas>($"{pathSpriteatlas}");
-        // 2. 加载完 SpriteAtlas 回传给引擎 
+        // 2. 加载完 SpriteAtlas 回传给引擎
         if (callback != null && loadAtlas != null)
             callback?.Invoke(loadAtlas);
     }
@@ -35,13 +40,15 @@ public partial class IconHandler : BaseHandler<IconHandler, IconManager>
     /// <returns></returns>
     public void GetUnKnowSprite(Action<Sprite> callBack)
     {
-        manager.GetSprite($"AtlasFor{SpriteAtlasTypeEnum.UI.GetEnumName()}", "icon_unknow", callBack);
+        manager.GetSprite($"AtlasFor{AtlasTagUI}", "icon_unknow", callBack);
     }
 
     /// <summary>
     /// 获取图标
     /// </summary>
-    public void GetIconSprite(SpriteAtlasTypeEnum spriteAtlasType, string spriteName, Action<Sprite> callBack)
+    /// <param name="atlasTag">图集 tag（最终拼接为 AtlasFor{tag}）</param>
+    /// <param name="spriteName">图标名</param>
+    public void GetIconSprite(string atlasTag, string spriteName, Action<Sprite> callBack)
     {
         Action<Sprite> callBackForComplete = (sprite) =>
         {
@@ -54,6 +61,6 @@ public partial class IconHandler : BaseHandler<IconHandler, IconManager>
                 callBack?.Invoke(sprite);
             }
         };
-        manager.GetSprite($"AtlasFor{spriteAtlasType.GetEnumName()}", spriteName, callBackForComplete);
+        manager.GetSprite($"AtlasFor{atlasTag}", spriteName, callBackForComplete);
     }
 }

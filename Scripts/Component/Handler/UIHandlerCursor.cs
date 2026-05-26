@@ -99,15 +99,15 @@ public partial class UIHandler
     /// hotspot 默认使用图标中心；可通过 hotspotOverride 显式指定
     /// 小图标默认放大 3 倍 (16→48) 以适配高 DPI 屏幕; 可通过 pixelScale 调整
     /// </summary>
-    /// <param name="atlasType">图集</param>
+    /// <param name="atlasTag">图集 tag（最终拼接为 AtlasFor{tag}）</param>
     /// <param name="iconName">图标名</param>
     /// <param name="hotspotOverride">显式指定点击热点（相对放大后贴图左上角的像素偏移），null 表示用贴图中心</param>
     /// <param name="pixelScale">像素放大倍数 (1 = 原始尺寸)</param>
-    public void SetCursorByIconName(SpriteAtlasTypeEnum atlasType, string iconName, Vector2? hotspotOverride = null, int pixelScale = 3)
+    public void SetCursorByIconName(string atlasTag, string iconName, Vector2? hotspotOverride = null, int pixelScale = 3)
     {
         if (hasExternalCursorView)
             return;
-        string cacheKey = $"{atlasType}_{iconName}_x{pixelScale}";
+        string cacheKey = $"{atlasTag}_{iconName}_x{pixelScale}";
         if (dicCursorIconCache.TryGetValue(cacheKey, out Texture2D cachedTex) && cachedTex != null)
         {
             Vector2 hotspot = hotspotOverride ?? new Vector2(cachedTex.width * 0.5f, cachedTex.height * 0.5f);
@@ -115,7 +115,7 @@ public partial class UIHandler
             SetCursor(cachedTex, hotspot, CursorMode.ForceSoftware);
             return;
         }
-        IconHandler.Instance.GetIconSprite(atlasType, iconName, (sprite) =>
+        IconHandler.Instance.GetIconSprite(atlasTag, iconName, (sprite) =>
         {
             if (sprite == null)
                 return;

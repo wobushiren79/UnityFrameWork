@@ -166,14 +166,6 @@ public enum JsonTypeEnum
     Net,
 }
 
-public enum SpriteAtlasTypeEnum
-{
-    UI,//ui
-    Items,//道具
-    Sky,//天空
-    Skins,//皮肤
-}
-
 public enum TextReplaceEnum
 {
     Name,//名字
