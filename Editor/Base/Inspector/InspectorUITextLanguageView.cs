@@ -21,6 +21,13 @@ public class InspectorUITextLanguageView : Editor
     private bool stylesInitialized = false;
     #endregion
 
+    #region 配置表路径
+    /// <summary>多语言配置表路径</summary>
+    private const string LANGUAGE_EXCEL_PATH = "Assets/Data/Excel/excel_language[多语言_FrameWork].xlsx";
+    /// <summary>UI文本配置表路径</summary>
+    private const string UI_TEXT_EXCEL_PATH = "Assets/Data/Excel/excel_ui_text[UI文本_FrameWork].xlsx";
+    #endregion
+
     private void OnEnable()
     {
         targetView = (UITextLanguageView)target;
@@ -87,12 +94,24 @@ public class InspectorUITextLanguageView : Editor
 
         EditorGUILayout.Space(8);
 
-        // 加载按钮
+        // 操作按钮（加载预览 + 打开配置表 放一排）
         EditorGUILayout.BeginHorizontal();
         GUILayout.FlexibleSpace();
         if (GUILayout.Button("加载预览", buttonStyle, GUILayout.Width(120)))
         {
             LoadPreviewText();
+        }
+        GUILayout.Space(8);
+        // 打开配置表（同时打开多语言表和UIText表）
+        if (GUILayout.Button("打开配置表", buttonStyle, GUILayout.Width(120)))
+        {
+            OpenExcelTables();
+        }
+        GUILayout.Space(8);
+        // 导出（直接导出多语言表和UIText表为Json）
+        if (GUILayout.Button("导出配置表", buttonStyle, GUILayout.Width(120)))
+        {
+            ExportExcelTables();
         }
         GUILayout.FlexibleSpace();
         EditorGUILayout.EndHorizontal();
@@ -126,6 +145,83 @@ public class InspectorUITextLanguageView : Editor
         {
             EditorUtility.SetDirty(targetView);
         }
+    }
+
+    /// <summary>
+    /// 同时打开多语言配置表和UIText配置表
+    /// </summary>
+    private void OpenExcelTables()
+    {
+        OpenExcelFile(LANGUAGE_EXCEL_PATH);
+        OpenExcelFile(UI_TEXT_EXCEL_PATH);
+    }
+
+    /// <summary>
+    /// 使用系统默认程序打开指定Excel文件
+    /// </summary>
+    private void OpenExcelFile(string relativePath)
+    {
+        string fullPath = System.IO.Path.GetFullPath(relativePath);
+        if (!System.IO.File.Exists(fullPath))
+        {
+            Debug.LogError($"[InspectorUITextLanguageView] 配置表文件不存在: {fullPath}");
+            return;
+        }
+
+        try
+        {
+            // 通过 explorer.exe 间接打开，避免 Excel 单实例冷启动时连续 Process.Start 第二个文件被 DDE 丢弃的问题
+            System.Diagnostics.Process.Start("explorer.exe", $"\"{fullPath}\"");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"[InspectorUITextLanguageView] 打开配置表失败: {fullPath}\n{e.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 直接导出多语言配置表和UIText配置表为Json
+    /// </summary>
+    private void ExportExcelTables()
+    {
+        // 创建（但不显示）ExcelEditorWindow 实例以复用其导出逻辑
+        ExcelEditorWindow window = ScriptableObject.CreateInstance<ExcelEditorWindow>();
+        try
+        {
+            // 显式设置导出所需路径，避免依赖 OnEnable 时序
+            window.excelFolderPath = Application.dataPath + "/Data/Excel";
+            window.jsonFolderPath = Application.dataPath + "/Resources/JsonText";
+
+            ExportExcelFile(window, LANGUAGE_EXCEL_PATH);
+            ExportExcelFile(window, UI_TEXT_EXCEL_PATH);
+
+            AssetDatabase.Refresh();
+            EditorUtility.DisplayDialog("完成", "多语言表和UIText表已成功导出为 Json", "确定");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"[InspectorUITextLanguageView] 导出配置表失败:\n{e}");
+            EditorUtility.DisplayDialog("失败", $"导出配置表失败：\n{e.Message}", "确定");
+        }
+        finally
+        {
+            Object.DestroyImmediate(window);
+        }
+    }
+
+    /// <summary>
+    /// 导出单个Excel配置表为Json
+    /// </summary>
+    private void ExportExcelFile(ExcelEditorWindow window, string relativePath)
+    {
+        string fullPath = System.IO.Path.GetFullPath(relativePath);
+        if (!System.IO.File.Exists(fullPath))
+        {
+            Debug.LogError($"[InspectorUITextLanguageView] 配置表文件不存在: {fullPath}");
+            return;
+        }
+
+        window.ExcelToJsonItem(new System.IO.FileInfo(fullPath));
     }
 
     /// <summary>

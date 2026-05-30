@@ -9,7 +9,7 @@ public partial class GameConfigBean
     public int window = 0;
     //屏幕分辨率
     public string screenResolution = "1920x1080";
-    //语言（留空时由 LanguageCfg.GetInitialLanguage 判定：连上 Steam 则按 Steam 客户端语言，否则默认 cn）
+    //语言（留空时由 LanguageCfg.GetInitialLanguage 判定：连上 Steam 则按 Steam 客户端语言，否则默认 en）
     public string language = "";
     //音效大小
     public float soundVolume = 0.5f;
@@ -62,7 +62,7 @@ public partial class GameConfigBean
 
     /// <summary>
     /// 获取当前语言
-    /// 未设置（空串）时按 LanguageCfg.GetInitialLanguage 推断：连上 Steam 用 Steam 客户端语言，否则 cn
+    /// 未设置（空串）时按 LanguageCfg.GetInitialLanguage 推断：连上 Steam 用 Steam 客户端语言，否则 en
     /// </summary>
     /// <returns></returns>
     public LanguageEnum GetLanguage()

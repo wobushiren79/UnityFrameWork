@@ -53,7 +53,7 @@ public partial class LanguageCfg
 
     #region 默认语言判定
     /// <summary>
-    /// 获取初始语言：连上 Steam 时根据 Steam 客户端语言初始化，未连上则默认 cn
+    /// 获取初始语言：连上 Steam 时根据 Steam 客户端语言初始化，未连上则默认 en
     /// 仅区分中文/英文：含 chinese 的 Steam 语言归为 cn，其余归为 en
     /// </summary>
     public static string GetInitialLanguage()
@@ -73,9 +73,9 @@ public partial class LanguageCfg
         }
         catch (Exception ex)
         {
-            LogUtil.LogError($"读取 Steam 语言失败，回退到默认语言 cn：{ex.Message}");
+            LogUtil.LogError($"读取 Steam 语言失败，回退到默认语言 en：{ex.Message}");
         }
-        return LanguageEnum.cn.GetEnumName();
+        return LanguageEnum.en.GetEnumName();
     }
     #endregion
 
