@@ -30,6 +30,12 @@ public static class ExcelUtil
             return;
         if (filePath.Contains("~$"))
             return;
+        // 跳过备份文件（如 xxx.xlsx.bak.20260524_150955）。
+        // 备份文件内含与源表同名的工作表，若被当作 Excel 处理会按工作表名覆盖正确导出的 JSON，
+        // 仅识别后缀为 .xlsx / .xls 的真实 Excel 文件。
+        string ext = fileInfo.Extension.ToLower();
+        if (ext != ".xlsx" && ext != ".xls")
+            return;
         LogUtil.Log($"filePath:{filePath}");
         FileStream fs;
         try
