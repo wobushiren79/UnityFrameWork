@@ -63,7 +63,7 @@ namespace PixelArtTool
         private static readonly Color kGenColor = new Color(0.30f, 0.70f, 0.45f);
         private static readonly Color kSaveColor = new Color(0.95f, 0.62f, 0.25f);
 
-        [MenuItem("Custom/图转像素图")]
+        [MenuItem("Custom/工具弹窗/图转像素图")]
         public static void Open()
         {
             var win = GetWindow<PixelArtConverterWindow>("图转像素图");
