@@ -52,6 +52,11 @@ public class ScrollGridBaseContent : BaseMonoBehaviour
             Destroy(itemCell.gameObject);
         }
         cellList.Clear();
+        //未初始化(Init未执行)时scrollRect/viewport为空，直接返回避免空引用
+        if (this.inited == false || this.scrollRect == null)
+        {
+            return;
+        }
         this.scrollRect.content.offsetMin = new Vector2(0, 0);
         viewport.transform.rotation = new Quaternion();
     }
