@@ -532,7 +532,7 @@ public class ExcelEditorWindow : EditorWindow
             // 左侧：文件图标 + 文件名
             EditorGUILayout.BeginHorizontal(GUILayout.Width(300));
             GUILayout.Space(5);
-            GUILayout.Label(EditorGUIUtility.IconContent("d_SpreadsheetAsset Icon"), GUILayout.Width(20));
+            GUILayout.Label(EditorGUIUtility.IconContent("d_TextAsset Icon"), GUILayout.Width(20), GUILayout.Height(20));
             GUILayout.Space(5);
             EditorGUILayout.LabelField(fileInfo.Name, EditorStyles.boldLabel, GUILayout.Width(400));
             EditorGUILayout.EndHorizontal();

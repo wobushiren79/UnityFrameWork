@@ -108,8 +108,18 @@ public enum InputActionUIEnum
     F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
     N1, N2, N3, N4, N5, N6, N7, N8, N9, N0, NAdd, NSub,//1234567890+-
     Shift, Ctrl,
-    ESC, B, N, M, T, H, P, I
+    ESC, B, N, M, T, H, P, I, C
 
+}
+
+/// <summary>
+/// 玩家(Player)输入映射动作枚举。
+/// 名称必须与 GameInputActions.inputactions 中 Player 映射的 action 名一一对应，
+/// 用作 InputManager.dicInputPlayer 的键，并供 GetInputPlayerData 取值。
+/// </summary>
+public enum InputActionPlayerEnum
+{
+    Move, MoveMouse, Look, UseL, UseR, E, Jump, B, Q, C, Shift, Ctrl, ShortcutsSelect, CameraDistance
 }
 
 /// <summary>

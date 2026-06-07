@@ -31,6 +31,8 @@ public partial class GameConfigBean
 
     //是否展示帧数
     public bool framesShow = false;
+    //是否显示按键提示(UIViewPressCommon 等快捷按键提示)，默认开启
+    public bool pressKeyTipShow = true;
     //阴影距离
     public float shadowDis = 50;
     //阴影质量等级
