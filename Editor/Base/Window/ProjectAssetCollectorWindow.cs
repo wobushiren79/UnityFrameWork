@@ -11,9 +11,17 @@ using System.Text;
 public class ProjectAssetCollectorWindow : EditorWindow
 {
     // --- 常量 ---
-    private const string CACHE_KEY = "ProjectAssetCollector_CachedPaths";
+    /// <summary>
+    /// 缓存键前缀（最终键会追加当前项目唯一标识，确保各项目数据相互独立）
+    /// </summary>
+    private const string CACHE_KEY_PREFIX = "ProjectAssetCollector_CachedPaths";
     private const float DROP_AREA_HEIGHT = 60f;
     private const float ITEM_HEIGHT = 22f;
+
+    /// <summary>
+    /// 当前项目专属的缓存键（懒加载，由前缀 + 项目路径哈希组成）
+    /// </summary>
+    private static string cacheKey;
     
     // --- 成员变量 ---
     private List<string> assetPaths = new List<string>();
@@ -395,6 +403,23 @@ public class ProjectAssetCollectorWindow : EditorWindow
     }
 
     // --- 缓存管理 ---
+    /// <summary>
+    /// 获取当前项目专属的缓存键。
+    /// EditorPrefs 是按机器（注册表）全局存储的，多个项目共用同一前缀键会相互覆盖；
+    /// 这里以项目路径（Application.dataPath，指向各项目的 Assets 目录）的哈希作为后缀，
+    /// 保证不同项目的收藏数据彼此独立保存。
+    /// </summary>
+    private static string GetCacheKey()
+    {
+        if (string.IsNullOrEmpty(cacheKey))
+        {
+            // Application.dataPath 在不同项目下唯一，用其哈希生成稳定且无特殊字符的项目标识
+            int projectHash = Application.dataPath.GetHashCode();
+            cacheKey = $"{CACHE_KEY_PREFIX}_{projectHash:X8}";
+        }
+        return cacheKey;
+    }
+
     private void SaveCache()
     {
         StringBuilder sb = new StringBuilder();
@@ -406,14 +431,14 @@ public class ProjectAssetCollectorWindow : EditorWindow
                 sb.Append("|");
             }
         }
-        EditorPrefs.SetString(CACHE_KEY, sb.ToString());
+        EditorPrefs.SetString(GetCacheKey(), sb.ToString());
     }
 
     private void LoadCache()
     {
         assetPaths.Clear();
         
-        string cached = EditorPrefs.GetString(CACHE_KEY, string.Empty);
+        string cached = EditorPrefs.GetString(GetCacheKey(), string.Empty);
         if (!string.IsNullOrEmpty(cached))
         {
             string[] paths = cached.Split('|');
