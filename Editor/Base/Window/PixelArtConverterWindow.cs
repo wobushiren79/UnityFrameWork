@@ -42,6 +42,8 @@ namespace PixelArtTool
         private List<Color> _palette = new List<Color>();
         // 每个基础色在原图缩放后的使用数量（用于展示）
         private List<int> _paletteCounts = new List<int>();
+        // 每个像素分配到哪个调色板索引（首次映射时记录，后续调整颜色时直接用索引取色，避免重新最近邻匹配导致颜色替换失效）
+        private int[] _pixelPaletteIndices;
 
         // 预览纹理
         private Texture2D _previewTexture;
@@ -515,7 +517,8 @@ namespace PixelArtTool
             // 3. 颜色量化，得到调色板
             _palette = QuantizeColors(_downscaledPixels, _colorCount, out _paletteCounts);
 
-            // 4. 用调色板映射生成预览
+            // 4. 用调色板映射生成预览（重新生成时清除旧的像素索引分配）
+            _pixelPaletteIndices = null;
             RebuildPreviewFromPalette();
 
             Repaint();
@@ -531,15 +534,24 @@ namespace PixelArtTool
             Color32[] outPixels = new Color32[_downscaledPixels.Length];
             Color[] pal = _palette.ToArray();
 
+            // 首次映射时记录每个像素的调色板索引；后续调整颜色后重建时直接用索引取色
+            bool needAssign = _pixelPaletteIndices == null || _pixelPaletteIndices.Length != _downscaledPixels.Length;
+            if (needAssign)
+                _pixelPaletteIndices = new int[_downscaledPixels.Length];
+
             for (int i = 0; i < _downscaledPixels.Length; i++)
             {
                 Color32 src = _downscaledPixels[i];
                 if (src.a == 0)
                 {
                     outPixels[i] = new Color32(0, 0, 0, 0);
+                    if (needAssign) _pixelPaletteIndices[i] = 0;
                     continue;
                 }
-                int idx = NearestPaletteIndex(src, pal);
+                int idx = needAssign ? NearestPaletteIndex(src, pal) : _pixelPaletteIndices[i];
+                if (needAssign) _pixelPaletteIndices[i] = idx;
+                // 防止索引越界（极端情况下调色板数量可能变化）
+                if (idx >= pal.Length) idx = 0;
                 Color c = pal[idx];
                 outPixels[i] = new Color32(
                     (byte)Mathf.RoundToInt(Mathf.Clamp01(c.r) * 255f),
