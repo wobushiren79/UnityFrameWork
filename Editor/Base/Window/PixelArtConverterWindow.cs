@@ -227,7 +227,10 @@ namespace PixelArtTool
             BeginCard("④ 输出设置");
             using (new EditorGUILayout.HorizontalScope())
             {
-                _outputDir = EditorGUILayout.TextField("输出目录", _outputDir);
+                _outputDir = EditorGUILayout.TextField(new GUIContent("输出目录", "可拖入文件夹设置路径"), _outputDir);
+                // 输出目录支持拖入文件夹
+                Rect dirFieldRect = GUILayoutUtility.GetLastRect();
+                HandleFolderDrop(dirFieldRect);
                 if (GUILayout.Button("浏览", GUILayout.Width(50)))
                 {
                     string start = string.IsNullOrEmpty(_outputDir) ? Application.dataPath : _outputDir;
@@ -278,6 +281,45 @@ namespace PixelArtTool
                 }
                 e.Use();
             }
+        }
+
+        /// <summary>处理拖入文件夹到指定 Rect 上的 Drop 事件，用于设置输出目录。</summary>
+        private void HandleFolderDrop(Rect dropRect)
+        {
+            Event e = Event.current;
+            if (!dropRect.Contains(e.mousePosition)) return;
+            if (e.type != EventType.DragUpdated && e.type != EventType.DragPerform) return;
+
+            // 检查是否有有效文件夹路径
+            string folderPath = GetFirstFolderFromDrag();
+            bool valid = !string.IsNullOrEmpty(folderPath);
+
+            if (valid)
+            {
+                DragAndDrop.visualMode = DragAndDropVisualMode.Link;
+                if (e.type == EventType.DragPerform)
+                {
+                    DragAndDrop.AcceptDrag();
+                    _outputDir = folderPath;
+                    GUI.FocusControl(null);
+                }
+                e.Use();
+            }
+        }
+
+        /// <summary>从拖入内容中提取第一个文件夹的绝对路径，没有则返回 null。</summary>
+        private static string GetFirstFolderFromDrag()
+        {
+            foreach (string p in DragAndDrop.paths)
+            {
+                // 文件系统绝对路径
+                if (Path.IsPathRooted(p) && Directory.Exists(p))
+                    return p;
+                // Project 窗口中的文件夹
+                if (AssetDatabase.IsValidFolder(p))
+                    return GetAbsolutePath(p);
+            }
+            return null;
         }
 
         private static bool IsDragValid()
@@ -557,7 +599,7 @@ namespace PixelArtTool
                     (byte)Mathf.RoundToInt(Mathf.Clamp01(c.r) * 255f),
                     (byte)Mathf.RoundToInt(Mathf.Clamp01(c.g) * 255f),
                     (byte)Mathf.RoundToInt(Mathf.Clamp01(c.b) * 255f),
-                    src.a);
+                    (byte)Mathf.RoundToInt(Mathf.Clamp01(c.a) * 255f));
             }
 
             if (_previewTexture == null || _previewTexture.width != _outW || _previewTexture.height != _outH)
