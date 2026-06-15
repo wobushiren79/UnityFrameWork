@@ -1,24 +1,25 @@
-Shader "Custom/URP/LeafWindSway"
+Shader "Custom/URP/GrassWindSway"
 {
     Properties
     {
-        [MainTexture] _BaseMap ("树叶贴图", 2D) = "white" {}
+        [MainTexture] _BaseMap ("草贴图", 2D) = "white" {}
         [MainColor]   _BaseColor ("染色颜色", Color) = (1, 1, 1, 1)
         _Cutoff ("透明裁剪阈值 (0=不裁剪)", Range(0, 1)) = 0.0
 
         [Header(Wind Sway)]
-        _WindSpeed     ("风速 (整体快慢)", Range(0, 10)) = 2.0
-        _SwayStrength  ("摆动幅度 (左右摇摆大小)", Range(0, 1)) = 0.08
-        _SwayFrequency ("摆动频率 (摇摆快慢)", Range(0, 10)) = 1.5
-        _BendStrength  ("弯折幅度 (摆动时顶部下压)", Range(0, 1)) = 0.02
+        _WindSpeed     ("风速 (整体快慢)", Range(0, 10)) = 2.5
+        _SwayStrength  ("摆动幅度 (草尖左右摇摆大小)", Range(0, 1)) = 0.12
+        _SwayFrequency ("摆动频率 (摇摆快慢)", Range(0, 10)) = 2.0
+        _WindDir       ("风向 (-1左 / +1右 顺风倾倒)", Range(-1, 1)) = 0.3
+        _BendStrength  ("顺风弯倒幅度 (草整体被风压弯)", Range(0, 1)) = 0.15
 
         [Header(Flutter)]
-        _FlutterStrength ("抖动幅度 (叶片细碎颤动大小)", Range(0, 0.5)) = 0.02
-        _FlutterSpeed    ("抖动速度 (颤动快慢)", Range(0, 30)) = 12.0
+        _FlutterStrength ("抖动幅度 (草叶细碎颤动大小)", Range(0, 0.5)) = 0.03
+        _FlutterSpeed    ("抖动速度 (颤动快慢)", Range(0, 30)) = 14.0
 
-        [Header(Anchor)]
-        // 1 = 叶子底部(叶柄在下)固定，越靠顶部摆动越大; 0 = 顶部(叶柄在上)固定
-        _AnchorBottom ("底部锚点 (1=叶柄在下 / 0=叶柄在上)", Range(0, 1)) = 1.0
+        [Header(Stiffness)]
+        // 越大草越硬(根部以上更晚开始弯)，越小越软(贴近根部就开始弯)
+        _Stiffness ("草茎硬度 (越大越硬越直)", Range(1, 4)) = 2.0
     }
 
     SubShader
@@ -71,10 +72,11 @@ Shader "Custom/URP/LeafWindSway"
                 half   _WindSpeed;
                 half   _SwayStrength;
                 half   _SwayFrequency;
+                half   _WindDir;
                 half   _BendStrength;
                 half   _FlutterStrength;
                 half   _FlutterSpeed;
-                half   _AnchorBottom;
+                half   _Stiffness;
             CBUFFER_END
 
             Varyings vert (Attributes IN)
@@ -83,29 +85,36 @@ Shader "Custom/URP/LeafWindSway"
                 UNITY_SETUP_INSTANCE_ID(IN);
                 UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
 
-                // 沿 UV.y 计算摆动权重：以底部为锚点时，越靠近顶部摆动越大
-                float heightWeight = lerp(IN.uv.y, 1.0 - IN.uv.y, 1.0 - _AnchorBottom);
+                // 根部在贴图最底部(UV.y=0)固定，越往草尖(UV.y=1)摆动越大
+                // 用 pow(uv.y, _Stiffness) 控制草茎硬度：值越大，根部附近越不弯、越像硬草茎
+                float heightWeight = pow(saturate(IN.uv.y), _Stiffness);
 
-                // 让同一物体在世界空间下的相位错开，避免所有叶子同步摆动
+                // 让每株草在世界空间下相位错开，避免整片草同步摆动
                 float3 positionWS = TransformObjectToWorld(IN.positionOS.xyz);
-                float phase = positionWS.x * 0.5 + positionWS.z * 0.5;
+                float phase = positionWS.x * 0.7 + positionWS.z * 0.7;
 
                 float t = _Time.y * _WindSpeed;
 
-                // 主摆动：水平方向正弦摇摆，强度随高度权重二次增长（更自然）
+                // 主摆动：草尖左右正弦摇摆
                 float swayWave = sin(t * _SwayFrequency + phase);
-                float sway = swayWave * _SwayStrength * heightWeight * heightWeight;
+                float sway = swayWave * _SwayStrength;
 
-                // 高频抖动：模拟叶片在风中的细碎颤动
+                // 顺风弯倒：草整体往风向方向被持续压弯(带轻微脉动)
+                float bend = _WindDir * _BendStrength * (0.75 + 0.25 * sin(t * 0.5 + phase));
+
+                // 高频抖动：草叶细碎颤动
                 float flutter = sin(t * _FlutterSpeed + phase * 3.0 + IN.uv.x * 6.2831)
-                                * _FlutterStrength * heightWeight;
+                                * _FlutterStrength;
 
-                // 摆动时顶部轻微下压，模拟弯折
-                float bend = -abs(swayWave) * _BendStrength * heightWeight;
+                // 水平位移随高度权重增长，根部几乎不动
+                float offsetX = (sway + bend + flutter) * heightWeight;
+
+                // 草尖被压弯时轻微下沉，保持草茎长度观感
+                float offsetY = -abs(offsetX) * 0.3;
 
                 float3 posOS = IN.positionOS.xyz;
-                posOS.x += sway + flutter;
-                posOS.y += bend;
+                posOS.x += offsetX;
+                posOS.y += offsetY;
 
                 OUT.positionHCS = TransformObjectToHClip(posOS);
                 OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap);
