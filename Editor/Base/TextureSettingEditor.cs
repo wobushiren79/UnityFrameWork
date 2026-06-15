@@ -18,12 +18,12 @@ public class TextureSettingEditor : Editor
     }
 
     /// <summary>
-    /// 像素图设置32 菜单项的可用性校验：仅当选中了纹理资源时可用。
+    /// 像素图设置32 菜单项的可用性校验：开关启用且选中了纹理资源时可用（开关关闭则在右键菜单中隐藏）。
     /// </summary>
     [MenuItem("Assets/像素图设置32", true)]
     static bool SetPixelTexture32Validate()
     {
-        return HasTextureSelected();
+        return EditorMenuSwitch.IsEnabled(EditorMenuSwitch.PixelTextureSetting) && HasTextureSelected();
     }
 
     /// <summary>
@@ -36,12 +36,12 @@ public class TextureSettingEditor : Editor
     }
 
     /// <summary>
-    /// 像素图设置16 菜单项的可用性校验：仅当选中了纹理资源时可用。
+    /// 像素图设置16 菜单项的可用性校验：开关启用且选中了纹理资源时可用（开关关闭则在右键菜单中隐藏）。
     /// </summary>
     [MenuItem("Assets/像素图设置16", true)]
     static bool SetPixelTexture16Validate()
     {
-        return HasTextureSelected();
+        return EditorMenuSwitch.IsEnabled(EditorMenuSwitch.PixelTextureSetting) && HasTextureSelected();
     }
 
     #endregion

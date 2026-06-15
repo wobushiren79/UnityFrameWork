@@ -38,6 +38,9 @@ namespace PixelArtTool
         private int _outW;
         private int _outH;
 
+        // 原图（源图片）的不同颜色总数，用于在基础色面板展示量化前的颜色规模
+        private int _sourceColorCount;
+
         // 当前调色板（可被用户手动调整）
         private List<Color> _palette = new List<Color>();
         // 每个基础色在原图缩放后的使用数量（用于展示）
@@ -152,6 +155,19 @@ namespace PixelArtTool
         private void BeginCard(string title)
         {
             EditorGUILayout.BeginVertical(_cardStyle);
+            DrawCardHeader(title);
+        }
+
+        /// <summary>卡片容器（定宽）：用于把多张卡片并排放在同一排。</summary>
+        private void BeginCard(string title, float width)
+        {
+            EditorGUILayout.BeginVertical(_cardStyle, GUILayout.Width(width));
+            DrawCardHeader(title);
+        }
+
+        /// <summary>画卡片标题 + 分隔线。</summary>
+        private void DrawCardHeader(string title)
+        {
             EditorGUILayout.LabelField(title, _cardHeaderStyle);
             DrawSeparator();
             EditorGUILayout.Space(2);
@@ -171,58 +187,71 @@ namespace PixelArtTool
 
         private void DrawInputSection()
         {
-            BeginCard("① 源图片");
+            // ①②③ 并排放在同一排，缩短列表整体高度，方便预览
+            // 源图片内容较多，给它更宽的列；②③ 较窄
+            float avail = EditorGUIUtility.currentViewWidth - 24f; // 估算去掉左右内边距后的可用宽度
+            float col1 = Mathf.Max(150f, avail * 0.42f);
+            float col23 = Mathf.Max(120f, avail * 0.27f);
 
-            // 拖拽放置区（支持工程内 Texture 资源 / 外部图片文件）
-            DrawSourceDropArea();
-            EditorGUILayout.Space(2);
-
-            EditorGUI.BeginChangeCheck();
-            _sourceTexture = (Texture2D)EditorGUILayout.ObjectField("图片", _sourceTexture, typeof(Texture2D), false);
-            if (EditorGUI.EndChangeCheck() && _sourceTexture != null)
-            {
-                _sourceExternalPath = ""; // 通过 ObjectField 选择的是工程内资源
-                string path = AssetDatabase.GetAssetPath(_sourceTexture);
-                if (!string.IsNullOrEmpty(path) && string.IsNullOrEmpty(_outputDir))
-                {
-                    _outputDir = Path.GetDirectoryName(GetAbsolutePath(path));
-                }
-            }
-
-            if (_sourceTexture != null)
-            {
-                string p = AssetDatabase.GetAssetPath(_sourceTexture);
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    // 缩略图
-                    Rect thumb = GUILayoutUtility.GetRect(56, 56, GUILayout.Width(56), GUILayout.Height(56));
-                    DrawChecker(thumb);
-                    GUI.DrawTexture(thumb, _sourceTexture, ScaleMode.ScaleToFit, true);
-
-                    using (new EditorGUILayout.VerticalScope())
-                    {
-                        EditorGUILayout.LabelField("源尺寸", $"{_sourceTexture.width} x {_sourceTexture.height}");
-                        EditorGUILayout.LabelField("路径", string.IsNullOrEmpty(p) ? "(非资源对象)" : p, _hintStyle);
-                    }
-                }
-            }
-            EndCard();
-
-            BeginCard("② 目标尺寸与采样");
             using (new EditorGUILayout.HorizontalScope())
             {
-                _targetWidth = Mathf.Max(1, EditorGUILayout.IntField("像素宽", _targetWidth));
-                GUILayout.Space(8);
-                _targetHeight = Mathf.Max(1, EditorGUILayout.IntField("像素高", _targetHeight));
-            }
-            _useAreaAverage = EditorGUILayout.Toggle(new GUIContent("区域平均采样", "勾选用区域平均缩放（更平滑），取消用最近邻（更锐利）"), _useAreaAverage);
-            EditorGUILayout.LabelField(_useAreaAverage ? "当前：区域平均（平滑）" : "当前：最近邻（锐利）", _hintStyle);
-            EndCard();
+                // ① 源图片
+                BeginCard("① 源图片", col1);
+                {
+                    // 拖拽放置区（支持工程内 Texture 资源 / 外部图片文件）
+                    DrawSourceDropArea();
+                    EditorGUILayout.Space(2);
 
-            BeginCard("③ 颜色量化");
-            _colorCount = Mathf.Clamp(EditorGUILayout.IntSlider("输出颜色个数", _colorCount, 1, 64), 1, 256);
-            EditorGUILayout.LabelField("把原图所有颜色优化到指定数量：相近颜色归并、代表色取使用最多色、基础色兼顾区别大与使用多。", _hintStyle);
-            EndCard();
+                    EditorGUI.BeginChangeCheck();
+                    _sourceTexture = (Texture2D)EditorGUILayout.ObjectField("图片", _sourceTexture, typeof(Texture2D), false);
+                    if (EditorGUI.EndChangeCheck() && _sourceTexture != null)
+                    {
+                        _sourceExternalPath = ""; // 通过 ObjectField 选择的是工程内资源
+                        string path = AssetDatabase.GetAssetPath(_sourceTexture);
+                        if (!string.IsNullOrEmpty(path) && string.IsNullOrEmpty(_outputDir))
+                        {
+                            _outputDir = Path.GetDirectoryName(GetAbsolutePath(path));
+                        }
+                    }
+
+                    if (_sourceTexture != null)
+                    {
+                        string p = AssetDatabase.GetAssetPath(_sourceTexture);
+                        using (new EditorGUILayout.HorizontalScope())
+                        {
+                            // 缩略图
+                            Rect thumb = GUILayoutUtility.GetRect(56, 56, GUILayout.Width(56), GUILayout.Height(56));
+                            DrawChecker(thumb);
+                            GUI.DrawTexture(thumb, _sourceTexture, ScaleMode.ScaleToFit, true);
+
+                            using (new EditorGUILayout.VerticalScope())
+                            {
+                                EditorGUILayout.LabelField("源尺寸", $"{_sourceTexture.width} x {_sourceTexture.height}");
+                                EditorGUILayout.LabelField("路径", string.IsNullOrEmpty(p) ? "(非资源对象)" : p, _hintStyle);
+                            }
+                        }
+                    }
+                }
+                EndCard();
+
+                // ② 目标尺寸与采样
+                BeginCard("② 目标尺寸与采样", col23);
+                {
+                    _targetWidth = Mathf.Max(1, EditorGUILayout.IntField("像素宽", _targetWidth));
+                    _targetHeight = Mathf.Max(1, EditorGUILayout.IntField("像素高", _targetHeight));
+                    _useAreaAverage = EditorGUILayout.Toggle(new GUIContent("区域平均采样", "勾选用区域平均缩放（更平滑），取消用最近邻（更锐利）"), _useAreaAverage);
+                    EditorGUILayout.LabelField(_useAreaAverage ? "当前：区域平均（平滑）" : "当前：最近邻（锐利）", _hintStyle);
+                }
+                EndCard();
+
+                // ③ 颜色量化
+                BeginCard("③ 颜色量化", col23);
+                {
+                    _colorCount = Mathf.Clamp(EditorGUILayout.IntSlider("输出颜色个数", _colorCount, 1, 64), 1, 256);
+                    EditorGUILayout.LabelField("把原图所有颜色优化到指定数量：相近色归并、代表色取使用最多色。", _hintStyle);
+                }
+                EndCard();
+            }
 
             BeginCard("④ 输出设置");
             using (new EditorGUILayout.HorizontalScope())
@@ -468,6 +497,10 @@ namespace PixelArtTool
         {
             BeginCard($"⑥ 基础色 · {_palette.Count} 种（可手动调整）");
 
+            // 展示量化前原图的颜色规模
+            EditorGUILayout.LabelField($"原图共 {_sourceColorCount} 种颜色 → 量化为 {_palette.Count} 种基础色", _hintStyle);
+            EditorGUILayout.Space(2);
+
             // 顶部：色板预览条
             DrawPaletteStrip();
             EditorGUILayout.Space(6);
@@ -477,32 +510,63 @@ namespace PixelArtTool
             for (int i = 0; i < _paletteCounts.Count; i++) total += _paletteCounts[i];
             if (total <= 0) total = 1;
 
-            for (int i = 0; i < _palette.Count; i++)
+            // 每排显示 6 个颜色，避免列表纵向过长
+            const int perRow = 6;
+            float cellW = Mathf.Max(60f, (EditorGUIUtility.currentViewWidth - 28f) / perRow - 4f);
+            for (int row = 0; row * perRow < _palette.Count; row++)
             {
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    // 序号色块
-                    Rect sw = GUILayoutUtility.GetRect(22, 22, GUILayout.Width(22), GUILayout.Height(22));
-                    EditorGUI.DrawRect(sw, new Color(_palette[i].r, _palette[i].g, _palette[i].b, 1f));
-                    Rect border = new Rect(sw.x - 1, sw.y - 1, sw.width + 2, sw.height + 2);
-                    DrawRectOutline(border, new Color(0, 0, 0, 0.4f));
-                    GUI.Label(new Rect(sw.x, sw.y + 24, 22, 12), $"#{i + 1}", _swatchIndexStyle);
-
-                    GUILayout.Space(4);
-                    _palette[i] = EditorGUILayout.ColorField(GUIContent.none, _palette[i], true, true, false, GUILayout.Width(110));
-
-                    int cnt = (i < _paletteCounts.Count) ? _paletteCounts[i] : 0;
-                    float pct = cnt / (float)total;
-                    GUILayout.Space(6);
-                    // 占比条
-                    Rect bar = GUILayoutUtility.GetRect(60, 14, GUILayout.ExpandWidth(true), GUILayout.Height(14));
-                    EditorGUI.DrawRect(bar, new Color(1, 1, 1, 0.06f));
-                    EditorGUI.DrawRect(new Rect(bar.x, bar.y, bar.width * pct, bar.height), new Color(_palette[i].r, _palette[i].g, _palette[i].b, 0.9f));
-                    EditorGUILayout.LabelField($"{cnt} px ({pct * 100f:0.0}%)", GUILayout.Width(110));
+                    for (int c = 0; c < perRow; c++)
+                    {
+                        int i = row * perRow + c;
+                        if (i >= _palette.Count) break;
+                        DrawPaletteCell(i, cellW, total);
+                    }
+                    GUILayout.FlexibleSpace();
                 }
-                EditorGUILayout.Space(2);
+                EditorGUILayout.Space(4);
             }
             EndCard();
+        }
+
+        /// <summary>画单个基础色的紧凑单元：序号 / 颜色选择 / 透明度快捷按钮 / 占比。</summary>
+        private void DrawPaletteCell(int i, float cellW, long total)
+        {
+            using (new EditorGUILayout.VerticalScope(GUILayout.Width(cellW)))
+            {
+                // 序号
+                EditorGUILayout.LabelField($"#{i + 1}", _swatchIndexStyle, GUILayout.Width(cellW));
+
+                // 颜色选择
+                _palette[i] = EditorGUILayout.ColorField(GUIContent.none, _palette[i], true, true, false, GUILayout.Width(cellW));
+
+                // 透明度快速设置：A0 = 全透明，A1 = 不透明
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    float bw = (cellW - 2f) / 2f;
+                    if (GUILayout.Button(new GUIContent("A0", "把该基础色透明度设为 0（全透明）"), EditorStyles.miniButton, GUILayout.Width(bw)))
+                    {
+                        Color c = _palette[i];
+                        c.a = 0f;
+                        _palette[i] = c;
+                    }
+                    if (GUILayout.Button(new GUIContent("A1", "把该基础色透明度设为 1（不透明）"), EditorStyles.miniButton, GUILayout.Width(bw)))
+                    {
+                        Color c = _palette[i];
+                        c.a = 1f;
+                        _palette[i] = c;
+                    }
+                }
+
+                // 占比条 + 占比文字（精确像素数放在 tooltip）
+                int cnt = (i < _paletteCounts.Count) ? _paletteCounts[i] : 0;
+                float pct = cnt / (float)total;
+                Rect bar = GUILayoutUtility.GetRect(cellW, 6, GUILayout.Width(cellW), GUILayout.Height(6));
+                EditorGUI.DrawRect(bar, new Color(1, 1, 1, 0.06f));
+                EditorGUI.DrawRect(new Rect(bar.x, bar.y, bar.width * pct, bar.height), new Color(_palette[i].r, _palette[i].g, _palette[i].b, 0.9f));
+                EditorGUILayout.LabelField(new GUIContent($"{pct * 100f:0.0}%", $"{cnt} px"), _swatchIndexStyle, GUILayout.Width(cellW));
+            }
         }
 
         /// <summary>画一条完整调色板预览长条。</summary>
@@ -549,6 +613,9 @@ namespace PixelArtTool
             Color32[] srcPixels;
             int srcW, srcH;
             ReadSourcePixels(_sourceTexture, _sourceExternalPath, out srcPixels, out srcW, out srcH);
+
+            // 统计原图不同颜色总数（含 alpha），用于展示量化前的颜色规模
+            _sourceColorCount = CountDistinctColors(srcPixels);
 
             _outW = _targetWidth;
             _outH = _targetHeight;
@@ -923,6 +990,20 @@ namespace PixelArtTool
         // ============================================================
         // 工具方法
         // ============================================================
+
+        /// <summary>统计像素数组中不同颜色的总数（按 RGBA 完整比较，含透明度）。</summary>
+        private static int CountDistinctColors(Color32[] pixels)
+        {
+            if (pixels == null || pixels.Length == 0) return 0;
+            HashSet<uint> set = new HashSet<uint>();
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                Color32 p = pixels[i];
+                uint key = ((uint)p.r << 24) | ((uint)p.g << 16) | ((uint)p.b << 8) | p.a;
+                set.Add(key);
+            }
+            return set.Count;
+        }
 
         private static int NearestPaletteIndex(Color32 c, Color[] pal)
         {
