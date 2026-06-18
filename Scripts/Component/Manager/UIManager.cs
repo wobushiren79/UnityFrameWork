@@ -11,6 +11,10 @@ public partial class UIManager : BaseUIManager
     public List<DialogView> dialogList = new List<DialogView>();
     //所有的popup
     public Dictionary<PopupEnum, PopupShowView> popupList = new Dictionary<PopupEnum, PopupShowView>();
+    //当前屏幕上存活的Toast列表（按创建先后排序，[0]为最老的）
+    public List<ToastView> toastList = new List<ToastView>();
+    //屏幕上同时显示的Toast数量上限，超过时立即结束最老的Toast为新Toast腾位置
+    public int maxToastCount = 2;
 
     //所有的dialog模型
     public Dictionary<string, GameObject> dicDialogModel = new Dictionary<string, GameObject>();
@@ -184,6 +188,8 @@ public partial class UIManager : BaseUIManager
         if (objToast)
         {
             T toastView = objToast.GetComponent<T>();
+            //加入Toast列表并执行数量上限检测
+            AddToastAndCheckLimit(toastView);
             toastView.SetData(toastData);
             return toastView;
         }
@@ -191,6 +197,29 @@ public partial class UIManager : BaseUIManager
         {
             LogUtil.LogError("实例化Toast失败" + toastName);
             return null;
+        }
+    }
+
+    /// <summary>
+    /// 将新Toast加入列表并执行数量上限检测：
+    /// 先清理已销毁的Toast，再加入新Toast，若存活数量超过 maxToastCount，
+    /// 则立即结束最老的Toast的停留，为新Toast腾出位置。
+    /// </summary>
+    /// <param name="toastView">新创建的Toast</param>
+    private void AddToastAndCheckLimit(ToastView toastView)
+    {
+        //清理已被销毁的Toast（Unity对象销毁后判等为null）
+        toastList.RemoveAll(item => item == null);
+        toastList.Add(toastView);
+        //超出上限时，从最老的开始立即结束停留
+        while (toastList.Count > maxToastCount)
+        {
+            ToastView oldToast = toastList[0];
+            toastList.RemoveAt(0);
+            if (oldToast != null)
+            {
+                oldToast.EndStayImmediately();
+            }
         }
     }
 

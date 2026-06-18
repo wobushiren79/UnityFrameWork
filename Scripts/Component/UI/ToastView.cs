@@ -12,6 +12,11 @@ public class ToastView : BaseUIView
     public TextMeshProUGUI ui_ContentPro;
     public CanvasGroup cgToast;
 
+    /// <summary>
+    /// 是否已进入结束流程（防止重复触发）
+    /// </summary>
+    private bool isEnding = false;
+
     public override void Awake()
     {
         base.Awake();
@@ -88,6 +93,23 @@ public class ToastView : BaseUIView
              //延迟删除
              Destroy(gameObject);
         });
+    }
+
+    /// <summary>
+    /// 立即结束停留：当屏幕上的Toast数量超过限制时，由 UIManager 调用，
+    /// 中断当前的停留计时，立刻开始淡出并销毁，为新的Toast腾出位置。
+    /// </summary>
+    public void EndStayImmediately()
+    {
+        if (isEnding)
+            return;
+        isEnding = true;
+        //中断原有的延迟淡出与延迟销毁
+        StopAllCoroutines();
+        if (cgToast != null)
+            cgToast.DOKill();
+        //不再停留，立即淡出并销毁
+        DestroyToast(0);
     }
 
 }
