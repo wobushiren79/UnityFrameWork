@@ -1,0 +1,17 @@
+{
+    "doubaoApiKey": "ark-c662bf00-46f6-43a7-9a65-3ce56345ea5b-7dba0",
+    "tongyiApiKey": "sk-ws-H.REHHLML.xk1X.MEYCIQC0wvgQPDrdEwv66o1gsYEY-V8Wmg8pKwhk-yCq22kQ8gIhAP9aiw7ZGgXAsExxpsnasnLTEzwBDIEOgp0lczUPY_AA",
+    "doubaoBaseUrl": "https://ark.cn-beijing.volces.com/api/v3",
+    "tongyiBaseUrl": "https://dashscope.aliyuncs.com/api/v1",
+    "tongyiChatBaseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "doubaoImageModel": "doubao-seedream-4-0-250828",
+    "doubaoVideoModel": "doubao-seedance-1-0-pro-250528",
+    "doubaoChatModel": "doubao-seed-1-6-251015",
+    "tongyiImageModel": "wan2.5-t2i-preview",
+    "tongyiEditModel": "wanx2.1-imageedit",
+    "tongyiVideoModel": "wan2.5-i2v-preview",
+    "tongyiChatModel": "qwen-plus",
+    "imageSize": "1024*1024",
+    "videoResolution": "480P",
+    "outputFolder": "Assets/Out/PixelDa"
+}
