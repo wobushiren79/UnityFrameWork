@@ -84,9 +84,9 @@ namespace PixelPerfectTool
         private int _step = 1;
 
         /// <summary>网格宽（列数）。</summary>
-        private int _gridWidth = 16;
+        private int _gridWidth = 32;
         /// <summary>网格高（行数）。</summary>
-        private int _gridHeight = 16;
+        private int _gridHeight = 32;
 
         /// <summary>步骤①里通过 ObjectField 选择的工程内源纹理。</summary>
         private Texture2D _sourceTexture;
@@ -224,6 +224,38 @@ namespace PixelPerfectTool
             var win = GetWindow<PixelPerfectConverterWindow>("像素完美转换器");
             win.minSize = new Vector2(720, 640);
             win.Show();
+        }
+
+        /// <summary>右键菜单项：在 Project 窗口选中一张图片后右键，直接用该图打开转换器并自动载入进入步骤②。</summary>
+        [MenuItem("Assets/像素完美转换器", false, 2000)]
+        public static void OpenFromSelection()
+        {
+            var tex = Selection.activeObject as Texture2D;
+            var win = GetWindow<PixelPerfectConverterWindow>("像素完美转换器");
+            win.minSize = new Vector2(720, 640);
+            win.Show();
+            if (tex == null) return;
+
+            win._sourceTexture = tex;
+            win._sourceExternalPath = "";
+            try
+            {
+                win.LoadSource();
+                win.EnterStep2();
+            }
+            catch (Exception ex)
+            {
+                EditorUtility.DisplayDialog("载入失败", ex.Message, "确定");
+                Debug.LogException(ex);
+            }
+            win.Repaint();
+        }
+
+        /// <summary>右键菜单校验：仅当当前选中对象为 Texture2D（图片）时启用该菜单项。</summary>
+        [MenuItem("Assets/像素完美转换器", true)]
+        private static bool OpenFromSelectionValidate()
+        {
+            return Selection.activeObject is Texture2D;
         }
 
         /// <summary>确保 GUIStyle 已初始化。</summary>
