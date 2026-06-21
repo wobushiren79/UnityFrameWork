@@ -9,7 +9,7 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     //重复播放时间检测
     protected float timeUpdateForRepeatPlay = 0;
     //重复音乐列表
-    protected List<int> listMusicLoop = new List<int>();
+    protected List<long> listMusicLoop = new List<long>();
     protected Coroutine coroutineForMusicLoop;
 
     public void Update()
@@ -39,7 +39,7 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     /// <summary>
     ///  循环播放音乐-单曲
     /// </summary>
-    public void PlayMusicForLoop(int musicId)
+    public void PlayMusicForLoop(long musicId)
     {
         GameConfigBean gameConfig = GameDataHandler.Instance.manager.GetGameConfig();
         PlayMusicForLoop(musicId, gameConfig.musicVolume);
@@ -50,7 +50,7 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     /// </summary>
     /// <param name="audioMusic"></param>
     /// <param name="volumeScale"></param>
-    public void PlayMusicForLoop(int musicId, float volumeScale)
+    public void PlayMusicForLoop(long musicId, float volumeScale)
     {
         StopMusicListLoop();
         AudioInfoBean audioInfo = AudioInfoCfg.GetItemData(musicId);
@@ -71,7 +71,7 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     /// <summary>
     /// 循环播放音乐-列表
     /// </summary>
-    public void PlayMusicListForLoop(List<int> musicIds)
+    public void PlayMusicListForLoop(List<long> musicIds)
     {
         StopMusicListLoop();
         listMusicLoop = musicIds;
@@ -81,7 +81,7 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     private void PlayMusicListForLoop()
     {
         int musicIdRandomIndex = UnityEngine.Random.Range(0, listMusicLoop.Count);
-        int musicIdRandom = listMusicLoop[musicIdRandomIndex];
+        long musicIdRandom = listMusicLoop[musicIdRandomIndex];
         AudioInfoBean audioInfo = AudioInfoCfg.GetItemData(musicIdRandom);
         if (audioInfo == null)
         {
@@ -114,14 +114,14 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     #endregion
 
     #region  音效播放
-    protected int lastPlaySoundId;//上一个播放的音效
+    protected long lastPlaySoundId;//上一个播放的音效
 
     /// <summary>
     /// 播放音效
     /// </summary>
     /// <param name="sound">音效</param>
     /// <param name="volumeScale">音量大小</param>
-    public void PlaySound(int soundId, Vector3 soundPosition, float volumeScale, AudioSource audioSource = null)
+    public void PlaySound(long soundId, Vector3 soundPosition, float volumeScale, AudioSource audioSource = null)
     {
         if (soundId == 0)
             return;
@@ -157,7 +157,7 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     /// <summary>
     /// 播放音效 （没有指定播放位置 所以当audioSource为null是 自动使用audioSourceForSound）
     /// </summary>
-    public void PlaySound(int soundId, AudioSource audioSource = null)
+    public void PlaySound(long soundId, AudioSource audioSource = null)
     {
         if (audioSource == null)
         {
@@ -170,7 +170,7 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
         }
     }
 
-    public void PlaySound(int soundId, Vector3 soundPosition, AudioSource audioSource = null)
+    public void PlaySound(long soundId, Vector3 soundPosition, AudioSource audioSource = null)
     {
         GameConfigBean gameConfig = GameDataHandler.Instance.manager.GetGameConfig();
         PlaySound(soundId, soundPosition, gameConfig.soundVolume, audioSource);
@@ -203,7 +203,7 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     /// 播放环境音乐
     /// </summary>
     /// <param name="audioEnvironment"></param>
-    public void PlayEnvironment(int environmentId, float volumeScale)
+    public void PlayEnvironment(long environmentId, float volumeScale)
     {
         AudioInfoBean audioInfo = AudioInfoCfg.GetItemData(environmentId);
         if (audioInfo == null)
@@ -220,7 +220,7 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
         });
     }
 
-    public void PlayEnvironment(int environmentId)
+    public void PlayEnvironment(long environmentId)
     {
         GameConfigBean gameConfig = GameDataHandler.Instance.manager.GetGameConfig();
         PlayEnvironment(environmentId, gameConfig.environmentVolume);
