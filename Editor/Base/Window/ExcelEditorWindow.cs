@@ -1229,6 +1229,8 @@ public class ExcelEditorWindow : EditorWindow
             //key的类型0为默认long 1为int 2为string
             string keyTypeName = "long";
             string keyName = "id";
+            //是否存在 valid 有效性列：存在时生成"valid==0 过滤"逻辑（仅含该列的表启用，其它表不受影响）
+            bool hasValid = false;
             //遍历sheet首行每个字段描述的值
             for (int i = 1; i <= sheet.Dimension.End.Column; i++)
             {
@@ -1240,6 +1242,9 @@ public class ExcelEditorWindow : EditorWindow
                     keyName = cellName;
                     keyTypeName = typeName;
                 }
+                //检测有效性列：约定列名为 valid（0=无效不入列表，1=有效）
+                if (cellName.Equals("valid"))
+                    hasValid = true;
 
                 if (cellName.Equals("id"))
                     continue;
@@ -1303,6 +1308,11 @@ public class ExcelEditorWindow : EditorWindow
             sb.AppendLine($"\t\tif (arrayData == null)");
             sb.AppendLine("\t\t{");
             sb.AppendLine($"\t\t\tarrayData = GetInitData(fileName);");
+            if (hasValid)
+            {
+                //valid==0 视为无效，过滤后再缓存，使后续字典/单点查询均不含无效行
+                sb.AppendLine($"\t\t\tarrayData = System.Array.FindAll(arrayData, itemData => itemData.valid != 0);");
+            }
             sb.AppendLine("\t\t}");
             sb.AppendLine($"\t\treturn arrayData;");
             sb.AppendLine("\t}");
@@ -1311,9 +1321,16 @@ public class ExcelEditorWindow : EditorWindow
             sb.AppendLine("\t{");
             sb.AppendLine($"\t\tif (dicData == null)");
             sb.AppendLine("\t\t{");
-            sb.AppendLine($"\t\t\t{sheet.Name}Bean[] arrayData = GetInitData(fileName);");
-
-            sb.AppendLine($"\t\t\tInitData(arrayData);");
+            if (hasValid)
+            {
+                //走 GetAllArrayData 复用 valid 过滤，保证单点查询同样排除无效行
+                sb.AppendLine($"\t\t\tInitData(GetAllArrayData());");
+            }
+            else
+            {
+                sb.AppendLine($"\t\t\t{sheet.Name}Bean[] arrayData = GetInitData(fileName);");
+                sb.AppendLine($"\t\t\tInitData(arrayData);");
+            }
             sb.AppendLine("\t\t}");
             sb.AppendLine($"\t\treturn GetItemData(key, dicData);");
             sb.AppendLine("\t}");
