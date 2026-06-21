@@ -23,6 +23,10 @@ public partial class AudioInfoBean : BaseBean
 	///类型0音效 1音乐 2环境音
 	/// </summary>
 	public int audio_type;
+	/// <summary>
+	///音效音量缩放(0或空=1)
+	/// </summary>
+	public float volume_scale;
 }
 public partial class AudioInfoCfg : BaseCfg<long, AudioInfoBean>
 {

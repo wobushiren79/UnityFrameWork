@@ -134,6 +134,11 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
         AudioInfoBean audioInfo = AudioInfoCfg.GetItemData(soundId);
         if (audioInfo == null)
             return;
+        //叠加配置表的音效音量缩放：volume_scale 为 0 或未填时视为 1（不缩放），否则在基础音量上 ×缩放系数
+        if (audioInfo.volume_scale > 0)
+        {
+            volumeScale *= audioInfo.volume_scale;
+        }
         manager.GetSoundClip(audioInfo.name_res, (audioClip) =>
         {
             if (audioClip != null)
