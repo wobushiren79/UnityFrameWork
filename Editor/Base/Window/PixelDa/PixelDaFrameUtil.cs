@@ -149,7 +149,7 @@ namespace PixelDa
         }
 
         /// <summary>
-        /// 运行 ffmpeg 进程
+        /// 运行 ffmpeg 进程。并发读取 stdout/stderr 避免管道缓冲写满导致的死锁，并加执行超时
         /// </summary>
         private static void RunFfmpeg(string ffmpeg, string args)
         {
@@ -162,18 +162,38 @@ namespace PixelDa
                 RedirectStandardError = true,
                 CreateNoWindow = true,
             };
+            Process p;
             try
             {
-                using (var p = Process.Start(psi))
-                {
-                    p.StandardOutput.ReadToEnd();
-                    p.StandardError.ReadToEnd();
-                    p.WaitForExit();
-                }
+                p = Process.Start(psi);
             }
             catch (Exception e)
             {
                 throw new Exception("调用 ffmpeg 失败（请确认已安装并配置路径）: " + e.Message);
+            }
+
+            using (p)
+            {
+                // ffmpeg 日志几乎都走 stderr：必须并发读两个流，否则缓冲写满会与 WaitForExit 互相死锁
+                Task<string> outTask = p.StandardOutput.ReadToEndAsync();
+                Task<string> errTask = p.StandardError.ReadToEndAsync();
+
+                // 单帧抽取很快，给足 120 秒兜底；超时则杀进程避免永久卡死
+                if (!p.WaitForExit(120000))
+                {
+                    try { p.Kill(); } catch { }
+                    throw new Exception("ffmpeg 执行超时（超过 120 秒），已强制结束。请检查视频是否过大或 ffmpeg 是否异常。");
+                }
+
+                // 等待两个异步读取真正读完（WaitForExit(timeout) 不保证已读尽流尾）
+                try { Task.WaitAll(new Task[] { outTask, errTask }, 5000); } catch { }
+
+                if (p.ExitCode != 0)
+                {
+                    string err = errTask.Status == TaskStatus.RanToCompletion ? errTask.Result : "";
+                    if (err != null && err.Length > 600) err = err.Substring(err.Length - 600);
+                    throw new Exception($"ffmpeg 退出码 {p.ExitCode}。{err}");
+                }
             }
         }
 
