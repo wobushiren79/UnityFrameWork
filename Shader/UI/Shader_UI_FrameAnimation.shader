@@ -37,6 +37,12 @@ Shader "FrameWork/UI/Shader_UI_FrameAnimation"
         [Enum(Off, 0, On, 1)] _Loop("循环播放(关则停在末帧)", Float) = 1
         [Toggle(_INTERNAL_TIME_ON)] _InternalTime("使用内置时间(关闭则用外部DeltaTime)", Float) = 1
         _DeltaTime("外部驱动时间(秒)", Float) = 0
+
+        [Header(Tiling (Per Frame))]
+        // 帧内平铺缩放(围绕帧中心)：值同 Unity Tiling 语义——大于1内容变小、小于1内容放大。
+        // 宽高可分别设置，用于手动微调单帧显示宽高比/缩放(如补偿非正方形显示)。建议在 1 附近调，
+        // 远离 1 时帧内 UV 会越界采样到相邻帧。X=宽平铺 Y=高平铺。
+        _TileScale("帧平铺缩放(宽,高)", Vector) = (1, 1, 0, 0)
     }
 
     SubShader
@@ -94,6 +100,7 @@ Shader "FrameWork/UI/Shader_UI_FrameAnimation"
                 float _FPS;
                 float _StartFrame;
                 half _Loop;
+                float4 _TileScale;
             CBUFFER_END
 
             // UGUI 矩形裁剪由 Canvas 通过 MaterialPropertyBlock 设置，置于 CBUFFER 外
@@ -136,6 +143,9 @@ Shader "FrameWork/UI/Shader_UI_FrameAnimation"
             {
                 float cols = max(_Cols, 1.0);
                 float rows = max(_Rows, 1.0);
+
+                // 帧内平铺缩放：围绕帧中心(0.5)按宽高缩放 UV，手动微调单帧显示宽高比/缩放
+                uv = (uv - 0.5) * _TileScale.xy + 0.5;
                 // 总帧数为 0 时取整张精灵表(列x行)
                 float total = _FrameCount > 0.5 ? _FrameCount : cols * rows;
                 total = max(total, 1.0);
