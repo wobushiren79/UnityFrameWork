@@ -21,6 +21,9 @@ namespace PixelPerfectTool
     ///   笔刷尺寸(1~5)、魔棒阈值(0~30)、最近使用颜色(最多6)、撤销/重做(Ctrl+Z/Ctrl+Y)、
     ///   导出 PNG：x1/x4/x8 另存为、覆盖原图导出、同原图目录导出(原图名_输出宽x高)、
     ///   按列×行拆分导出（共用“导出倍数”）。
+    /// 步骤④（辅助功能）：帧动画图片排版修改。独立于主流程的精灵表重排工具——输入原图帧数(列×行)
+    ///   与输出帧数(列×行)，单帧尺寸不变(=原图宽/原列、原图高/原行)，按行优先顺序把每帧搬到新布局，
+    ///   支持拖拽替换原图、实时预览，并提供不覆盖导出(另存为)/覆盖原图导出/同目录导出。
     ///
     /// 快捷键：Alt+B 切换棋盘背景明暗；Alt+G 切换网格线明暗；Ctrl+Z 撤销；Ctrl+Y 重做。
     /// </summary>
@@ -202,6 +205,47 @@ namespace PixelPerfectTool
 
         #endregion
 
+        #region 字段 - 步骤④ 辅助功能（帧动画排版）
+
+        /// <summary>步骤④源图：通过 ObjectField/拖拽选择的待重排帧动画图。</summary>
+        private Texture2D _auxSourceTexture;
+        /// <summary>步骤④源图来自工程外时的外部文件绝对路径（若有）。</summary>
+        private string _auxSourceExternalPath = "";
+        /// <summary>步骤④源图像素（自上而下，row0 在顶部）。</summary>
+        private Color32[] _auxSrcTopDown;
+        /// <summary>步骤④源图宽（像素）。</summary>
+        private int _auxSrcW;
+        /// <summary>步骤④源图高（像素）。</summary>
+        private int _auxSrcH;
+        /// <summary>步骤④源图显示纹理（参考缩略图）。</summary>
+        private Texture2D _auxDisplayTex;
+
+        /// <summary>原图横向帧数（列）。</summary>
+        private int _auxSrcCols = 8;
+        /// <summary>原图纵向帧数（行）。</summary>
+        private int _auxSrcRows = 1;
+        /// <summary>输出横向帧数（列）。</summary>
+        private int _auxOutCols = 4;
+        /// <summary>输出纵向帧数（行）。</summary>
+        private int _auxOutRows = 2;
+
+        /// <summary>步骤④重排结果像素（自上而下）。</summary>
+        private Color32[] _auxResultTopDown;
+        /// <summary>步骤④重排结果宽（像素）。</summary>
+        private int _auxResultW;
+        /// <summary>步骤④重排结果高（像素）。</summary>
+        private int _auxResultH;
+        /// <summary>步骤④重排结果预览纹理。</summary>
+        private Texture2D _auxResultTex;
+        /// <summary>步骤④结果预览缩放（每像素显示边长，1~16）。</summary>
+        private int _auxResultZoom = 2;
+        /// <summary>步骤④结果预览滚动位置。</summary>
+        private Vector2 _auxResultScroll;
+        /// <summary>步骤④最近一次重排的提示/警告信息（空表示正常）。</summary>
+        private string _auxMessage = "";
+
+        #endregion
+
         #region 样式缓存
 
         private static GUIStyle _titleStyle;
@@ -306,6 +350,7 @@ namespace PixelPerfectTool
                 case 1: DrawStep1(); break;
                 case 2: DrawStep2(); break;
                 case 3: DrawStep3(); break;
+                case 4: DrawStep4(); break;
             }
 
             EditorGUILayout.Space(6);
@@ -317,6 +362,8 @@ namespace PixelPerfectTool
         {
             if (_srcDisplayTex != null) DestroyImmediate(_srcDisplayTex);
             if (_artTex != null) DestroyImmediate(_artTex);
+            if (_auxDisplayTex != null) DestroyImmediate(_auxDisplayTex);
+            if (_auxResultTex != null) DestroyImmediate(_auxResultTex);
         }
 
         #endregion
@@ -371,14 +418,15 @@ namespace PixelPerfectTool
         /// <summary>步骤进度条（①设置 ②定位转换 ③编辑导出）。</summary>
         private void DrawStepBar()
         {
-            string[] names = { "① 设置", "② 定位与转换", "③ 编辑与导出" };
+            string[] names = { "① 设置", "② 定位与转换", "③ 编辑与导出", "④ 辅助功能" };
             using (new EditorGUILayout.HorizontalScope())
             {
                 for (int i = 0; i < names.Length; i++)
                 {
                     int step = i + 1;
                     bool active = _step == step;
-                    bool reachable = step <= _step;
+                    // 步骤④为独立辅助工具，任何时候都可进入
+                    bool reachable = step <= _step || step == 4;
                     Color prev = GUI.backgroundColor;
                     GUI.backgroundColor = active ? kAccent : (reachable ? new Color(0.4f, 0.45f, 0.5f) : new Color(0.3f, 0.3f, 0.3f));
                     using (new EditorGUI.DisabledScope(!CanGoToStep(step)))
@@ -398,6 +446,7 @@ namespace PixelPerfectTool
             if (step == 1) return true;
             if (step == 2) return _srcTopDown != null;
             if (step == 3) return _pixels != null;
+            if (step == 4) return true; // 辅助功能（帧动画排版），独立于主流程，随时可进入
             return false;
         }
 
@@ -970,6 +1019,394 @@ namespace PixelPerfectTool
             float ch = area.height / _gridHeight;
             i = Mathf.Clamp(Mathf.FloorToInt((mouse.x - area.x) / cw), 0, _gridWidth - 1);
             j = Mathf.Clamp(Mathf.FloorToInt((mouse.y - area.y) / ch), 0, _gridHeight - 1);
+        }
+
+        #endregion
+
+        #region UI - 步骤④ 辅助功能（帧动画排版）
+
+        /// <summary>
+        /// 步骤④（辅助功能）：帧动画图片排版修改。
+        /// 把按「列×行」帧排布的精灵表（每帧尺寸 = 原图宽/列、原图高/行）按行优先(从左到右、从上到下)
+        /// 顺序重新排版为另一种「列×行」布局，单帧尺寸保持不变，仅改变帧的行列排布。
+        /// 例：256×32 原图填 8×1，输出填 4×2 → 单帧 32×32，结果 128×64。
+        /// </summary>
+        private void DrawStep4()
+        {
+            BeginCard("帧动画图片排版修改");
+            EditorGUILayout.LabelField(
+                "把按「列×行」帧排布的精灵表重新排版为另一种布局（单帧尺寸不变，仅改变帧的行列排布）。\n" +
+                "例：256×32 原图填原图帧数 8×1、输出帧数 4×2 → 单帧 32×32，结果拆成 128×64。",
+                _hintStyle);
+            EndCard();
+
+            BeginCard("① 原图（支持拖拽替换）");
+            DrawAuxDropArea();
+            EditorGUILayout.Space(2);
+            EditorGUI.BeginChangeCheck();
+            _auxSourceTexture = (Texture2D)EditorGUILayout.ObjectField("帧动画图", _auxSourceTexture, typeof(Texture2D), false);
+            if (EditorGUI.EndChangeCheck())
+            {
+                _auxSourceExternalPath = "";
+                LoadAuxSource();
+            }
+
+            if (_auxDisplayTex != null)
+            {
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    Rect thumb = GUILayoutUtility.GetRect(72, 72, GUILayout.Width(72), GUILayout.Height(72));
+                    DrawChecker(thumb);
+                    GUI.DrawTexture(thumb, _auxDisplayTex, ScaleMode.ScaleToFit, true);
+                    using (new EditorGUILayout.VerticalScope())
+                    {
+                        EditorGUILayout.LabelField("原图尺寸", $"{_auxSrcW} × {_auxSrcH} 像素");
+                        int fw = _auxSrcW / Mathf.Max(1, _auxSrcCols);
+                        int fh = _auxSrcH / Mathf.Max(1, _auxSrcRows);
+                        EditorGUILayout.LabelField("单帧尺寸", $"{fw} × {fh} 像素");
+                    }
+                }
+            }
+            EndCard();
+
+            BeginCard("② 帧数参数");
+            EditorGUI.BeginChangeCheck();
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                EditorGUILayout.LabelField(new GUIContent("原图帧数（列 × 行）", "原图横向、纵向各有几帧"), GUILayout.Width(150));
+                _auxSrcCols = Mathf.Max(1, EditorGUILayout.IntField(_auxSrcCols, GUILayout.Width(60)));
+                EditorGUILayout.LabelField("×", GUILayout.Width(14));
+                _auxSrcRows = Mathf.Max(1, EditorGUILayout.IntField(_auxSrcRows, GUILayout.Width(60)));
+            }
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                EditorGUILayout.LabelField(new GUIContent("输出帧数（列 × 行）", "输出图横向、纵向各排几帧"), GUILayout.Width(150));
+                _auxOutCols = Mathf.Max(1, EditorGUILayout.IntField(_auxOutCols, GUILayout.Width(60)));
+                EditorGUILayout.LabelField("×", GUILayout.Width(14));
+                _auxOutRows = Mathf.Max(1, EditorGUILayout.IntField(_auxOutRows, GUILayout.Width(60)));
+            }
+            if (EditorGUI.EndChangeCheck())
+                RebuildAuxResult();
+
+            if (_auxSrcTopDown != null)
+            {
+                int fw = _auxSrcW / Mathf.Max(1, _auxSrcCols);
+                int fh = _auxSrcH / Mathf.Max(1, _auxSrcRows);
+                EditorGUILayout.LabelField(
+                    $"原帧数 {_auxSrcCols * _auxSrcRows} → 输出帧位 {_auxOutCols * _auxOutRows}；输出尺寸 {_auxOutCols * fw} × {_auxOutRows * fh} 像素。",
+                    _hintStyle);
+            }
+            EndCard();
+
+            if (!string.IsNullOrEmpty(_auxMessage))
+                EditorGUILayout.HelpBox(_auxMessage, MessageType.Warning);
+
+            BeginCard("③ 重排预览");
+            if (_auxResultTex != null)
+            {
+                _auxResultZoom = EditorGUILayout.IntSlider(new GUIContent("预览缩放", "结果预览每像素显示边长(1~16)"), _auxResultZoom, 1, 16);
+                float dw = _auxResultW * _auxResultZoom;
+                float dh = _auxResultH * _auxResultZoom;
+                float viewH = Mathf.Min(dh, 360f);
+                _auxResultScroll = EditorGUILayout.BeginScrollView(_auxResultScroll, GUILayout.Height(viewH + 4));
+                Rect area = GUILayoutUtility.GetRect(dw, dh, GUILayout.Width(dw), GUILayout.Height(dh));
+                DrawChecker(area);
+                GUI.DrawTexture(area, _auxResultTex, ScaleMode.StretchToFill, true);
+                DrawRectOutline(area, new Color(0, 0, 0, 0.5f));
+                EditorGUILayout.EndScrollView();
+                EditorGUILayout.LabelField($"输出 {_auxResultW} × {_auxResultH} 像素 · 放大 {_auxResultZoom}×", _hintStyle);
+            }
+            else
+            {
+                EditorGUILayout.LabelField("（选择原图并设置帧数后显示重排预览）", _hintStyle);
+            }
+            EndCard();
+
+            BeginCard("④ 导出");
+            using (new EditorGUI.DisabledScope(_auxResultTopDown == null))
+            {
+                Color prev = GUI.backgroundColor;
+                GUI.backgroundColor = kGenColor;
+                if (GUILayout.Button(new GUIContent("不覆盖导出（另存为）", "弹窗选择路径，导出重排后的新图，不改动原图"), GUILayout.Height(30)))
+                    ExportAuxAs();
+                GUI.backgroundColor = prev;
+
+                bool hasFile = GetAuxSourceFilePath() != null;
+                using (new EditorGUI.DisabledScope(!hasFile))
+                {
+                    if (GUILayout.Button(new GUIContent("覆盖原图导出", "用重排后的图覆盖写回原始文件（不可撤销）")))
+                        ExportAuxOverwrite();
+                    if (GUILayout.Button(new GUIContent("同原图目录导出", "导出到原图所在目录，文件名 = 原图名_relayout_列x行.png")))
+                        ExportAuxToSourceDir();
+                }
+                if (!hasFile)
+                    EditorGUILayout.LabelField("（原图无磁盘文件，覆盖/同目录导出不可用）", _hintStyle);
+            }
+            EndCard();
+        }
+
+        /// <summary>步骤④的拖拽放置区：支持工程内 Texture 或外部图片文件，拖入即替换并重排。</summary>
+        private void DrawAuxDropArea()
+        {
+            Rect drop = GUILayoutUtility.GetRect(0, 56, GUILayout.ExpandWidth(true));
+            Event e = Event.current;
+            bool hover = drop.Contains(e.mousePosition);
+            bool dragging = e.type == EventType.DragUpdated || e.type == EventType.DragPerform;
+            bool valid = hover && dragging && IsDragValid();
+
+            EditorGUI.DrawRect(drop, valid ? new Color(kAccent.r, kAccent.g, kAccent.b, 0.18f) : new Color(1, 1, 1, 0.04f));
+            DrawRectOutline(drop, valid ? kAccent : new Color(1, 1, 1, 0.18f));
+            var centered = new GUIStyle(EditorStyles.label) { alignment = TextAnchor.MiddleCenter, wordWrap = true, normal = { textColor = new Color(0.7f, 0.7f, 0.7f) } };
+            GUI.Label(drop, _auxSourceTexture != null ? $"✔ 已选择：{_auxSourceTexture.name}（可再拖入替换）" : "⬇ 把帧动画图拖到这里（工程内 Texture 或外部图片）", centered);
+
+            if (hover && dragging)
+            {
+                DragAndDrop.visualMode = IsDragValid() ? DragAndDropVisualMode.Copy : DragAndDropVisualMode.Rejected;
+                if (e.type == EventType.DragPerform && IsDragValid())
+                {
+                    DragAndDrop.AcceptDrag();
+                    AcceptAuxDraggedImage();
+                }
+                e.Use();
+            }
+        }
+
+        /// <summary>接收拖入到步骤④的图片：优先工程内 Texture，其次外部文件，载入后立即重排。</summary>
+        private void AcceptAuxDraggedImage()
+        {
+            foreach (var obj in DragAndDrop.objectReferences)
+            {
+                if (obj is Texture2D tex)
+                {
+                    _auxSourceTexture = tex;
+                    _auxSourceExternalPath = "";
+                    GUI.FocusControl(null);
+                    LoadAuxSource();
+                    return;
+                }
+            }
+            foreach (var p in DragAndDrop.paths)
+            {
+                if (!IsImagePath(p)) continue;
+                Texture2D asset = LoadAsProjectAsset(p);
+                if (asset != null) { _auxSourceTexture = asset; _auxSourceExternalPath = ""; }
+                else LoadAuxExternalImageRef(p);
+                GUI.FocusControl(null);
+                LoadAuxSource();
+                return;
+            }
+        }
+
+        /// <summary>把拖入步骤④的外部图片文件解码成临时 Texture2D 作为源图引用。</summary>
+        private void LoadAuxExternalImageRef(string fullPath)
+        {
+            try
+            {
+                byte[] bytes = File.ReadAllBytes(fullPath);
+                var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                if (!tex.LoadImage(bytes)) { DestroyImmediate(tex); EditorUtility.DisplayDialog("无法加载", $"无法解码图片：\n{fullPath}", "确定"); return; }
+                tex.name = Path.GetFileNameWithoutExtension(fullPath);
+                _auxSourceTexture = tex;
+                _auxSourceExternalPath = fullPath;
+            }
+            catch (Exception ex)
+            {
+                EditorUtility.DisplayDialog("读取失败", ex.Message, "确定");
+                Debug.LogException(ex);
+            }
+        }
+
+        /// <summary>读取步骤④源图像素（转为自上而下数组）并构建显示纹理，随后立即重排。</summary>
+        private void LoadAuxSource()
+        {
+            if (_auxSourceTexture == null) { ClearAuxSource(); RebuildAuxResult(); return; }
+
+            Color32[] raw;
+            int rw, rh;
+            ReadSourcePixels(_auxSourceTexture, _auxSourceExternalPath, out raw, out rw, out rh);
+
+            // raw 来自 GetPixels32：自下而上 → 转为自上而下
+            var topDown = new Color32[rw * rh];
+            for (int y = 0; y < rh; y++)
+                for (int x = 0; x < rw; x++)
+                    topDown[y * rw + x] = raw[(rh - 1 - y) * rw + x];
+            _auxSrcTopDown = topDown;
+            _auxSrcW = rw;
+            _auxSrcH = rh;
+
+            // 显示纹理：raw 本就是自下而上，可直接写入
+            if (_auxDisplayTex != null) DestroyImmediate(_auxDisplayTex);
+            _auxDisplayTex = new Texture2D(rw, rh, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+            _auxDisplayTex.SetPixels32(raw);
+            _auxDisplayTex.Apply();
+
+            RebuildAuxResult();
+        }
+
+        /// <summary>清空步骤④源图相关数据与纹理。</summary>
+        private void ClearAuxSource()
+        {
+            if (_auxDisplayTex != null) { DestroyImmediate(_auxDisplayTex); _auxDisplayTex = null; }
+            _auxSrcTopDown = null;
+            _auxSrcW = _auxSrcH = 0;
+        }
+
+        /// <summary>清空步骤④重排结果数据与纹理。</summary>
+        private void ClearAuxResult()
+        {
+            _auxResultTopDown = null;
+            _auxResultW = _auxResultH = 0;
+            if (_auxResultTex != null) { DestroyImmediate(_auxResultTex); _auxResultTex = null; }
+        }
+
+        /// <summary>
+        /// 按帧数参数把原图重排：单帧 = 原图宽/原列、原图高/原行；
+        /// 按行优先顺序把每帧搬到输出布局的对应行列位置。透明哨兵填充空帧位。
+        /// </summary>
+        private void RebuildAuxResult()
+        {
+            _auxMessage = "";
+            if (_auxSrcTopDown == null) { ClearAuxResult(); return; }
+
+            int sc = Mathf.Max(1, _auxSrcCols), sr = Mathf.Max(1, _auxSrcRows);
+            int oc = Mathf.Max(1, _auxOutCols), or = Mathf.Max(1, _auxOutRows);
+            int frameW = _auxSrcW / sc;
+            int frameH = _auxSrcH / sr;
+            if (frameW <= 0 || frameH <= 0)
+            {
+                ClearAuxResult();
+                _auxMessage = "帧数过大：单帧尺寸不足 1 像素，请减小原图帧数。";
+                return;
+            }
+
+            var notes = new List<string>();
+            if (_auxSrcW % sc != 0 || _auxSrcH % sr != 0)
+                notes.Add($"原图 {_auxSrcW}×{_auxSrcH} 不能被帧数整除，单帧按 {frameW}×{frameH} 取整，右/下边缘多余像素被忽略。");
+
+            int srcFrames = sc * sr;
+            int outCap = oc * or;
+            if (outCap < srcFrames)
+                notes.Add($"输出帧位 {outCap} 少于原帧数 {srcFrames}，多出的 {srcFrames - outCap} 帧被丢弃。");
+
+            int outW = oc * frameW, outH = or * frameH;
+            var outPx = new Color32[outW * outH];
+            for (int i = 0; i < outPx.Length; i++) outPx[i] = kTransparent;
+
+            int copy = Mathf.Min(srcFrames, outCap);
+            for (int f = 0; f < copy; f++)
+            {
+                int scol = f % sc, srow = f / sc;
+                int dcol = f % oc, drow = f / oc;
+                int sx0 = scol * frameW, sy0 = srow * frameH;
+                int dx0 = dcol * frameW, dy0 = drow * frameH;
+                for (int y = 0; y < frameH; y++)
+                    for (int x = 0; x < frameW; x++)
+                        outPx[(dy0 + y) * outW + (dx0 + x)] = _auxSrcTopDown[(sy0 + y) * _auxSrcW + (sx0 + x)];
+            }
+
+            _auxResultTopDown = outPx;
+            _auxResultW = outW;
+            _auxResultH = outH;
+            BuildAuxResultTexture();
+            if (notes.Count > 0) _auxMessage = string.Join("\n", notes);
+        }
+
+        /// <summary>由 _auxResultTopDown 重建预览纹理（自上而下数组翻成 Texture2D 的自下而上）。</summary>
+        private void BuildAuxResultTexture()
+        {
+            if (_auxResultTex != null) DestroyImmediate(_auxResultTex);
+            if (_auxResultTopDown == null) { _auxResultTex = null; return; }
+            _auxResultTex = new Texture2D(_auxResultW, _auxResultH, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+            var flip = new Color32[_auxResultW * _auxResultH];
+            for (int y = 0; y < _auxResultH; y++)
+                for (int x = 0; x < _auxResultW; x++)
+                    flip[(_auxResultH - 1 - y) * _auxResultW + x] = _auxResultTopDown[y * _auxResultW + x];
+            _auxResultTex.SetPixels32(flip);
+            _auxResultTex.Apply();
+        }
+
+        /// <summary>把重排结果（自上而下）编码为 PNG 字节（翻成 Texture 自下而上后 EncodeToPNG）。</summary>
+        private byte[] BuildAuxResultPng()
+        {
+            var tex = new Texture2D(_auxResultW, _auxResultH, TextureFormat.RGBA32, false);
+            var flip = new Color32[_auxResultW * _auxResultH];
+            for (int y = 0; y < _auxResultH; y++)
+                for (int x = 0; x < _auxResultW; x++)
+                    flip[(_auxResultH - 1 - y) * _auxResultW + x] = _auxResultTopDown[y * _auxResultW + x];
+            tex.SetPixels32(flip);
+            tex.Apply();
+            byte[] png = tex.EncodeToPNG();
+            DestroyImmediate(tex);
+            return png;
+        }
+
+        /// <summary>不覆盖导出：弹窗选路径，把重排结果另存为新 PNG，不改动原图。</summary>
+        private void ExportAuxAs()
+        {
+            if (_auxResultTopDown == null) return;
+            string baseName = _auxSourceTexture != null ? _auxSourceTexture.name : "frame_relayout";
+            string defaultName = $"{baseName}_relayout_{_auxOutCols}x{_auxOutRows}.png";
+            string path = EditorUtility.SaveFilePanel("导出重排图 PNG", Application.dataPath, defaultName, "png");
+            if (string.IsNullOrEmpty(path)) return;
+            File.WriteAllBytes(path, BuildAuxResultPng());
+            AssetDatabase.Refresh();
+            EditorUtility.DisplayDialog("已导出", $"已保存：\n{path}", "确定");
+            Debug.Log($"[PixelPerfect] 帧排版导出：{path}");
+        }
+
+        /// <summary>覆盖原图导出：用重排结果写回原始图片文件（destructive，需确认）。</summary>
+        private void ExportAuxOverwrite()
+        {
+            if (_auxResultTopDown == null) return;
+            string src = GetAuxSourceFilePath();
+            if (string.IsNullOrEmpty(src))
+            {
+                EditorUtility.DisplayDialog("无法覆盖", "原图没有可写回的磁盘文件。", "确定");
+                return;
+            }
+            if (!EditorUtility.DisplayDialog("确认覆盖原图",
+                    $"将用重排后的图（{_auxResultW}×{_auxResultH}）覆盖写回原始文件：\n{src}\n\n此操作不可撤销，确定吗？", "覆盖", "取消"))
+                return;
+            File.WriteAllBytes(src, BuildAuxResultPng());
+            AssetDatabase.Refresh();
+            EditorUtility.DisplayDialog("已覆盖", $"已写回：\n{src}", "确定");
+            Debug.Log($"[PixelPerfect] 帧排版覆盖原图：{src}");
+        }
+
+        /// <summary>同原图目录导出：导出到原图所在目录，文件名 = 原图名_relayout_列x行.png。</summary>
+        private void ExportAuxToSourceDir()
+        {
+            if (_auxResultTopDown == null) return;
+            string src = GetAuxSourceFilePath();
+            if (string.IsNullOrEmpty(src))
+            {
+                EditorUtility.DisplayDialog("无法导出", "原图没有可定位的磁盘目录。", "确定");
+                return;
+            }
+            string dir = Path.GetDirectoryName(src);
+            string baseName = Path.GetFileNameWithoutExtension(src);
+            string path = Path.Combine(dir, $"{baseName}_relayout_{_auxOutCols}x{_auxOutRows}.png");
+            File.WriteAllBytes(path, BuildAuxResultPng());
+            AssetDatabase.Refresh();
+            EditorUtility.DisplayDialog("已导出", $"已保存：\n{path}", "确定");
+            Debug.Log($"[PixelPerfect] 帧排版同目录导出：{path}");
+        }
+
+        /// <summary>取步骤④源图在磁盘上的绝对路径：优先外部文件，其次工程内资源；无文件返回 null。</summary>
+        private string GetAuxSourceFilePath()
+        {
+            if (!string.IsNullOrEmpty(_auxSourceExternalPath) && File.Exists(_auxSourceExternalPath))
+                return _auxSourceExternalPath;
+            if (_auxSourceTexture != null)
+            {
+                string assetPath = AssetDatabase.GetAssetPath(_auxSourceTexture);
+                if (!string.IsNullOrEmpty(assetPath))
+                {
+                    string abs = GetAbsolutePath(assetPath);
+                    if (File.Exists(abs)) return abs;
+                }
+            }
+            return null;
         }
 
         #endregion

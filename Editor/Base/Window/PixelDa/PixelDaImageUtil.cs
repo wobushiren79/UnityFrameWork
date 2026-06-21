@@ -234,6 +234,59 @@ namespace PixelDa
             return sprite;
         }
 
+        /// <summary>
+        /// 按 columns×rows 网格合成精灵表。格子尺寸取所有帧的最大宽高，帧居中放入格子；
+        /// 帧按从左到右、从上到下顺序排列（第 0 帧在左上角）。
+        /// </summary>
+        /// <param name="frames">帧纹理列表</param>
+        /// <param name="columns">列数（每行多少帧），>=1</param>
+        /// <param name="rows">行数，>=1</param>
+        public static Texture2D MergeFramesToSprite(List<Texture2D> frames, int columns, int rows)
+        {
+            if (frames == null || frames.Count == 0)
+            {
+                throw new ArgumentException("没有可合成的帧");
+            }
+            if (columns < 1 || rows < 1)
+            {
+                throw new ArgumentException("列数与行数必须 >= 1");
+            }
+            if (frames.Count > columns * rows)
+            {
+                throw new Exception($"布局 {columns}×{rows}={columns * rows} 个格子放不下 {frames.Count} 帧，请增大列数或行数");
+            }
+
+            // 统一格子尺寸为所有帧的最大宽高，保证每帧对齐到固定格子
+            int cellW = 0, cellH = 0;
+            foreach (var f in frames)
+            {
+                if (f.width > cellW) cellW = f.width;
+                if (f.height > cellH) cellH = f.height;
+            }
+
+            int texW = cellW * columns;
+            int texH = cellH * rows;
+            Texture2D sprite = new Texture2D(texW, texH, TextureFormat.RGBA32, false);
+            // 先填透明
+            sprite.SetPixels32(new Color32[texW * texH]);
+
+            for (int i = 0; i < frames.Count; i++)
+            {
+                Texture2D f = frames[i];
+                int col = i % columns;
+                int row = i / columns;
+                int cellX = col * cellW;
+                // Unity 纹理 (0,0) 在左下角，故第 0 行（视觉最上方）应放到纹理最高处
+                int cellY = (rows - 1 - row) * cellH;
+                // 帧在格子内居中
+                int ox = cellX + (cellW - f.width) / 2;
+                int oy = cellY + (cellH - f.height) / 2;
+                sprite.SetPixels32(ox, oy, f.width, f.height, f.GetPixels32());
+            }
+            sprite.Apply();
+            return sprite;
+        }
+
         #endregion
     }
 }

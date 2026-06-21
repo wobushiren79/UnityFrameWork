@@ -128,6 +128,9 @@ namespace PixelDa
         private List<string> framePaths = new List<string>();
         private List<Texture2D> frameTextures = new List<Texture2D>();
         private Vector2 framesScroll;
+        private int spriteCols = 0;          // 精灵表合成列数
+        private int spriteRows = 0;          // 精灵表合成行数
+        private int spriteLayoutForCount = -1; // 上次按帧数自动计算布局时的帧数，帧数变化时重算默认值
 
         #endregion
 
@@ -686,16 +689,77 @@ namespace PixelDa
 
             if (frameTextures.Count > 0)
             {
+                int n = frameTextures.Count;
+                EnsureSpriteLayout(n);
+
                 BeginCard();
-                Section($"已抽取 {frameTextures.Count} 帧");
+                Section($"已抽取 {n} 帧");
                 DrawFrameGrid();
                 EditorGUILayout.Space(4);
+
+                // 精灵表布局：列 × 行（合成按钮上方提示共多少帧，方便设置）
+                EditorGUILayout.LabelField($"精灵表布局（共 {n} 帧）", EditorStyles.boldLabel);
                 EditorGUILayout.BeginHorizontal();
-                if (AccentButton("合成精灵表(PNG)", 26)) MergeSprite();
+                spriteCols = Mathf.Max(1, EditorGUILayout.IntField("列", spriteCols));
+                spriteRows = Mathf.Max(1, EditorGUILayout.IntField("行", spriteRows));
+                EditorGUILayout.EndHorizontal();
+
+                // 因子快捷布局按钮（如 8 帧：1×8 / 2×4 / 4×2 / 8×1）
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.Label("快捷：", EditorStyles.miniLabel, GUILayout.Width(36));
+                for (int c = 1; c <= n; c++)
+                {
+                    if (n % c != 0) continue;
+                    int r = n / c;
+                    bool cur = spriteCols == c && spriteRows == r;
+                    GUI.color = cur ? Ok : Color.white;
+                    if (GUILayout.Button($"{c}×{r}", GUILayout.Height(18)))
+                    {
+                        spriteCols = c;
+                        spriteRows = r;
+                        spriteLayoutForCount = n;
+                        GUI.FocusControl(null);
+                    }
+                    GUI.color = Color.white;
+                }
+                EditorGUILayout.EndHorizontal();
+
+                int cap = spriteCols * spriteRows;
+                if (cap < n)
+                {
+                    EditorGUILayout.HelpBox($"当前布局 {spriteCols}×{spriteRows}={cap} 个格子放不下 {n} 帧，请增大列或行。", MessageType.Warning);
+                }
+                else if (cap > n)
+                {
+                    EditorGUILayout.HelpBox($"当前布局 {spriteCols}×{spriteRows}={cap} 个格子，多出的 {cap - n} 个将留空透明。", MessageType.Info);
+                }
+
+                EditorGUILayout.Space(4);
+                EditorGUILayout.BeginHorizontal();
+                using (new EditorGUI.DisabledScope(cap < n))
+                {
+                    if (AccentButton("合成精灵表(PNG)", 26)) MergeSprite();
+                }
                 if (AccentButton("导出 ZIP", 26, Ok)) ExportZip();
                 EditorGUILayout.EndHorizontal();
                 EndCard();
             }
+        }
+
+        /// <summary>
+        /// 按帧数自动初始化精灵表布局：帧数变化时取最接近正方形的因子分解（列≥行），如 8 帧→4×2
+        /// </summary>
+        private void EnsureSpriteLayout(int n)
+        {
+            if (spriteLayoutForCount == n && spriteCols >= 1 && spriteRows >= 1) return;
+            int bestC = n, bestR = 1;
+            for (int r = 1; r * r <= n; r++)
+            {
+                if (n % r == 0) { bestR = r; bestC = n / r; }
+            }
+            spriteCols = bestC;
+            spriteRows = bestR;
+            spriteLayoutForCount = n;
         }
 
         /// <summary>
@@ -773,12 +837,12 @@ namespace PixelDa
         {
             try
             {
-                Texture2D sprite = PixelDaImageUtil.MergeFramesToSprite(frameTextures);
+                Texture2D sprite = PixelDaImageUtil.MergeFramesToSprite(frameTextures, spriteCols, spriteRows);
                 string folder = PixelDaConfig.GetOutputFolderAbsolute("sprites");
                 string path = Path.Combine(folder, $"sprite_{DateTime.Now:yyyyMMdd_HHmmss}.png");
                 PixelDaImageUtil.SavePng(sprite, path);
                 DestroyImmediate(sprite);
-                RefreshAndFinish("精灵表已保存", path);
+                RefreshAndFinish($"精灵表已保存（{spriteCols}×{spriteRows}）", path);
             }
             catch (Exception e)
             {
