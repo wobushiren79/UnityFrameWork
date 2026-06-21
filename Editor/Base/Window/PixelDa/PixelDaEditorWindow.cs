@@ -662,6 +662,12 @@ namespace PixelDa
             }
             EditorGUILayout.EndHorizontal();
 
+            // 拖拽快捷区：把视频文件（工程内或外部）拖到此处即可设置视频路径
+            bool hasVideo = !string.IsNullOrEmpty(framesVideoPath);
+            Rect videoDrop = GUILayoutUtility.GetRect(0, 36, GUILayout.ExpandWidth(true));
+            GUI.Box(videoDrop, hasVideo ? "已选择：" + Path.GetFileName(framesVideoPath) + "（再次拖拽可替换）" : "把视频文件拖到这里", previewBoxStyle);
+            HandleVideoDrop(videoDrop);
+
             framesFrom = EditorGUILayout.FloatField("起始时间(秒)", framesFrom);
             framesTo = EditorGUILayout.FloatField("结束时间(秒)", framesTo);
             framesCount = EditorGUILayout.IntSlider("帧数", framesCount, 1, 30);
@@ -1268,6 +1274,47 @@ namespace PixelDa
 
             e.Use();
             Repaint();
+        }
+
+        /// <summary>
+        /// 处理视频拖拽：接受工程内或外部的常见视频文件，设置为抽帧的视频路径
+        /// </summary>
+        private void HandleVideoDrop(Rect area)
+        {
+            Event e = Event.current;
+            if (!area.Contains(e.mousePosition)) return;
+            if (e.type != EventType.DragUpdated && e.type != EventType.DragPerform) return;
+
+            DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
+            if (e.type != EventType.DragPerform) return;
+
+            DragAndDrop.AcceptDrag();
+            if (DragAndDrop.paths != null)
+            {
+                foreach (var p in DragAndDrop.paths)
+                {
+                    if (IsVideoFile(p))
+                    {
+                        framesVideoPath = p;
+                        GUI.FocusControl(null);
+                        break;
+                    }
+                }
+            }
+
+            e.Use();
+            Repaint();
+        }
+
+        /// <summary>
+        /// 判断路径是否为支持的视频文件（按扩展名）
+        /// </summary>
+        private static bool IsVideoFile(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+            string ext = Path.GetExtension(path).ToLowerInvariant();
+            return ext == ".mp4" || ext == ".mov" || ext == ".avi" || ext == ".mkv"
+                || ext == ".webm" || ext == ".m4v" || ext == ".flv" || ext == ".wmv";
         }
 
         /// <summary>

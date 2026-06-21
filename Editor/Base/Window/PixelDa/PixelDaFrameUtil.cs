@@ -76,11 +76,13 @@ namespace PixelDa
         public static void ExtractFramesAsync(string videoPath, float fromTime, float toTime, int count,
             string outputDir, FrameSplitCallback callback)
         {
+            // ffmpeg 路径需读取 EditorPrefs，只能在主线程解析，故在开后台任务前先取好再传入
+            string ffmpeg = ResolveFfmpeg();
             Task.Run(() =>
             {
                 try
                 {
-                    List<string> frames = ExtractFrames(videoPath, fromTime, toTime, count, outputDir);
+                    List<string> frames = ExtractFrames(videoPath, fromTime, toTime, count, outputDir, ffmpeg);
                     PixelDaDispatcher.Enqueue(() => callback?.Invoke(true, frames, null));
                 }
                 catch (Exception e)
@@ -94,7 +96,8 @@ namespace PixelDa
         /// <summary>
         /// 同步抽帧：调 ffmpeg 逐时间戳精确抽帧
         /// </summary>
-        public static List<string> ExtractFrames(string videoPath, float fromTime, float toTime, int count, string outputDir)
+        /// <param name="ffmpeg">ffmpeg 可执行路径；为空则在主线程上下文回退解析（后台线程调用时务必由调用方先用 ResolveFfmpeg 取好传入）</param>
+        public static List<string> ExtractFrames(string videoPath, float fromTime, float toTime, int count, string outputDir, string ffmpeg = null)
         {
             if (!File.Exists(videoPath))
             {
@@ -104,7 +107,7 @@ namespace PixelDa
             if (toTime <= fromTime) throw new Exception("结束时间必须大于开始时间");
 
             Directory.CreateDirectory(outputDir);
-            string ffmpeg = ResolveFfmpeg();
+            if (string.IsNullOrEmpty(ffmpeg)) ffmpeg = ResolveFfmpeg();
 
             // 计算均匀时间戳（与原工具一致：count==1 取起点，否则含首尾均分）
             List<float> timestamps = new List<float>();
