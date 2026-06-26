@@ -13,6 +13,21 @@ public class PopupShowView : BaseUIView
     //是否实时更新位置
     public bool isUpdatePosition = true;
 
+    #region 位置缓动参数
+    //位置跟随刚度(越大越快贴近目标)
+    public float positionFollowSpeed = 14f;
+    //到达目标时的回弹过冲强度(0=无过冲, 越大OutBack回弹越明显)
+    [Range(0f, 0.85f)]
+    public float positionOvershoot = 0.45f;
+
+    //位置缓动当前速度
+    protected Vector3 positionVelocity;
+    //缓动逼近的目标位置
+    protected Vector3 targetPosition;
+    //是否已初始化目标位置(首帧直接吸附, 避免从原点大幅滑入)
+    protected bool hasTargetPosition;
+    #endregion
+
     protected Direction2DEnum mouseAreaLeftRight =  Direction2DEnum.Left;
     protected Direction2DEnum mouseAreaUpDown = Direction2DEnum.Down;
 
@@ -26,12 +41,17 @@ public class PopupShowView : BaseUIView
         base.Awake();
     }
 
+    /// <summary>
+    /// 每帧计算目标位置、缓动逼近并检测触发对象有效性
+    /// </summary>
     public virtual void Update()
     {
         if (rectTransform == null)
             return;
-        //如果显示Popup 则调整位置为鼠标位置
+        //计算弹窗的目标位置(跟随鼠标)与轴心
         InitPosition();
+        //缓动逼近目标位置(阻尼弹簧, 到达时带OutBack回弹)
+        UpdatePositionTween();
         //检测触发对象是否还有效，若已失活则自动隐藏弹窗
         CheckTriggerValid();
     }
@@ -48,6 +68,9 @@ public class PopupShowView : BaseUIView
         //清空触发器引用，避免下次启用时执行旧回调导致误关闭
         triggerObj = null;
         onTriggerInvalid = null;
+        //重置缓动状态, 下次启用时重新吸附到鼠标位置
+        hasTargetPosition = false;
+        positionVelocity = Vector3.zero;
         if (rectTransform != null)
         {
             rectTransform.anchoredPosition = new Vector2(0, 0);
@@ -86,6 +109,9 @@ public class PopupShowView : BaseUIView
     }
 
 
+    /// <summary>
+    /// 计算弹窗目标位置(跟随鼠标)与轴心；首帧直接吸附, 之后交由缓动逼近
+    /// </summary>
     public virtual void InitPosition()
     {
         if (isUpdatePosition && gameObject.activeSelf)
@@ -96,7 +122,15 @@ public class PopupShowView : BaseUIView
             float moveX = outPosition.x;
             float moveY = outPosition.y;
 
-            transform.localPosition = new Vector3(moveX + offsetX, moveY + offsetY, transform.localPosition.z);
+            //记录目标位置, 实际位移由UpdatePositionTween缓动逼近(不再直接吸附)
+            targetPosition = new Vector3(moveX + offsetX, moveY + offsetY, transform.localPosition.z);
+            //首次出现直接吸附到目标, 避免从原点大幅滑入
+            if (!hasTargetPosition)
+            {
+                hasTargetPosition = true;
+                transform.localPosition = targetPosition;
+                positionVelocity = Vector3.zero;
+            }
 
             float offsetTotalX;
             float offsetTotalY;
@@ -129,6 +163,30 @@ public class PopupShowView : BaseUIView
             }
             rectTransform.pivot = new Vector2(offsetTotalX, offsetTotalY);
         }
+    }
+
+    /// <summary>
+    /// 阻尼弹簧缓动逼近目标位置：阻尼比&lt;1时到达目标会过冲并回弹, 形成OutBack效果
+    /// </summary>
+    protected virtual void UpdatePositionTween()
+    {
+        if (!hasTargetPosition)
+            return;
+        //用不受时间缩放影响的delta, 保证暂停时弹窗仍正常缓动; 限幅避免低帧时弹簧发散
+        float dt = Mathf.Min(Time.unscaledDeltaTime, 0.04f);
+        if (dt <= 0f)
+            return;
+        //omega=角频率(跟随刚度), zeta=阻尼比(<1过冲, =1临界无过冲)
+        float omega = positionFollowSpeed;
+        float zeta = Mathf.Clamp(1f - positionOvershoot, 0.1f, 1f);
+        Vector3 pos = transform.localPosition;
+        Vector3 disp = pos - targetPosition;
+        //半隐式积分: a = -ω²·位移 - 2ζω·速度
+        Vector3 accel = -(omega * omega) * disp - (2f * zeta * omega) * positionVelocity;
+        positionVelocity += accel * dt;
+        pos += positionVelocity * dt;
+        pos.z = targetPosition.z;
+        transform.localPosition = pos;
     }
 
     /// <summary>
