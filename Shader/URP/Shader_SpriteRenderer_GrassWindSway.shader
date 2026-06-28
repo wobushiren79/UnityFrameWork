@@ -1,10 +1,13 @@
-Shader "Custom/URP/GrassWindSway"
+Shader "Frame Work/URP/GrassWindSway"
 {
     Properties
     {
         [MainTexture] _BaseMap ("草贴图", 2D) = "white" {}
         [MainColor]   _BaseColor ("染色颜色", Color) = (1, 1, 1, 1)
         _Cutoff ("透明裁剪阈值 (0=不裁剪)", Range(0, 1)) = 0.0
+
+        [Header(Position Offset)]
+        _PositionOffset ("位置偏移 (XYZ 顶点整体偏移)", Vector) = (0, 0, 0, 0)
 
         [Header(Wind Sway)]
         _WindSpeed     ("风速 (整体快慢)", Range(0, 10)) = 2.5
@@ -69,6 +72,7 @@ Shader "Custom/URP/GrassWindSway"
                 float4 _BaseMap_ST;
                 half4  _BaseColor;
                 half   _Cutoff;
+                float4 _PositionOffset;
                 half   _WindSpeed;
                 half   _SwayStrength;
                 half   _SwayFrequency;
@@ -115,6 +119,9 @@ Shader "Custom/URP/GrassWindSway"
                 float3 posOS = IN.positionOS.xyz;
                 posOS.x += offsetX;
                 posOS.y += offsetY;
+
+                // 整体位置偏移：所有顶点统一平移(不随风摆动)
+                posOS += _PositionOffset.xyz;
 
                 OUT.positionHCS = TransformObjectToHClip(posOS);
                 OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap);
