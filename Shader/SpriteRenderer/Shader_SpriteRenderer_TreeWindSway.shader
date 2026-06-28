@@ -6,6 +6,9 @@ Shader "FrameWork/SpriteRenderer/TreeWindSway"
         [MainColor]   _BaseColor ("染色颜色", Color) = (1, 1, 1, 1)
         _Cutoff ("透明裁剪阈值 (0=不裁剪)", Range(0, 1)) = 0.0
 
+        [Header(Render Face)]
+        [Enum(On,0,Off,2)] _Cull ("是否开启双面渲染 (On=两面都显示 / Off=仅显示正面)", Float) = 0
+
         [Header(Position Offset)]
         _PositionOffset ("位置偏移 (XYZ 顶点整体偏移)", Vector) = (0, 0, 0, 0)
 
@@ -41,7 +44,7 @@ Shader "FrameWork/SpriteRenderer/TreeWindSway"
 
             Blend SrcAlpha OneMinusSrcAlpha
             ZWrite Off
-            Cull Off
+            Cull [_Cull]
 
             HLSLPROGRAM
             #pragma vertex vert
