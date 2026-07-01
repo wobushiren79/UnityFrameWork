@@ -42,6 +42,10 @@ Shader "FrameWork/Particle/GrassWindSwayLit"
         [Header(Stiffness)]
         // 越大草越硬(根部以上更晚开始弯)，越小越软(贴近根部就开始弯)
         _Stiffness ("草茎硬度 (越大越硬越直)", Range(1, 4)) = 2.0
+
+        [Header(Shadow)]
+        // 让接收到的主光阴影也压暗环境光，草在阴影里更明显变暗(0=只丢主光直射；越大越暗，1 最暗仍留亮不死黑)
+        _ShadowGIStrength ("阴影压暗环境光强度 (0=仅主光直射受阴影 / 1=阴影里最多压暗环境光)", Range(0, 1)) = 0.5
     }
 
     SubShader
@@ -153,9 +157,154 @@ Shader "FrameWork/Particle/GrassWindSwayLit"
                 inputData.normalizedScreenSpaceUV= GetNormalizedScreenSpaceUV(IN.positionHCS);
                 inputData.shadowMask             = half4(1, 1, 1, 1);
 
+                // ===== 阴影额外压暗环境光(GI)：让主光实时阴影也压暗 SampleSH 环境项，草在阴影里暗而不死黑 =====
+                // 参数=0 时整段跳过：不产生第二次阴影采样，精确回退到"仅主光直射受阴影"。
+                if (_ShadowGIStrength > 0.0h)
+                {
+                    // 单采一次主光阴影(1=无阴影/0=全阴影)；BlinnPhong 内部会自己再采一次只作用直射项，此处只压环境光。
+                    Light mainLightForGI = GetMainLight(inputData.shadowCoord, inputData.positionWS, inputData.shadowMask);
+                    // 因子落在 [1-强度 .. 1]：全光照=1不动，全阴影最低=1-强度(留亮不死黑)，强度=0恒为1回退。
+                    half giShadowFactor = lerp(1.0h, 1.0h - _ShadowGIStrength, 1.0h - mainLightForGI.shadowAttenuation);
+                    inputData.bakedGI *= giShadowFactor;
+                }
+                // ===== 环境光压暗结束 =====
+
                 half4 color = UniversalFragmentBlinnPhong(inputData, surfaceData);
                 color.rgb = MixFog(color.rgb, IN.fogFactor);
                 return color;
+            }
+            ENDHLSL
+        }
+
+        // 阴影投射：复用本体的 ApplyWind 顶点位移 + 按草贴图 alpha 裁剪，
+        // 投出会随风摆动的草形阴影，而非 billboard/quad 的方块阴影。
+        Pass
+        {
+            Name "ShadowCaster"
+            Tags { "LightMode" = "ShadowCaster" }
+
+            ZWrite On
+            ZTest LEqual
+            ColorMask 0
+            Cull [_Cull]
+
+            HLSLPROGRAM
+            #pragma vertex shadowVert
+            #pragma fragment shadowFrag
+
+            #pragma multi_compile_instancing
+
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            // 草风摆字段 + ApplyWind + 公共贴图(与本体同源，保证阴影与草体同步摆动)
+            #include "WindSway/GrassWind.hlsl"
+
+            struct ShadowAttributes
+            {
+                float4 positionOS : POSITION;
+                float2 uv         : TEXCOORD0;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            struct ShadowVaryings
+            {
+                float4 positionHCS : SV_POSITION;
+                float2 uv          : TEXCOORD0;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            // 不施加任何 shadow bias：草是薄片、自阴影瑕疵风险低；而 bias(低分辨率/大范围阴影下
+            // depth bias 沿光方向、normal bias 沿法线)会把阴影在地面整体推离草根。直接用草的真实
+            // 世界位置投影，阴影即贴合草本体(与本体同一套 ApplyWind 位移，故随风同步)。
+            float4 GetShadowClip(float3 positionWS)
+            {
+                float4 positionCS = TransformWorldToHClip(positionWS);
+            #if UNITY_REVERSED_Z
+                positionCS.z = min(positionCS.z, UNITY_NEAR_CLIP_VALUE);
+            #else
+                positionCS.z = max(positionCS.z, UNITY_NEAR_CLIP_VALUE);
+            #endif
+                return positionCS;
+            }
+
+            ShadowVaryings shadowVert(ShadowAttributes IN)
+            {
+                ShadowVaryings OUT = (ShadowVaryings)0;
+                UNITY_SETUP_INSTANCE_ID(IN);
+                UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
+
+                float3 posOS = IN.positionOS.xyz;
+                ApplyWind(posOS, IN.uv);
+
+                float3 positionWS = TransformObjectToWorld(posOS);
+                OUT.positionHCS = GetShadowClip(positionWS);
+                OUT.uv          = TRANSFORM_TEX(IN.uv, _BaseMap);
+                return OUT;
+            }
+
+            half4 shadowFrag(ShadowVaryings IN) : SV_Target
+            {
+                UNITY_SETUP_INSTANCE_ID(IN);
+                // 仅用贴图 alpha 裁剪出草形(染色只取 alpha 通道即可)
+                half alpha = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv).a * _BaseColor.a;
+                clip(alpha - _Cutoff);
+                return 0;
+            }
+            ENDHLSL
+        }
+
+        // 深度预写：供柔和粒子(_SOFTPARTICLES_ON 采样场景深度)与依赖深度的后处理使用。
+        Pass
+        {
+            Name "DepthOnly"
+            Tags { "LightMode" = "DepthOnly" }
+
+            ZWrite On
+            ColorMask R
+            Cull [_Cull]
+
+            HLSLPROGRAM
+            #pragma vertex depthVert
+            #pragma fragment depthFrag
+
+            #pragma multi_compile_instancing
+
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            // 草风摆字段 + ApplyWind + 公共贴图(与本体同源)
+            #include "WindSway/GrassWind.hlsl"
+
+            struct DepthAttributes
+            {
+                float4 positionOS : POSITION;
+                float2 uv         : TEXCOORD0;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            struct DepthVaryings
+            {
+                float4 positionHCS : SV_POSITION;
+                float2 uv          : TEXCOORD0;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            DepthVaryings depthVert(DepthAttributes IN)
+            {
+                DepthVaryings OUT = (DepthVaryings)0;
+                UNITY_SETUP_INSTANCE_ID(IN);
+                UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
+
+                float3 posOS = IN.positionOS.xyz;
+                ApplyWind(posOS, IN.uv);
+                OUT.positionHCS = TransformObjectToHClip(posOS);
+                OUT.uv          = TRANSFORM_TEX(IN.uv, _BaseMap);
+                return OUT;
+            }
+
+            half4 depthFrag(DepthVaryings IN) : SV_Target
+            {
+                UNITY_SETUP_INSTANCE_ID(IN);
+                half alpha = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv).a * _BaseColor.a;
+                clip(alpha - _Cutoff);
+                return 0;
             }
             ENDHLSL
         }

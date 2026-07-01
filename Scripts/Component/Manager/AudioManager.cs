@@ -154,6 +154,76 @@ public partial class AudioManager : BaseManager
         });
     }
 
+    #region 连续音效池（多路并发循环，供 LoopSound 复用；通用，不与具体项目耦合）
+    protected Transform _loopSoundRoot;
+    protected Queue<AudioSource> queueLoopSourceIdle = new Queue<AudioSource>();
+    protected int loopSourceCount = 0;
+    //并发循环音效上限，防无限新建音源
+    protected const int MaxLoopSource = 16;
+
+    /// <summary>
+    /// 连续音效音源的父容器（挂在常驻 Audio GameObject 下，随 DontDestroyOnLoad 保留）
+    /// </summary>
+    protected Transform loopSoundRoot
+    {
+        get
+        {
+            if (_loopSoundRoot == null)
+            {
+                GameObject obj = new GameObject("LoopSoundRoot");
+                obj.transform.SetParent(audioListener.transform);
+                obj.transform.localPosition = Vector3.zero;
+                _loopSoundRoot = obj.transform;
+            }
+            return _loopSoundRoot;
+        }
+    }
+
+    /// <summary>
+    /// 从池中取一个空闲的循环音源；池空则新建（未超上限），超上限返回 null
+    /// </summary>
+    /// <returns>可用的 AudioSource；超上限时为 null</returns>
+    public AudioSource DequeueLoopSource()
+    {
+        AudioSource source;
+        if (queueLoopSourceIdle.Count > 0)
+        {
+            source = queueLoopSourceIdle.Dequeue();
+            source.gameObject.SetActive(true);
+            return source;
+        }
+        if (loopSourceCount >= MaxLoopSource)
+        {
+            LogUtil.LogWarning($"连续音效音源已达上限 {MaxLoopSource}，本次不再新建");
+            return null;
+        }
+        GameObject obj = new GameObject("LoopSource");
+        obj.transform.SetParent(loopSoundRoot);
+        obj.transform.localPosition = Vector3.zero;
+        source = obj.AddComponent<AudioSource>();
+        source.playOnAwake = false;
+        //第一期全局单路，2D 不吃位置（后续如需 3D 定位再按句柄扩展）
+        source.spatialBlend = 0f;
+        loopSourceCount++;
+        return source;
+    }
+
+    /// <summary>
+    /// 回收循环音源到池：先停止播放再清空 clip，禁用后入队复用
+    /// </summary>
+    /// <param name="source">要回收的音源</param>
+    public void RecycleLoopSource(AudioSource source)
+    {
+        if (source == null)
+            return;
+        source.Stop();
+        source.clip = null;
+        source.loop = false;
+        source.gameObject.SetActive(false);
+        queueLoopSourceIdle.Enqueue(source);
+    }
+    #endregion
+
     #region 获取数据回调
     public void GetAudioInfoSuccess<T>(T data, Action<T> action)
     {

@@ -15,6 +15,7 @@ CBUFFER_START(UnityPerMaterial)
     half _FlutterStrength;
     half _FlutterSpeed;
     half _Stiffness;
+    half _ShadowGIStrength;
 CBUFFER_END
 
 // 风摆顶点位移：根部(UV.y=0)固定，越往草尖摆动越大(每个粒子按世界坐标错相位)

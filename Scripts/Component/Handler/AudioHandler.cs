@@ -33,6 +33,12 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
         manager.audioSourceForMusic.volume = gameConfig.musicVolume;
         manager.audioSourceForSound.volume = gameConfig.soundVolume;
         manager.audioSourceForEnvironment.volume = gameConfig.environmentVolume;
+        //刷新活跃的连续音效音量：跟随音效音量 soundVolume，并保留各自配置 volume_scale
+        foreach (KeyValuePair<long, LoopSoundEntry> kv in dicLoopActive)
+        {
+            if (kv.Value.source != null)
+                kv.Value.source.volume = gameConfig.soundVolume * kv.Value.volumeScale;
+        }
     }
 
     #region  音乐播放
@@ -224,6 +230,158 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     {
         GameConfigBean gameConfig = GameDataHandler.Instance.manager.GetGameConfig();
         PlayEnvironment(environmentId, gameConfig.environmentVolume);
+    }
+    #endregion
+
+    #region 连续音效（多路并发循环，如走路/下雨；复用任意音频按其 audio_type 加载 clip）
+    /// <summary>
+    /// 连续音效通道：记录活跃循环音效的音源、配置音量缩放与异步竞态令牌
+    /// </summary>
+    protected class LoopSoundEntry
+    {
+        //循环播放的音源（clip 加载完成后才赋值）
+        public AudioSource source;
+        //配置表 volume_scale（音量刷新时用于重算，0或空视为1）
+        public float volumeScale = 1f;
+        //版本令牌，用于加载/停止竞态判定
+        public int token;
+        //加载回调到达前若被停止则置 true，回调据此丢弃
+        public bool canceled;
+    }
+    //活跃连续音效：key=音频id（含加载中）
+    protected Dictionary<long, LoopSoundEntry> dicLoopActive = new Dictionary<long, LoopSoundEntry>();
+    //连续音效竞态令牌自增种子
+    protected int loopTokenSeed = 0;
+    //被暂停的连续音效id（PauseAllLoopSound 记录，RestoreAllLoopSound 精确恢复）
+    protected List<long> listLoopPaused = new List<long>();
+
+    /// <summary>
+    /// 播放连续音效（按 id 单路循环，默认音量为音效音量 soundVolume）。
+    /// 同一 id 已在播（含加载中）则忽略，避免重复起源。
+    /// </summary>
+    /// <param name="loopId">音频 id（复用普通音频配置，按其 audio_type 定位资源）</param>
+    public void PlayLoopSound(long loopId)
+    {
+        GameConfigBean gameConfig = GameDataHandler.Instance.manager.GetGameConfig();
+        PlayLoopSound(loopId, gameConfig.soundVolume);
+    }
+
+    /// <summary>
+    /// 播放连续音效（指定基础音量）。最终音量 = volumeScale × 配置 volume_scale。
+    /// </summary>
+    /// <param name="loopId">音频 id</param>
+    /// <param name="volumeScale">基础音量（通常传音效音量 soundVolume）</param>
+    public void PlayLoopSound(long loopId, float volumeScale)
+    {
+        if (loopId == 0)
+            return;
+        //去重：同 id 已活跃（播放中或加载中）直接返回
+        if (dicLoopActive.ContainsKey(loopId))
+            return;
+        AudioInfoBean audioInfo = AudioInfoCfg.GetItemData(loopId);
+        if (audioInfo == null)
+        {
+            LogUtil.LogError($"播放连续音效失败 没有找到ID {loopId} 的音频配置");
+            return;
+        }
+        //配置 volume_scale：0 或空视为 1（不缩放）
+        float configScale = audioInfo.volume_scale > 0 ? audioInfo.volume_scale : 1f;
+        int token = ++loopTokenSeed;
+        LoopSoundEntry entry = new LoopSoundEntry { source = null, volumeScale = configScale, token = token, canceled = false };
+        dicLoopActive[loopId] = entry;
+        //复用现有按 audio_type 的加载路由：走路声(audio_type=0)从 Audio/Sound/ 取 clip
+        manager.LoadClipDataByAddressbles((AuidoTypeEnum)audioInfo.audio_type, audioInfo.name_res, (audioClip) =>
+        {
+            //竞态防护：回调到达时若该 id 已被停止/替换/令牌失效则丢弃，防"停不掉的孤儿音源"
+            if (!dicLoopActive.TryGetValue(loopId, out LoopSoundEntry curEntry) || curEntry != entry || curEntry.canceled || curEntry.token != token)
+                return;
+            if (audioClip == null)
+            {
+                dicLoopActive.Remove(loopId);
+                LogUtil.LogError($"播放连续音效失败 没有名字为:{audioInfo.name_res} 的音频资源");
+                return;
+            }
+            AudioSource source = manager.DequeueLoopSource();
+            if (source == null)
+            {
+                //音源池已满，放弃本次播放并清理登记
+                dicLoopActive.Remove(loopId);
+                return;
+            }
+            source.clip = audioClip;
+            source.loop = true;
+            source.volume = volumeScale * configScale;
+            source.Play();
+            entry.source = source;
+        });
+    }
+
+    /// <summary>
+    /// 停止指定连续音效（加载中的也能取消，回调到达时不会再起播）
+    /// </summary>
+    /// <param name="loopId">音频 id</param>
+    public void StopLoopSound(long loopId)
+    {
+        if (!dicLoopActive.TryGetValue(loopId, out LoopSoundEntry entry))
+            return;
+        entry.canceled = true;
+        if (entry.source != null)
+            manager.RecycleLoopSource(entry.source);
+        dicLoopActive.Remove(loopId);
+    }
+
+    /// <summary>
+    /// 停止所有连续音效（场景切换/清理时调用，防常驻音源跨场景残留）
+    /// </summary>
+    public void StopAllLoopSound()
+    {
+        foreach (KeyValuePair<long, LoopSoundEntry> kv in dicLoopActive)
+        {
+            kv.Value.canceled = true;
+            if (kv.Value.source != null)
+                manager.RecycleLoopSource(kv.Value.source);
+        }
+        dicLoopActive.Clear();
+        listLoopPaused.Clear();
+    }
+
+    /// <summary>
+    /// 暂停所有正在播放的连续音效（仅暂停当前 isPlaying 的音源并记录，供精确恢复）
+    /// </summary>
+    public void PauseAllLoopSound()
+    {
+        listLoopPaused.Clear();
+        foreach (KeyValuePair<long, LoopSoundEntry> kv in dicLoopActive)
+        {
+            if (kv.Value.source != null && kv.Value.source.isPlaying)
+            {
+                kv.Value.source.Pause();
+                listLoopPaused.Add(kv.Key);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 恢复此前被 PauseAllLoopSound 暂停的连续音效（不误启期间新增/已停止的音源）
+    /// </summary>
+    public void RestoreAllLoopSound()
+    {
+        for (int i = 0; i < listLoopPaused.Count; i++)
+        {
+            if (dicLoopActive.TryGetValue(listLoopPaused[i], out LoopSoundEntry entry) && entry.source != null && !entry.canceled)
+                entry.source.UnPause();
+        }
+        listLoopPaused.Clear();
+    }
+
+    /// <summary>
+    /// 指定连续音效是否正在播放（加载中未起播返回 false）
+    /// </summary>
+    /// <param name="loopId">音频 id</param>
+    /// <returns>正在播放为 true</returns>
+    public bool IsLoopSoundPlaying(long loopId)
+    {
+        return dicLoopActive.TryGetValue(loopId, out LoopSoundEntry entry) && entry.source != null && entry.source.isPlaying;
     }
     #endregion
 

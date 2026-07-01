@@ -112,6 +112,10 @@ public class AddressableWindow : EditorWindow
             InitData();
             HandleForAllAssetChange();
         }
+        if (EditorUI.GUIButton("添加所有资源", 120))
+        {
+            AddAllAssets();
+        }
         if (EditorUI.GUIButton("保存所有数据", 120))
         {
             SaveData();
@@ -182,7 +186,7 @@ public class AddressableWindow : EditorWindow
             EditorGUI.indentLevel++;
 
             // 文件路径区域
-            UIForPathList(value);
+            UIForPathList(itemGroup.name, value);
 
             EditorGUILayout.Space(3);
 
@@ -198,7 +202,7 @@ public class AddressableWindow : EditorWindow
     /// <summary>
     /// 路径列表UI
     /// </summary>
-    private void UIForPathList(AddressableSaveItemBean value)
+    private void UIForPathList(string groupName, AddressableSaveItemBean value)
     {
         GUILayout.BeginHorizontal();
         EditorUI.GUIText("文件路径地址：", 100);
@@ -230,6 +234,15 @@ public class AddressableWindow : EditorWindow
                     else
                         value.listPathSave[i] = folder;
                 }
+            }
+            if (EditorUI.GUIButton("添加", 40))
+            {
+                AddressableAssetGroup group = AddressableUtil.FindOrCreateGroup(groupName);
+                int addCount = AddAssetsForPath(group, value.listPathSave[i], value.listLabel);
+                int removeCount = AddressableUtil.RemoveMissingAssetEntries(group);
+                EditorUI.GUIHideProgressBar();
+                EditorUtil.RefreshAsset();
+                EditorUtility.DisplayDialog("提示", $"共添加 {addCount} 个资源，清理 {removeCount} 个已删除资源", "确定");
             }
             if (EditorUI.GUIButton("-", 25))
             {
@@ -302,6 +315,76 @@ public class AddressableWindow : EditorWindow
                 }
                 break;
         }
+    }
+
+    /// <summary>
+    /// 添加所有Group下路径里尚未加入Addressable的资源
+    /// </summary>
+    private static void AddAllAssets()
+    {
+        InitData();
+        if (addressableSaveData == null)
+            return;
+
+        int totalAdd = 0;
+        int totalRemove = 0;
+        try
+        {
+            foreach (var itemSaveGroup in addressableSaveData.dicSaveData)
+            {
+                string groupName = itemSaveGroup.Key;
+                AddressableSaveItemBean value = itemSaveGroup.Value;
+                AddressableAssetGroup group = AddressableUtil.FindOrCreateGroup(groupName);
+                // 添加各路径下未加入的资源
+                for (int i = 0; i < value.listPathSave.Count; i++)
+                {
+                    totalAdd += AddAssetsForPath(group, value.listPathSave[i], value.listLabel);
+                }
+                // 顺带清理该Group下已删除的资源
+                totalRemove += AddressableUtil.RemoveMissingAssetEntries(group);
+            }
+        }
+        finally
+        {
+            EditorUI.GUIHideProgressBar();
+            EditorUtil.RefreshAsset();
+        }
+        EditorUtility.DisplayDialog("提示", $"共添加 {totalAdd} 个资源，清理 {totalRemove} 个已删除资源", "确定");
+    }
+
+    /// <summary>
+    /// 把指定文件夹路径下尚未加入Addressable的资源添加到对应Group并设置Label
+    /// </summary>
+    /// <param name="group">目标Group</param>
+    /// <param name="folderPath">相对Assets的文件夹路径</param>
+    /// <param name="listLabel">要设置的Label列表</param>
+    /// <returns>本次新增的资源数量</returns>
+    private static int AddAssetsForPath(AddressableAssetGroup group, string folderPath, List<string> listLabel)
+    {
+        if (group == null || string.IsNullOrEmpty(folderPath) || !AssetDatabase.IsValidFolder(folderPath))
+            return 0;
+
+        string[] guids = AssetDatabase.FindAssets("", new[] { folderPath });
+        int addCount = 0;
+        for (int i = 0; i < guids.Length; i++)
+        {
+            string guid = guids[i];
+            string assetPath = AssetDatabase.GUIDToAssetPath(guid);
+            EditorUI.GUIShowProgressBar("添加资源", $"({i + 1}/{guids.Length}) {assetPath}", (float)i / guids.Length);
+
+            // 跳过文件夹与已加入Addressable的资源
+            if (AssetDatabase.IsValidFolder(assetPath) || AddressableUtil.HasAssetEntry(guid))
+                continue;
+
+            AddressableAssetEntry entry = AddressableUtil.CreateAssetEntry(group, assetPath);
+            if (entry == null)
+                continue;
+
+            AddressableUtil.ClearAllLabel(entry);
+            AddressableUtil.SetLabel(entry, listLabel);
+            addCount++;
+        }
+        return addCount;
     }
 
     /// <summary>
