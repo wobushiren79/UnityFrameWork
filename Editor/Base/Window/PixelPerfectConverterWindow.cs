@@ -21,9 +21,13 @@ namespace PixelPerfectTool
     ///   笔刷尺寸(1~5)、魔棒阈值(0~30)、最近使用颜色(最多6)、撤销/重做(Ctrl+Z/Ctrl+Y)、
     ///   导出 PNG：x1/x4/x8 另存为、覆盖原图导出、同原图目录导出(原图名_输出宽x高)、
     ///   按列×行拆分导出（共用“导出倍数”）。
-    /// 步骤④（辅助功能）：帧动画图片排版修改。独立于主流程的精灵表重排工具——输入原图帧数(列×行)
-    ///   与输出帧数(列×行)，单帧尺寸不变(=原图宽/原列、原图高/原行)，按行优先顺序把每帧搬到新布局，
-    ///   支持拖拽替换原图、实时预览，并提供不覆盖导出(另存为)/覆盖原图导出/同目录导出。
+    /// 步骤④（辅助功能）：顶部页签切换两个独立子工具——
+    ///   ·帧排版：精灵表重排工具，输入原图帧数(列×行)与输出帧数(列×行)，单帧尺寸不变
+    ///     (=原图宽/原列、原图高/原行)，按行优先顺序把每帧搬到新布局，支持拖拽替换原图、实时预览，
+    ///     并提供不覆盖导出(另存为)/覆盖原图导出/同目录导出。
+    ///   ·图片合并：帧排版的逆操作，先设列×行生成对应数量槽位，逐个拖入/选择单图，
+    ///     格子尺寸取所有图最大宽×最大高、每张图格子内居中(空白透明)，拼成一张图集
+    ///     (如 4 张 32×32 → 2×2 得 64×64 / 4×1 得 128×32)，提供另存为/导出到首张图目录。
     ///
     /// 快捷键：Alt+B 切换棋盘背景明暗；Alt+G 切换网格线明暗；Ctrl+Z 撤销；Ctrl+Y 重做。
     /// </summary>
@@ -55,6 +59,15 @@ namespace PixelPerfectTool
             Eraser = 1,
             /// <summary>魔棒：4 向洪水填充把相近色区域抹成透明。</summary>
             MagicWand = 2,
+        }
+
+        /// <summary>步骤④（辅助功能）的子模式，用顶部页签切换。</summary>
+        private enum AuxMode
+        {
+            /// <summary>帧排版：把一张精灵表按列×行重排（拆分/换布局）。</summary>
+            Relayout = 0,
+            /// <summary>图片合并：把多张单图按列×行拼成一张图集。</summary>
+            Merge = 1,
         }
 
         #endregion
@@ -246,6 +259,38 @@ namespace PixelPerfectTool
 
         #endregion
 
+        #region 字段 - 步骤④ 辅助功能（图片合并）
+
+        /// <summary>步骤④当前子模式：帧排版 / 图片合并。</summary>
+        private AuxMode _auxMode = AuxMode.Relayout;
+
+        /// <summary>合并图集横向槽位数（列，≥1）。</summary>
+        private int _mergeCols = 2;
+        /// <summary>合并图集纵向槽位数（行，≥1）。</summary>
+        private int _mergeRows = 2;
+
+        /// <summary>各槽位的单图纹理引用（行优先顺序，长度 = 列×行；null 表示空槽）。</summary>
+        private readonly List<Texture2D> _mergeSlotTex = new List<Texture2D>();
+        /// <summary>各槽位单图来自工程外时的外部文件绝对路径（与 _mergeSlotTex 一一对应，空串表示工程内资源）。</summary>
+        private readonly List<string> _mergeSlotPath = new List<string>();
+
+        /// <summary>合并结果像素（自上而下）。</summary>
+        private Color32[] _mergeResultTopDown;
+        /// <summary>合并结果宽（像素）。</summary>
+        private int _mergeResultW;
+        /// <summary>合并结果高（像素）。</summary>
+        private int _mergeResultH;
+        /// <summary>合并结果预览纹理。</summary>
+        private Texture2D _mergeResultTex;
+        /// <summary>合并结果预览缩放（每像素显示边长，1~16）。</summary>
+        private int _mergeResultZoom = 2;
+        /// <summary>合并结果预览滚动位置。</summary>
+        private Vector2 _mergeResultScroll;
+        /// <summary>合并功能最近一次的提示/警告信息（空表示正常）。</summary>
+        private string _mergeMessage = "";
+
+        #endregion
+
         #region 样式缓存
 
         private static GUIStyle _titleStyle;
@@ -364,6 +409,7 @@ namespace PixelPerfectTool
             if (_artTex != null) DestroyImmediate(_artTex);
             if (_auxDisplayTex != null) DestroyImmediate(_auxDisplayTex);
             if (_auxResultTex != null) DestroyImmediate(_auxResultTex);
+            if (_mergeResultTex != null) DestroyImmediate(_mergeResultTex);
         }
 
         #endregion
@@ -1026,12 +1072,29 @@ namespace PixelPerfectTool
         #region UI - 步骤④ 辅助功能（帧动画排版）
 
         /// <summary>
-        /// 步骤④（辅助功能）：帧动画图片排版修改。
+        /// 步骤④（辅助功能）入口：顶部用页签切换「帧排版」与「图片合并」两个独立子工具，
+        /// 分别派发到 DrawStep4Relayout / DrawStep4Merge。
+        /// </summary>
+        private void DrawStep4()
+        {
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                int sel = GUILayout.Toolbar((int)_auxMode, new[] { "帧排版（拆分/重排）", "图片合并（拼图集）" }, GUILayout.Height(26));
+                if (sel != (int)_auxMode) { _auxMode = (AuxMode)sel; GUI.FocusControl(null); }
+            }
+            EditorGUILayout.Space(4);
+
+            if (_auxMode == AuxMode.Relayout) DrawStep4Relayout();
+            else DrawStep4Merge();
+        }
+
+        /// <summary>
+        /// 步骤④·帧排版：帧动画图片排版修改。
         /// 把按「列×行」帧排布的精灵表（每帧尺寸 = 原图宽/列、原图高/行）按行优先(从左到右、从上到下)
         /// 顺序重新排版为另一种「列×行」布局，单帧尺寸保持不变，仅改变帧的行列排布。
         /// 例：256×32 原图填 8×1，输出填 4×2 → 单帧 32×32，结果 128×64。
         /// </summary>
-        private void DrawStep4()
+        private void DrawStep4Relayout()
         {
             BeginCard("帧动画图片排版修改");
             EditorGUILayout.LabelField(
@@ -1143,6 +1206,359 @@ namespace PixelPerfectTool
                     EditorGUILayout.LabelField("（原图无磁盘文件，覆盖/同目录导出不可用）", _hintStyle);
             }
             EndCard();
+        }
+
+        /// <summary>
+        /// 步骤④·图片合并：把多张单图按「列×行」拼成一张图集（帧排版的逆操作）。
+        /// 先设列×行生成对应数量的槽位，逐个拖入/选择单图；单帧格子尺寸取所有图中的最大宽×最大高，
+        /// 每张图在自己格子内居中放置、空白透明。例：4 张 32×32 填 2×2 → 64×64；填 4×1 → 128×32。
+        /// </summary>
+        private void DrawStep4Merge()
+        {
+            BeginCard("多张单图合并为图集");
+            EditorGUILayout.LabelField(
+                "把多张单图按「列×行」拼成一张图集（与帧排版相反）。\n" +
+                "格子尺寸 = 所有图中的最大宽 × 最大高，每张图在格子内居中、空白透明。\n" +
+                "例：4 张 32×32 填 2×2 → 64×64；填 4×1 → 128×32。",
+                _hintStyle);
+            EndCard();
+
+            BeginCard("① 图集布局（列 × 行）");
+            EditorGUI.BeginChangeCheck();
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                EditorGUILayout.LabelField(new GUIContent("槽位数（列 × 行）", "横向、纵向各放几张单图"), GUILayout.Width(150));
+                _mergeCols = Mathf.Clamp(EditorGUILayout.IntField(_mergeCols, GUILayout.Width(60)), 1, 32);
+                EditorGUILayout.LabelField("×", GUILayout.Width(14));
+                _mergeRows = Mathf.Clamp(EditorGUILayout.IntField(_mergeRows, GUILayout.Width(60)), 1, 32);
+            }
+            if (EditorGUI.EndChangeCheck())
+            {
+                EnsureMergeSlotCount();
+                RebuildMergeResult();
+            }
+            EnsureMergeSlotCount();
+            EditorGUILayout.LabelField($"共 {_mergeCols * _mergeRows} 个槽位，按行优先（从左到右、从上到下）填入。", _hintStyle);
+            EndCard();
+
+            BeginCard("② 单图槽位（逐个拖入工程内 Texture 或外部图片）");
+            DrawMergeSlotGrid();
+            EditorGUILayout.Space(2);
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                if (GUILayout.Button(new GUIContent("清空所有槽位", "移除所有已放入的单图")))
+                {
+                    for (int i = 0; i < _mergeSlotTex.Count; i++) { _mergeSlotTex[i] = null; _mergeSlotPath[i] = ""; }
+                    RebuildMergeResult();
+                }
+            }
+            EndCard();
+
+            if (!string.IsNullOrEmpty(_mergeMessage))
+                EditorGUILayout.HelpBox(_mergeMessage, MessageType.Info);
+
+            BeginCard("③ 合并预览");
+            if (_mergeResultTex != null)
+            {
+                _mergeResultZoom = EditorGUILayout.IntSlider(new GUIContent("预览缩放", "结果预览每像素显示边长(1~16)"), _mergeResultZoom, 1, 16);
+                float dw = _mergeResultW * _mergeResultZoom;
+                float dh = _mergeResultH * _mergeResultZoom;
+                float viewH = Mathf.Min(dh, 360f);
+                _mergeResultScroll = EditorGUILayout.BeginScrollView(_mergeResultScroll, GUILayout.Height(viewH + 4));
+                Rect area = GUILayoutUtility.GetRect(dw, dh, GUILayout.Width(dw), GUILayout.Height(dh));
+                DrawChecker(area);
+                GUI.DrawTexture(area, _mergeResultTex, ScaleMode.StretchToFill, true);
+                DrawRectOutline(area, new Color(0, 0, 0, 0.5f));
+                EditorGUILayout.EndScrollView();
+                EditorGUILayout.LabelField($"输出 {_mergeResultW} × {_mergeResultH} 像素 · 放大 {_mergeResultZoom}×", _hintStyle);
+            }
+            else
+            {
+                EditorGUILayout.LabelField("（放入至少一张单图后显示合并预览）", _hintStyle);
+            }
+            EndCard();
+
+            BeginCard("④ 导出");
+            using (new EditorGUI.DisabledScope(_mergeResultTopDown == null))
+            {
+                Color prev = GUI.backgroundColor;
+                GUI.backgroundColor = kGenColor;
+                if (GUILayout.Button(new GUIContent("导出图集（另存为）", "弹窗选择路径，导出合并后的图集 PNG"), GUILayout.Height(30)))
+                    ExportMergeAs();
+                GUI.backgroundColor = prev;
+
+                string firstDir = GetMergeFirstSourceDir();
+                using (new EditorGUI.DisabledScope(firstDir == null))
+                {
+                    if (GUILayout.Button(new GUIContent("导出到首张图目录", "导出到第一张有磁盘文件的单图所在目录，文件名 = merged_列x行.png")))
+                        ExportMergeToFirstDir();
+                }
+                if (firstDir == null)
+                    EditorGUILayout.LabelField("（槽位内单图均无磁盘文件，同目录导出不可用）", _hintStyle);
+            }
+            EndCard();
+        }
+
+        /// <summary>把 _mergeSlotTex / _mergeSlotPath 的长度对齐到 列×行，保留已有槽位内容。</summary>
+        private void EnsureMergeSlotCount()
+        {
+            int need = Mathf.Max(1, _mergeCols) * Mathf.Max(1, _mergeRows);
+            while (_mergeSlotTex.Count < need) _mergeSlotTex.Add(null);
+            while (_mergeSlotPath.Count < need) _mergeSlotPath.Add("");
+            if (_mergeSlotTex.Count > need) _mergeSlotTex.RemoveRange(need, _mergeSlotTex.Count - need);
+            if (_mergeSlotPath.Count > need) _mergeSlotPath.RemoveRange(need, _mergeSlotPath.Count - need);
+        }
+
+        /// <summary>按列×行画出槽位网格：每格支持拖入图片 + 缩略图预览 + ObjectField 选择，改动即重建合并结果。</summary>
+        private void DrawMergeSlotGrid()
+        {
+            int cols = Mathf.Max(1, _mergeCols), rows = Mathf.Max(1, _mergeRows);
+            for (int r = 0; r < rows; r++)
+            {
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    for (int c = 0; c < cols; c++)
+                        DrawMergeSlot(r * cols + c);
+                }
+            }
+        }
+
+        /// <summary>画单个合并槽位：拖放区（工程内 Texture / 外部图片）+ 序号角标 + ObjectField。</summary>
+        private void DrawMergeSlot(int index)
+        {
+            const float box = 68f;
+            using (new EditorGUILayout.VerticalScope(GUILayout.Width(box)))
+            {
+                Rect cell = GUILayoutUtility.GetRect(box, box, GUILayout.Width(box), GUILayout.Height(box));
+                Event e = Event.current;
+                bool hover = cell.Contains(e.mousePosition);
+                bool dragging = e.type == EventType.DragUpdated || e.type == EventType.DragPerform;
+                bool valid = hover && dragging && IsMergeDragValid();
+
+                DrawChecker(cell);
+                Texture2D tex = index < _mergeSlotTex.Count ? _mergeSlotTex[index] : null;
+                if (tex != null) GUI.DrawTexture(cell, tex, ScaleMode.ScaleToFit, true);
+                DrawRectOutline(cell, valid ? kAccent : new Color(1, 1, 1, 0.22f));
+                // 左上角序号角标
+                var badge = new GUIStyle(EditorStyles.miniLabel) { normal = { textColor = new Color(1, 1, 1, 0.85f) }, fontStyle = FontStyle.Bold };
+                GUI.Label(new Rect(cell.x + 2, cell.y + 1, 24, 14), $"#{index + 1}", badge);
+
+                if (hover && dragging)
+                {
+                    DragAndDrop.visualMode = IsMergeDragValid() ? DragAndDropVisualMode.Copy : DragAndDropVisualMode.Rejected;
+                    if (e.type == EventType.DragPerform && IsMergeDragValid())
+                    {
+                        DragAndDrop.AcceptDrag();
+                        AcceptMergeDraggedImage(index);
+                    }
+                    e.Use();
+                }
+
+                EditorGUI.BeginChangeCheck();
+                Texture2D picked = (Texture2D)EditorGUILayout.ObjectField(tex, typeof(Texture2D), false, GUILayout.Width(box));
+                if (EditorGUI.EndChangeCheck())
+                {
+                    _mergeSlotTex[index] = picked;
+                    _mergeSlotPath[index] = "";
+                    RebuildMergeResult();
+                }
+            }
+        }
+
+        /// <summary>合并槽位当前拖拽是否为可接受的图片（工程内 Texture 或外部图片文件）。</summary>
+        private static bool IsMergeDragValid()
+        {
+            foreach (var obj in DragAndDrop.objectReferences)
+                if (obj is Texture2D) return true;
+            return IsDragValid();
+        }
+
+        /// <summary>把拖入某个合并槽位的图片存入该槽：优先工程内 Texture，其次外部图片文件。</summary>
+        private void AcceptMergeDraggedImage(int index)
+        {
+            foreach (var obj in DragAndDrop.objectReferences)
+            {
+                if (obj is Texture2D tex)
+                {
+                    _mergeSlotTex[index] = tex; _mergeSlotPath[index] = "";
+                    GUI.FocusControl(null); RebuildMergeResult();
+                    return;
+                }
+            }
+            foreach (var p in DragAndDrop.paths)
+            {
+                if (!IsImagePath(p)) continue;
+                Texture2D asset = LoadAsProjectAsset(p);
+                if (asset != null) { _mergeSlotTex[index] = asset; _mergeSlotPath[index] = ""; }
+                else
+                {
+                    Texture2D ext = DecodeExternalImage(p);
+                    if (ext == null) return;
+                    _mergeSlotTex[index] = ext; _mergeSlotPath[index] = p;
+                }
+                GUI.FocusControl(null); RebuildMergeResult();
+                return;
+            }
+        }
+
+        /// <summary>把外部图片文件解码成临时 Texture2D（失败弹窗提示并返回 null）。</summary>
+        private Texture2D DecodeExternalImage(string fullPath)
+        {
+            try
+            {
+                byte[] bytes = File.ReadAllBytes(fullPath);
+                var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                if (!tex.LoadImage(bytes)) { DestroyImmediate(tex); EditorUtility.DisplayDialog("无法加载", $"无法解码图片：\n{fullPath}", "确定"); return null; }
+                tex.name = Path.GetFileNameWithoutExtension(fullPath);
+                return tex;
+            }
+            catch (Exception ex)
+            {
+                EditorUtility.DisplayDialog("读取失败", ex.Message, "确定");
+                Debug.LogException(ex);
+                return null;
+            }
+        }
+
+        /// <summary>清空合并结果数据与预览纹理。</summary>
+        private void ClearMergeResult()
+        {
+            _mergeResultTopDown = null;
+            _mergeResultW = _mergeResultH = 0;
+            if (_mergeResultTex != null) { DestroyImmediate(_mergeResultTex); _mergeResultTex = null; }
+        }
+
+        /// <summary>
+        /// 按当前槽位重建合并结果：格子 = 所有非空图的最大宽×最大高，
+        /// 每张图按行优先放到对应列×行位置并在格子内居中，空白透明。
+        /// </summary>
+        private void RebuildMergeResult()
+        {
+            _mergeMessage = "";
+            ClearMergeResult();
+            EnsureMergeSlotCount();
+
+            int cols = Mathf.Max(1, _mergeCols), rows = Mathf.Max(1, _mergeRows);
+            int count = cols * rows;
+
+            var pxArr = new Color32[count][];
+            var wArr = new int[count];
+            var hArr = new int[count];
+            int cellW = 0, cellH = 0, filled = 0;
+            bool sizeMixed = false;
+            int firstW = -1, firstH = -1;
+
+            for (int i = 0; i < count; i++)
+            {
+                Texture2D t = _mergeSlotTex[i];
+                if (t == null) continue;
+                ReadSourcePixels(t, _mergeSlotPath[i], out Color32[] raw, out int rw, out int rh);
+                var td = new Color32[rw * rh];
+                for (int y = 0; y < rh; y++)
+                    for (int x = 0; x < rw; x++)
+                        td[y * rw + x] = raw[(rh - 1 - y) * rw + x];
+                pxArr[i] = td; wArr[i] = rw; hArr[i] = rh;
+                cellW = Mathf.Max(cellW, rw); cellH = Mathf.Max(cellH, rh);
+                if (firstW < 0) { firstW = rw; firstH = rh; }
+                else if (rw != firstW || rh != firstH) sizeMixed = true;
+                filled++;
+            }
+
+            if (filled == 0) { _mergeMessage = "尚未放入任何单图。"; return; }
+
+            int outW = cols * cellW, outH = rows * cellH;
+            var outPx = new Color32[outW * outH];
+            for (int i = 0; i < outPx.Length; i++) outPx[i] = kTransparent;
+
+            for (int i = 0; i < count; i++)
+            {
+                if (pxArr[i] == null) continue;
+                int col = i % cols, row = i / cols;
+                int dx0 = col * cellW, dy0 = row * cellH;
+                int ox = (cellW - wArr[i]) / 2, oy = (cellH - hArr[i]) / 2;   // 格子内居中
+                for (int y = 0; y < hArr[i]; y++)
+                    for (int x = 0; x < wArr[i]; x++)
+                        outPx[(dy0 + oy + y) * outW + (dx0 + ox + x)] = pxArr[i][y * wArr[i] + x];
+            }
+
+            _mergeResultTopDown = outPx;
+            _mergeResultW = outW;
+            _mergeResultH = outH;
+            BuildMergeResultTexture();
+
+            if (sizeMixed)
+                _mergeMessage = $"存在尺寸不一的单图，已按最大格子 {cellW}×{cellH} 居中放置，空白透明。";
+        }
+
+        /// <summary>由 _mergeResultTopDown 重建预览纹理（自上而下翻成 Texture2D 的自下而上）。</summary>
+        private void BuildMergeResultTexture()
+        {
+            if (_mergeResultTex != null) DestroyImmediate(_mergeResultTex);
+            if (_mergeResultTopDown == null) { _mergeResultTex = null; return; }
+            _mergeResultTex = new Texture2D(_mergeResultW, _mergeResultH, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+            var flip = new Color32[_mergeResultW * _mergeResultH];
+            for (int y = 0; y < _mergeResultH; y++)
+                for (int x = 0; x < _mergeResultW; x++)
+                    flip[(_mergeResultH - 1 - y) * _mergeResultW + x] = _mergeResultTopDown[y * _mergeResultW + x];
+            _mergeResultTex.SetPixels32(flip);
+            _mergeResultTex.Apply();
+        }
+
+        /// <summary>导出合并图集：弹窗选路径，另存为新 PNG。</summary>
+        private void ExportMergeAs()
+        {
+            if (_mergeResultTopDown == null) return;
+            string defaultName = $"merged_{_mergeCols}x{_mergeRows}.png";
+            string path = EditorUtility.SaveFilePanel("导出合并图集 PNG", Application.dataPath, defaultName, "png");
+            if (string.IsNullOrEmpty(path)) return;
+            File.WriteAllBytes(path, BuildPngFromTopDown(_mergeResultTopDown, _mergeResultW, _mergeResultH));
+            AssetDatabase.Refresh();
+            EditorUtility.DisplayDialog("已导出", $"已保存：\n{path}", "确定");
+            Debug.Log($"[PixelPerfect] 图片合并导出：{path}");
+        }
+
+        /// <summary>导出合并图集到首张有磁盘文件的单图所在目录，文件名 = merged_列x行.png。</summary>
+        private void ExportMergeToFirstDir()
+        {
+            if (_mergeResultTopDown == null) return;
+            string dir = GetMergeFirstSourceDir();
+            if (string.IsNullOrEmpty(dir))
+            {
+                EditorUtility.DisplayDialog("无法导出", "槽位内单图均无可定位的磁盘目录。", "确定");
+                return;
+            }
+            string path = Path.Combine(dir, $"merged_{_mergeCols}x{_mergeRows}.png");
+            File.WriteAllBytes(path, BuildPngFromTopDown(_mergeResultTopDown, _mergeResultW, _mergeResultH));
+            AssetDatabase.Refresh();
+            EditorUtility.DisplayDialog("已导出", $"已保存：\n{path}", "确定");
+            Debug.Log($"[PixelPerfect] 图片合并同目录导出：{path}");
+        }
+
+        /// <summary>取第一张有磁盘文件的槽位单图所在目录；均无文件则返回 null。</summary>
+        private string GetMergeFirstSourceDir()
+        {
+            for (int i = 0; i < _mergeSlotTex.Count; i++)
+            {
+                string abs = GetSlotFilePath(_mergeSlotTex[i], i < _mergeSlotPath.Count ? _mergeSlotPath[i] : "");
+                if (abs != null) return Path.GetDirectoryName(abs);
+            }
+            return null;
+        }
+
+        /// <summary>取某槽位单图在磁盘上的绝对路径：优先外部文件，其次工程内资源；无文件返回 null。</summary>
+        private static string GetSlotFilePath(Texture2D tex, string externalPath)
+        {
+            if (!string.IsNullOrEmpty(externalPath) && File.Exists(externalPath)) return externalPath;
+            if (tex != null)
+            {
+                string assetPath = AssetDatabase.GetAssetPath(tex);
+                if (!string.IsNullOrEmpty(assetPath))
+                {
+                    string abs = GetAbsolutePath(assetPath);
+                    if (File.Exists(abs)) return abs;
+                }
+            }
+            return null;
         }
 
         /// <summary>步骤④的拖拽放置区：支持工程内 Texture 或外部图片文件，拖入即替换并重排。</summary>
@@ -1325,14 +1741,17 @@ namespace PixelPerfectTool
             _auxResultTex.Apply();
         }
 
-        /// <summary>把重排结果（自上而下）编码为 PNG 字节（翻成 Texture 自下而上后 EncodeToPNG）。</summary>
-        private byte[] BuildAuxResultPng()
+        /// <summary>把重排结果（自上而下）编码为 PNG 字节。</summary>
+        private byte[] BuildAuxResultPng() => BuildPngFromTopDown(_auxResultTopDown, _auxResultW, _auxResultH);
+
+        /// <summary>把自上而下的像素数组翻成 Texture 自下而上后编码为 PNG 字节（帧排版/图片合并共用）。</summary>
+        private static byte[] BuildPngFromTopDown(Color32[] topDown, int w, int h)
         {
-            var tex = new Texture2D(_auxResultW, _auxResultH, TextureFormat.RGBA32, false);
-            var flip = new Color32[_auxResultW * _auxResultH];
-            for (int y = 0; y < _auxResultH; y++)
-                for (int x = 0; x < _auxResultW; x++)
-                    flip[(_auxResultH - 1 - y) * _auxResultW + x] = _auxResultTopDown[y * _auxResultW + x];
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+            var flip = new Color32[w * h];
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                    flip[(h - 1 - y) * w + x] = topDown[y * w + x];
             tex.SetPixels32(flip);
             tex.Apply();
             byte[] png = tex.EncodeToPNG();
