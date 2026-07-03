@@ -1,4 +1,4 @@
-Shader "FrameWork/Particle/GrassWindSwayLit"
+Shader "FrameWork/Particle/GrassWindSway"
 {
     Properties
     {
@@ -6,6 +6,16 @@ Shader "FrameWork/Particle/GrassWindSwayLit"
         [MainTexture] _BaseMap ("草贴图", 2D) = "white" {}
         [MainColor]   _BaseColor ("染色颜色 (再乘以粒子颜色)", Color) = (1, 1, 1, 1)
         _Cutoff ("透明裁剪阈值 (0=不裁剪)", Range(0, 1)) = 0.0
+
+        [Header(Lit)]
+        // 勾选=受光(BlinnPhong) / 取消=无光；默认受光(与合并前的 Lit 版一致)。
+        // 用 ToggleOff 使"无关键字=受光"，老材质(无关键字)自动保持受光、无需改动。
+        [ToggleOff(_UNLIT_ON)] _LitEnable ("开启光照 (勾选=受光 / 取消=无光)", Float) = 1
+
+        [Header(Outline)]
+        [Toggle(_OUTLINE_ON)] _OutlineEnable ("开启描边 (沿轮廓 Alpha 外扩 / 默认关闭)", Float) = 0
+        [HDR] _OutlineColor ("描边颜色", Color) = (0, 0, 0, 1)
+        _OutlineSize ("描边大小 (向外扩展的纹素数)", Range(0, 10)) = 1.0
 
         [Header(Particle Blend)]
         [Enum(UnityEngine.Rendering.BlendMode)] _BlendSrc ("源混合因子 (默认 SrcAlpha)", Float) = 5
@@ -44,7 +54,7 @@ Shader "FrameWork/Particle/GrassWindSwayLit"
         _Stiffness ("草茎硬度 (越大越硬越直)", Range(1, 4)) = 2.0
 
         [Header(Shadow)]
-        // 让接收到的主光阴影也压暗环境光，草在阴影里更明显变暗(0=只丢主光直射；越大越暗，1 最暗仍留亮不死黑)
+        // 仅在受光时生效：让接收到的主光阴影也压暗环境光，草在阴影里更明显变暗
         _ShadowGIStrength ("阴影压暗环境光强度 (0=仅主光直射受阴影 / 1=阴影里最多压暗环境光)", Range(0, 1)) = 0.5
     }
 
@@ -58,9 +68,10 @@ Shader "FrameWork/Particle/GrassWindSwayLit"
             "IgnoreProjector"= "True"
         }
 
+        // 正向 Pass：受光(默认)与无光(_UNLIT_ON)合并为一个 pass，用 keyword 分支切换
         Pass
         {
-            Name "ParticleForwardLit"
+            Name "ParticleForward"
             Tags { "LightMode" = "UniversalForward" }
 
             Blend [_BlendSrc] [_BlendDst]
@@ -71,8 +82,10 @@ Shader "FrameWork/Particle/GrassWindSwayLit"
             #pragma vertex vert
             #pragma fragment frag
 
+            #pragma shader_feature_local _UNLIT_ON
             #pragma shader_feature_local _SOFTPARTICLES_ON
             #pragma shader_feature_local _CAMERAFADE_ON
+            #pragma shader_feature_local _OUTLINE_ON
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
             #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
@@ -131,47 +144,60 @@ Shader "FrameWork/Particle/GrassWindSwayLit"
                 UNITY_SETUP_INSTANCE_ID(IN);
 
                 // 贴图 * 染色颜色 * 粒子顶点色(承载生命周期颜色/透明度)
-                half4 col = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv) * _BaseColor * IN.color;
+                half4 baseSample = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv);
+                #if defined(_OUTLINE_ON)
+                    // 描边在采样阶段沿轮廓外扩(须在 clip 前，否则描边像素被裁掉)
+                    baseSample = ApplyAlphaOutline(TEXTURE2D_ARGS(_BaseMap, sampler_BaseMap), baseSample,
+                                                   IN.uv, _BaseMap_TexelSize.xy, _OutlineSize, _OutlineColor);
+                #endif
+                half4 col = baseSample * _BaseColor * IN.color;
                 clip(col.a - _Cutoff);
 
-                // 粒子公告板法线可能退化，长度过小时退回视线方向，避免光照异常
-                float nLen = length(IN.normalWS);
-                half3 normalWS = nLen > 1e-3 ? (half3)(IN.normalWS / nLen)
-                                             : (half3)GetWorldSpaceNormalizeViewDir(IN.positionWS);
-                // 双面渲染：背面法线翻转，保证两面都能正确受光
-                normalWS *= IS_FRONT_VFACE(cullFace, 1.0, -1.0);
+                half fade = ParticleFade(IN.screenPos, _SoftParticleNearFade, _SoftParticleFarFade,
+                                         _CameraNearFade, _CameraFarFade);
 
-                SurfaceData surfaceData = (SurfaceData)0;
-                surfaceData.albedo    = col.rgb;
-                surfaceData.alpha     = col.a * ParticleFade(IN.screenPos, _SoftParticleNearFade,
-                                                _SoftParticleFarFade, _CameraNearFade, _CameraFarFade);
-                surfaceData.occlusion = 1.0;
+                #if defined(_UNLIT_ON)
+                    // ===== 无光：直接输出染色 + 淡出 + 雾 =====
+                    col.a *= fade;
+                    col.rgb = MixFog(col.rgb, IN.fogFactor);
+                    return col;
+                #else
+                    // ===== 受光：BlinnPhong + 阴影压暗环境光 =====
+                    // 粒子公告板法线可能退化，长度过小时退回视线方向，避免光照异常
+                    float nLen = length(IN.normalWS);
+                    half3 normalWS = nLen > 1e-3 ? (half3)(IN.normalWS / nLen)
+                                                 : (half3)GetWorldSpaceNormalizeViewDir(IN.positionWS);
+                    // 双面渲染：背面法线翻转，保证两面都能正确受光
+                    normalWS *= IS_FRONT_VFACE(cullFace, 1.0, -1.0);
 
-                InputData inputData = (InputData)0;
-                inputData.positionWS             = IN.positionWS;
-                inputData.normalWS               = normalWS;
-                inputData.viewDirectionWS        = GetWorldSpaceNormalizeViewDir(IN.positionWS);
-                inputData.shadowCoord            = TransformWorldToShadowCoord(IN.positionWS);
-                inputData.fogCoord               = IN.fogFactor;
-                inputData.bakedGI                = SampleSH(normalWS);
-                inputData.normalizedScreenSpaceUV= GetNormalizedScreenSpaceUV(IN.positionHCS);
-                inputData.shadowMask             = half4(1, 1, 1, 1);
+                    SurfaceData surfaceData = (SurfaceData)0;
+                    surfaceData.albedo    = col.rgb;
+                    surfaceData.alpha     = col.a * fade;
+                    surfaceData.occlusion = 1.0;
 
-                // ===== 阴影额外压暗环境光(GI)：让主光实时阴影也压暗 SampleSH 环境项，草在阴影里暗而不死黑 =====
-                // 参数=0 时整段跳过：不产生第二次阴影采样，精确回退到"仅主光直射受阴影"。
-                if (_ShadowGIStrength > 0.0h)
-                {
-                    // 单采一次主光阴影(1=无阴影/0=全阴影)；BlinnPhong 内部会自己再采一次只作用直射项，此处只压环境光。
-                    Light mainLightForGI = GetMainLight(inputData.shadowCoord, inputData.positionWS, inputData.shadowMask);
-                    // 因子落在 [1-强度 .. 1]：全光照=1不动，全阴影最低=1-强度(留亮不死黑)，强度=0恒为1回退。
-                    half giShadowFactor = lerp(1.0h, 1.0h - _ShadowGIStrength, 1.0h - mainLightForGI.shadowAttenuation);
-                    inputData.bakedGI *= giShadowFactor;
-                }
-                // ===== 环境光压暗结束 =====
+                    InputData inputData = (InputData)0;
+                    inputData.positionWS             = IN.positionWS;
+                    inputData.normalWS               = normalWS;
+                    inputData.viewDirectionWS        = GetWorldSpaceNormalizeViewDir(IN.positionWS);
+                    inputData.shadowCoord            = TransformWorldToShadowCoord(IN.positionWS);
+                    inputData.fogCoord               = IN.fogFactor;
+                    inputData.bakedGI                = SampleSH(normalWS);
+                    inputData.normalizedScreenSpaceUV= GetNormalizedScreenSpaceUV(IN.positionHCS);
+                    inputData.shadowMask             = half4(1, 1, 1, 1);
 
-                half4 color = UniversalFragmentBlinnPhong(inputData, surfaceData);
-                color.rgb = MixFog(color.rgb, IN.fogFactor);
-                return color;
+                    // 阴影额外压暗环境光(GI)：让主光实时阴影也压暗 SampleSH 环境项，草在阴影里暗而不死黑。
+                    // 参数=0 时整段跳过：不产生第二次阴影采样，精确回退到"仅主光直射受阴影"。
+                    if (_ShadowGIStrength > 0.0h)
+                    {
+                        Light mainLightForGI = GetMainLight(inputData.shadowCoord, inputData.positionWS, inputData.shadowMask);
+                        half giShadowFactor = lerp(1.0h, 1.0h - _ShadowGIStrength, 1.0h - mainLightForGI.shadowAttenuation);
+                        inputData.bakedGI *= giShadowFactor;
+                    }
+
+                    half4 color = UniversalFragmentBlinnPhong(inputData, surfaceData);
+                    color.rgb = MixFog(color.rgb, IN.fogFactor);
+                    return color;
+                #endif
             }
             ENDHLSL
         }
@@ -212,9 +238,8 @@ Shader "FrameWork/Particle/GrassWindSwayLit"
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
-            // 不施加任何 shadow bias：草是薄片、自阴影瑕疵风险低；而 bias(低分辨率/大范围阴影下
-            // depth bias 沿光方向、normal bias 沿法线)会把阴影在地面整体推离草根。直接用草的真实
-            // 世界位置投影，阴影即贴合草本体(与本体同一套 ApplyWind 位移，故随风同步)。
+            // 不施加任何 shadow bias：草是薄片、自阴影瑕疵风险低；直接用草的真实世界位置投影，
+            // 阴影即贴合草本体(与本体同一套 ApplyWind 位移，故随风同步)。
             float4 GetShadowClip(float3 positionWS)
             {
                 float4 positionCS = TransformWorldToHClip(positionWS);
@@ -244,7 +269,6 @@ Shader "FrameWork/Particle/GrassWindSwayLit"
             half4 shadowFrag(ShadowVaryings IN) : SV_Target
             {
                 UNITY_SETUP_INSTANCE_ID(IN);
-                // 仅用贴图 alpha 裁剪出草形(染色只取 alpha 通道即可)
                 half alpha = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv).a * _BaseColor.a;
                 clip(alpha - _Cutoff);
                 return 0;
@@ -311,4 +335,5 @@ Shader "FrameWork/Particle/GrassWindSwayLit"
     }
 
     FallBack "Universal Render Pipeline/Lit"
+    CustomEditor "WindSwayShaderGUI"
 }

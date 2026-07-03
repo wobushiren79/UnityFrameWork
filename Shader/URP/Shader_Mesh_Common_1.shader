@@ -1,15 +1,14 @@
-Shader "FrameWork/URP/GrassWindSway"
+Shader "FrameWork/URP/MeshCommon1"
 {
     Properties
     {
-        [MainTexture] _BaseMap ("草贴图", 2D) = "white" {}
+        [Header(Surface)]
+        [MainTexture] _BaseMap ("主贴图", 2D) = "white" {}
         [MainColor]   _BaseColor ("染色颜色", Color) = (1, 1, 1, 1)
         _Cutoff ("透明裁剪阈值 (Alpha 低于此值丢弃)", Range(0, 1)) = 0.5
 
         [Header(Lit)]
-        // 勾选=受光(BlinnPhong) / 取消=无光；默认受光(与原始 Lit 版一致)。
-        // 用 ToggleOff 使"无关键字=受光"，老材质(无关键字)自动保持受光、无需改动。
-        [ToggleOff(_UNLIT_ON)] _LitEnable ("开启光照 (勾选=受光 / 取消=无光)", Float) = 1
+        [Toggle(_LIT_ON)] _LitEnable ("开启光照 (受主光/附加光/阴影/环境光 / 默认关闭)", Float) = 0
 
         [Header(Outline)]
         [Toggle(_OUTLINE_ON)] _OutlineEnable ("开启描边 (沿轮廓 Alpha 外扩 / 默认关闭)", Float) = 0
@@ -19,23 +18,9 @@ Shader "FrameWork/URP/GrassWindSway"
         [Header(Render Face)]
         [Enum(On,0,Off,2)] _Cull ("是否开启双面渲染 (On=两面都显示 / Off=仅显示正面)", Float) = 0
 
-        [Header(Position Offset)]
-        _PositionOffset ("位置偏移 (XYZ 顶点整体偏移)", Vector) = (0, 0, 0, 0)
-
-        [Header(Wind Sway)]
-        _WindSpeed     ("风速 (整体快慢)", Range(0, 10)) = 2.5
-        _SwayStrength  ("摆动幅度 (草尖左右摇摆大小)", Range(0, 1)) = 0.12
-        _SwayFrequency ("摆动频率 (摇摆快慢)", Range(0, 10)) = 2.0
-        _WindDir       ("风向 (-1左 / +1右 顺风倾倒)", Range(-1, 1)) = 0.3
-        _BendStrength  ("顺风弯倒幅度 (草整体被风压弯)", Range(0, 1)) = 0.15
-
-        [Header(Flutter)]
-        _FlutterStrength ("抖动幅度 (草叶细碎颤动大小)", Range(0, 0.5)) = 0.03
-        _FlutterSpeed    ("抖动速度 (颤动快慢)", Range(0, 30)) = 14.0
-
-        [Header(Stiffness)]
-        // 越大草越硬(根部以上更晚开始弯)，越小越软(贴近根部就开始弯)
-        _Stiffness ("草茎硬度 (越大越硬越直)", Range(1, 4)) = 2.0
+        [Header(Transform)]
+        _VertexOffset ("位置偏移 (物体空间 XYZ)", Vector) = (0, 0, 0, 0)
+        _VertexRotation ("角度旋转 (欧拉角 XYZ / 度)", Vector) = (0, 0, 0, 0)
     }
 
     SubShader
@@ -48,11 +33,10 @@ Shader "FrameWork/URP/GrassWindSway"
             "IgnoreProjector"= "True"
         }
 
-        // 所有 Pass 共用：材质参数 + 贴图 + 风摆位移函数(保证阴影/深度与正向渲染同步摆动)
+        // 所有 Pass 共用：材质参数 + 贴图声明 + 顶点位移旋转助手
         HLSLINCLUDE
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-        // Alpha 扩张描边通用函数(ApplyAlphaOutline)
-        #include "../Common/Outline.hlsl"
+        #include "../Common/Transform.hlsl"
 
         TEXTURE2D(_BaseMap);
         SAMPLER(sampler_BaseMap);
@@ -62,62 +46,28 @@ Shader "FrameWork/URP/GrassWindSway"
             float4 _BaseMap_TexelSize;   // Unity 按所赋贴图自动填充，供描边取纹素尺寸
             half4  _BaseColor;
             half   _Cutoff;
-            float4 _PositionOffset;
-            half   _WindSpeed;
-            half   _SwayStrength;
-            half   _SwayFrequency;
-            half   _WindDir;
-            half   _BendStrength;
-            half   _FlutterStrength;
-            half   _FlutterSpeed;
-            half   _Stiffness;
             half4  _OutlineColor;
             half   _OutlineSize;
+            float4 _VertexOffset;        // 物体空间位置偏移(xyz)
+            float4 _VertexRotation;      // 欧拉角旋转(xyz, 度)
         CBUFFER_END
-
-        // 风摆顶点位移：根部(UV.y=0)固定，越往草尖摆动越大(实例化下每株草相位错开)
-        void ApplyWind(inout float3 positionOS, float2 uv)
-        {
-            // pow(uv.y, _Stiffness) 控制草茎硬度：值越大根部附近越不弯、越像硬草茎
-            float heightWeight = pow(saturate(uv.y), _Stiffness);
-
-            float3 positionWS = TransformObjectToWorld(positionOS);
-            float phase = positionWS.x * 0.7 + positionWS.z * 0.7;
-
-            float t = _Time.y * _WindSpeed;
-
-            float swayWave = sin(t * _SwayFrequency + phase);
-            float sway = swayWave * _SwayStrength;
-
-            float bend = _WindDir * _BendStrength * (0.75 + 0.25 * sin(t * 0.5 + phase));
-
-            float flutter = sin(t * _FlutterSpeed + phase * 3.0 + uv.x * 6.2831)
-                            * _FlutterStrength;
-
-            float offsetX = (sway + bend + flutter) * heightWeight;
-            float offsetY = -abs(offsetX) * 0.3;
-
-            positionOS.x += offsetX;
-            positionOS.y += offsetY;
-            positionOS += _PositionOffset.xyz;
-        }
         ENDHLSL
 
-        // 正向光照 Pass：接收主光/附加光/阴影 + 环境光(SH) + 雾
+        // 正向 Pass：Lit 开启时受光，关闭时输出无光颜色(均支持描边+裁剪+雾)
         Pass
         {
-            Name "ForwardLit"
+            Name "Forward"
             Tags { "LightMode" = "UniversalForward" }
 
             ZWrite On
             Cull [_Cull]
 
             HLSLPROGRAM
-            #pragma vertex LitPassVertex
-            #pragma fragment LitPassFragment
+            #pragma vertex vert
+            #pragma fragment frag
 
             #pragma multi_compile_instancing
-            #pragma shader_feature_local _UNLIT_ON
+            #pragma shader_feature_local _LIT_ON
             #pragma shader_feature_local _OUTLINE_ON
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
@@ -126,7 +76,9 @@ Shader "FrameWork/URP/GrassWindSway"
             #pragma multi_compile_fragment _ _SCREEN_SPACE_OCCLUSION
             #pragma multi_compile_fog
 
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+            // 光照库(SurfaceData/InputData/BlinnPhong) → 通用受光助手；描边助手
+            #include "../Common/CommonLit.hlsl"
+            #include "../Common/Outline.hlsl"
 
             struct Attributes
             {
@@ -146,25 +98,27 @@ Shader "FrameWork/URP/GrassWindSway"
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
-            Varyings LitPassVertex (Attributes IN)
+            Varyings vert (Attributes IN)
             {
                 Varyings OUT = (Varyings)0;
                 UNITY_SETUP_INSTANCE_ID(IN);
                 UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
 
-                float3 posOS = IN.positionOS.xyz;
-                ApplyWind(posOS, IN.uv);
+                // 物体空间先按欧拉角旋转再加偏移，法线用同一矩阵旋转
+                float3x3 rotMat = BuildEulerRotationMatrix(_VertexRotation.xyz);
+                float3 positionOS = ApplyVertexTransform(IN.positionOS.xyz, rotMat, _VertexOffset.xyz);
+                float3 normalOS   = mul(rotMat, IN.normalOS);
 
-                VertexPositionInputs posInputs = GetVertexPositionInputs(posOS);
+                VertexPositionInputs posInputs = GetVertexPositionInputs(positionOS);
                 OUT.positionHCS = posInputs.positionCS;
                 OUT.positionWS  = posInputs.positionWS;
-                OUT.normalWS    = TransformObjectToWorldNormal(IN.normalOS);
+                OUT.normalWS    = TransformObjectToWorldNormal(normalOS);
                 OUT.uv          = TRANSFORM_TEX(IN.uv, _BaseMap);
                 OUT.fogFactor   = ComputeFogFactor(posInputs.positionCS.z);
                 return OUT;
             }
 
-            half4 LitPassFragment (Varyings IN, FRONT_FACE_TYPE cullFace : FRONT_FACE_SEMANTIC) : SV_Target
+            half4 frag (Varyings IN, FRONT_FACE_TYPE cullFace : FRONT_FACE_SEMANTIC) : SV_Target
             {
                 UNITY_SETUP_INSTANCE_ID(IN);
 
@@ -177,38 +131,19 @@ Shader "FrameWork/URP/GrassWindSway"
                 half4 col = baseSample * _BaseColor;
                 clip(col.a - _Cutoff);
 
-                #if defined(_UNLIT_ON)
-                    // 无光：直接输出染色 + 雾
+                #if defined(_LIT_ON)
+                    // 双面渲染：背面法线翻转，保证两面都能正确受光
+                    half3 normalWS = normalize(IN.normalWS) * IS_FRONT_VFACE(cullFace, 1.0, -1.0);
+                    return ApplyCommonLit(col.rgb, 1.0, IN.positionWS, normalWS, IN.positionHCS, IN.fogFactor);
+                #else
                     col.rgb = MixFog(col.rgb, IN.fogFactor);
                     return col;
-                #else
-                // 双面渲染：背面法线翻转，保证两面都能正确受光
-                half3 normalWS = normalize(IN.normalWS) * IS_FRONT_VFACE(cullFace, 1.0, -1.0);
-
-                SurfaceData surfaceData = (SurfaceData)0;
-                surfaceData.albedo     = col.rgb;
-                surfaceData.alpha      = 1.0;
-                surfaceData.occlusion  = 1.0;
-
-                InputData inputData = (InputData)0;
-                inputData.positionWS             = IN.positionWS;
-                inputData.normalWS               = normalWS;
-                inputData.viewDirectionWS        = GetWorldSpaceNormalizeViewDir(IN.positionWS);
-                inputData.shadowCoord            = TransformWorldToShadowCoord(IN.positionWS);
-                inputData.fogCoord               = IN.fogFactor;
-                inputData.bakedGI                = SampleSH(normalWS);
-                inputData.normalizedScreenSpaceUV= GetNormalizedScreenSpaceUV(IN.positionHCS);
-                inputData.shadowMask             = half4(1, 1, 1, 1);
-
-                half4 color = UniversalFragmentBlinnPhong(inputData, surfaceData);
-                color.rgb = MixFog(color.rgb, IN.fogFactor);
-                return color;
                 #endif
             }
             ENDHLSL
         }
 
-        // 阴影投射 Pass：同步风摆位移 + Alpha 裁剪，保证投影随草摆动且镂空正确
+        // 阴影投射 Pass：按贴图 alpha 裁剪出实际轮廓阴影(Lit 开启时投形状阴影)
         Pass
         {
             Name "ShadowCaster"
@@ -269,11 +204,13 @@ Shader "FrameWork/URP/GrassWindSway"
                 UNITY_SETUP_INSTANCE_ID(IN);
                 UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
 
-                float3 posOS = IN.positionOS.xyz;
-                ApplyWind(posOS, IN.uv);
+                // 与 Forward 一致地先旋转+偏移，保证阴影轮廓跟随变换
+                float3x3 rotMat = BuildEulerRotationMatrix(_VertexRotation.xyz);
+                float3 positionOS = ApplyVertexTransform(IN.positionOS.xyz, rotMat, _VertexOffset.xyz);
+                float3 normalOS   = mul(rotMat, IN.normalOS);
 
-                float3 positionWS = TransformObjectToWorld(posOS);
-                float3 normalWS   = TransformObjectToWorldNormal(IN.normalOS);
+                float3 positionWS = TransformObjectToWorld(positionOS);
+                float3 normalWS   = TransformObjectToWorldNormal(normalOS);
                 OUT.positionHCS = GetShadowPositionHClip(positionWS, normalWS);
                 OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap);
                 return OUT;
@@ -289,7 +226,7 @@ Shader "FrameWork/URP/GrassWindSway"
             ENDHLSL
         }
 
-        // 深度 Pass：供深度预通道/相关后处理使用，同步风摆 + Alpha 裁剪
+        // 深度 Pass：供深度预通道/依赖深度的后处理使用，同步 Alpha 裁剪
         Pass
         {
             Name "DepthOnly"
@@ -324,10 +261,11 @@ Shader "FrameWork/URP/GrassWindSway"
                 UNITY_SETUP_INSTANCE_ID(IN);
                 UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
 
-                float3 posOS = IN.positionOS.xyz;
-                ApplyWind(posOS, IN.uv);
+                // 与 Forward 一致地先旋转+偏移，保证深度轮廓跟随变换
+                float3x3 rotMat = BuildEulerRotationMatrix(_VertexRotation.xyz);
+                float3 positionOS = ApplyVertexTransform(IN.positionOS.xyz, rotMat, _VertexOffset.xyz);
 
-                OUT.positionHCS = TransformObjectToHClip(posOS);
+                OUT.positionHCS = TransformObjectToHClip(positionOS);
                 OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap);
                 return OUT;
             }
@@ -343,6 +281,5 @@ Shader "FrameWork/URP/GrassWindSway"
         }
     }
 
-    FallBack "Universal Render Pipeline/Lit"
-    CustomEditor "WindSwayShaderGUI"
+    FallBack "Universal Render Pipeline/Unlit"
 }

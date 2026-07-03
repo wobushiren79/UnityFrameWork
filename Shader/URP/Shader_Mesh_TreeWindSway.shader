@@ -6,6 +6,16 @@ Shader "FrameWork/URP/TreeWindSway"
         [MainColor]   _BaseColor ("染色颜色", Color) = (1, 1, 1, 1)
         _Cutoff ("透明裁剪阈值 (Alpha 低于此值丢弃)", Range(0, 1)) = 0.5
 
+        [Header(Lit)]
+        // 勾选=受光(BlinnPhong) / 取消=无光；默认受光(与原始 Lit 版一致)。
+        // 用 ToggleOff 使"无关键字=受光"，老材质(无关键字)自动保持受光、无需改动。
+        [ToggleOff(_UNLIT_ON)] _LitEnable ("开启光照 (勾选=受光 / 取消=无光)", Float) = 1
+
+        [Header(Outline)]
+        [Toggle(_OUTLINE_ON)] _OutlineEnable ("开启描边 (沿轮廓 Alpha 外扩 / 默认关闭)", Float) = 0
+        [HDR] _OutlineColor ("描边颜色", Color) = (0, 0, 0, 1)
+        _OutlineSize ("描边大小 (向外扩展的纹素数)", Range(0, 10)) = 1.0
+
         [Header(Render Face)]
         [Enum(On,0,Off,2)] _Cull ("是否开启双面渲染 (On=两面都显示 / Off=仅显示正面)", Float) = 0
 
@@ -40,12 +50,15 @@ Shader "FrameWork/URP/TreeWindSway"
         // 所有 Pass 共用：材质参数 + 贴图 + 风摆位移函数(保证阴影/深度与正向渲染同步摆动)
         HLSLINCLUDE
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+        // Alpha 扩张描边通用函数(ApplyAlphaOutline)
+        #include "../Common/Outline.hlsl"
 
         TEXTURE2D(_BaseMap);
         SAMPLER(sampler_BaseMap);
 
         CBUFFER_START(UnityPerMaterial)
             float4 _BaseMap_ST;
+            float4 _BaseMap_TexelSize;   // Unity 按所赋贴图自动填充，供描边取纹素尺寸
             half4  _BaseColor;
             half   _Cutoff;
             float4 _PositionOffset;
@@ -56,6 +69,8 @@ Shader "FrameWork/URP/TreeWindSway"
             half   _FlutterStrength;
             half   _FlutterSpeed;
             half   _AnchorBottom;
+            half4  _OutlineColor;
+            half   _OutlineSize;
         CBUFFER_END
 
         // 风摆顶点位移：以树干底部为锚点，越靠树冠摆动越大(实例化下每棵树相位错开)
@@ -96,6 +111,8 @@ Shader "FrameWork/URP/TreeWindSway"
             #pragma fragment LitPassFragment
 
             #pragma multi_compile_instancing
+            #pragma shader_feature_local _UNLIT_ON
+            #pragma shader_feature_local _OUTLINE_ON
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
             #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
@@ -145,9 +162,20 @@ Shader "FrameWork/URP/TreeWindSway"
             {
                 UNITY_SETUP_INSTANCE_ID(IN);
 
-                half4 col = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv) * _BaseColor;
+                half4 baseSample = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv);
+                #if defined(_OUTLINE_ON)
+                    // 描边在采样阶段沿轮廓外扩(须在 clip 前，否则描边像素被裁掉)
+                    baseSample = ApplyAlphaOutline(TEXTURE2D_ARGS(_BaseMap, sampler_BaseMap), baseSample,
+                                                   IN.uv, _BaseMap_TexelSize.xy, _OutlineSize, _OutlineColor);
+                #endif
+                half4 col = baseSample * _BaseColor;
                 clip(col.a - _Cutoff);
 
+                #if defined(_UNLIT_ON)
+                    // 无光：直接输出染色 + 雾
+                    col.rgb = MixFog(col.rgb, IN.fogFactor);
+                    return col;
+                #else
                 // 双面渲染：背面法线翻转，保证两面都能正确受光
                 half3 normalWS = normalize(IN.normalWS) * IS_FRONT_VFACE(cullFace, 1.0, -1.0);
 
@@ -169,6 +197,7 @@ Shader "FrameWork/URP/TreeWindSway"
                 half4 color = UniversalFragmentBlinnPhong(inputData, surfaceData);
                 color.rgb = MixFog(color.rgb, IN.fogFactor);
                 return color;
+                #endif
             }
             ENDHLSL
         }
@@ -309,4 +338,5 @@ Shader "FrameWork/URP/TreeWindSway"
     }
 
     FallBack "Universal Render Pipeline/Lit"
+    CustomEditor "WindSwayShaderGUI"
 }

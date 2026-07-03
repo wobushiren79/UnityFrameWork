@@ -17,6 +17,10 @@ namespace PixelPerfectTool
     /// 步骤①（设置）：选择网格宽/高（16~1024 档位）+ 选择源图片。
     /// 步骤②（定位与转换）：调节预览格子尺寸(4~16)、源图缩放(10~300%)、拖拽定位源图，
     ///   选择 5 种取色算法之一（最常用 / 最常用偏亮 / 最常用偏暗 / 平均 / 邻域），生成像素图。
+    ///   另含“智能网格检测”（移植自 https://github.com/theamusing/perfectPixel 的纯 numpy 后端）：
+    ///   用 Sobel 梯度自动识别网格尺寸(estimate_grid_gradient)并把网格线吸附到真实像素块边缘(refine_grids)，
+    ///   免手动拖拽定位——支持“仅检测尺寸(填入网格数)”与“智能一键转换→步骤③”，可选边缘对齐/对齐强度/近正方形强制正方；
+    ///   采样复用上述 5 种取色算法。原实现的 FFT 主检测器未移植（避免手写 2D-FFT），改以梯度法为主检测器。
     /// 步骤③（编辑与导出）：画布缩放(1~20)、网格开关、画笔/橡皮/魔棒三种工具、笔刷颜色、
     ///   笔刷尺寸(1~5)、魔棒阈值(0~30)、最近使用颜色(最多6)、撤销/重做(Ctrl+Z/Ctrl+Y)、
     ///   导出 PNG：x1/x4/x8 另存为、覆盖原图导出、同原图目录导出(原图名_输出宽x高)、
@@ -48,6 +52,15 @@ namespace PixelPerfectTool
             Average = 3,
             /// <summary>邻域颜色：在格子四周各外扩 25% 后再做平均，过渡更柔和。</summary>
             Neighbor = 4,
+        }
+
+        /// <summary>最终颜色数量限制模式。</summary>
+        private enum ColorLimitMode
+        {
+            /// <summary>以下：生成图颜色数不超过上限；原图色数已≤上限则保持实际色数不做量化。</summary>
+            AtMost = 0,
+            /// <summary>固定：颜色超过上限时精确量化到该数量（补足空簇尽量凑满）；原图色数不足时无法造色，仍按实际色数输出。</summary>
+            Exact = 1,
         }
 
         /// <summary>步骤③的编辑工具。</summary>
@@ -140,6 +153,25 @@ namespace PixelPerfectTool
         private bool _limitColors = false;
         /// <summary>最终颜色数量上限（启用限制时，生成图的不同颜色不超过此值）。</summary>
         private int _maxColors = 16;
+        /// <summary>颜色数量限制模式：以下(上限)/固定(精确)。</summary>
+        private ColorLimitMode _colorLimitMode = ColorLimitMode.AtMost;
+        /// <summary>源图精确不同颜色数（载入时缓存一次，忽略全透明像素）；-1 表示未统计。</summary>
+        private int _srcColorCountExact = -1;
+        /// <summary>源图近似颜色数（每通道量化到 32 级后的不同色数，载入时缓存一次）；-1 表示未统计。</summary>
+        private int _srcColorCountApprox = -1;
+
+        #endregion
+
+        #region 字段 - 步骤② 智能网格检测（perfectPixel 移植）
+
+        /// <summary>自动检测后是否用 Sobel 梯度把网格线吸附到真实像素块边缘（refine 非均匀网格）；关闭则按检测尺寸均匀切分。</summary>
+        private bool _autoUseRefine = true;
+        /// <summary>refine 强度（0~0.5）：每条网格线向边缘吸附的搜索范围占格宽比例。</summary>
+        private float _refineIntensity = 0.25f;
+        /// <summary>检测结果近正方形（长宽仅差 1）时强制补/裁一行一列使其为正方形（对应原工具 fix_square）。</summary>
+        private bool _autoFixSquare = true;
+        /// <summary>智能检测最近一次的提示/结果信息（空表示无）。</summary>
+        private string _autoMessage = "";
 
         #endregion
 
@@ -297,6 +329,7 @@ namespace PixelPerfectTool
         private static GUIStyle _subTitleStyle;
         private static GUIStyle _cardHeaderStyle;
         private static GUIStyle _hintStyle;
+        private static GUIStyle _warnStyle;
         private static Texture2D _checkerTex;
 
         private static readonly Color kAccent = new Color(0.26f, 0.59f, 0.98f);
@@ -371,6 +404,12 @@ namespace PixelPerfectTool
             {
                 wordWrap = true,
                 normal = { textColor = new Color(0.6f, 0.6f, 0.6f) }
+            };
+            _warnStyle = new GUIStyle(EditorStyles.miniLabel)
+            {
+                wordWrap = true,
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = new Color(0.95f, 0.35f, 0.35f) }
             };
         }
 
@@ -606,13 +645,26 @@ namespace PixelPerfectTool
             // 最终颜色数量限制（转换后对生成图做颜色量化）
             using (new EditorGUILayout.HorizontalScope())
             {
-                _limitColors = EditorGUILayout.ToggleLeft(new GUIContent("限制最终颜色数", "勾选后，生成图的不同颜色数不超过右侧上限（超出则做颜色量化）"), _limitColors, GUILayout.Width(140));
+                _limitColors = EditorGUILayout.ToggleLeft(new GUIContent("限制最终颜色数", "勾选后，生成图的不同颜色数按右侧上限做颜色量化"), _limitColors, GUILayout.Width(120));
                 using (new EditorGUI.DisabledScope(!_limitColors))
                 {
-                    _maxColors = Mathf.Clamp(EditorGUILayout.IntField(_maxColors, GUILayout.Width(60)), 1, 256);
-                    EditorGUILayout.LabelField("种颜色上限 (1~256)", _hintStyle);
+                    _maxColors = Mathf.Clamp(EditorGUILayout.IntField(_maxColors, GUILayout.Width(48)), 1, 256);
+                    _colorLimitMode = (ColorLimitMode)EditorGUILayout.Popup((int)_colorLimitMode,
+                        new[] { "种以下(上限)", "种固定(精确)" }, GUILayout.Width(110));
                 }
+                // 源图颜色数（载入时已缓存，仅读显示，不每帧重算）
+                GUILayout.FlexibleSpace();
+                if (_srcColorCountExact >= 0)
+                    EditorGUILayout.LabelField(
+                        new GUIContent($"原图色数：近似 {_srcColorCountApprox} / 精确 {_srcColorCountExact}",
+                            "近似=每通道量化到 32 级合并相近色后的色数(可作为上限参考)；精确=完全不同的 RGB 色数"),
+                        _hintStyle, GUILayout.Width(210));
             }
+            if (_limitColors)
+                EditorGUILayout.LabelField(_colorLimitMode == ColorLimitMode.AtMost
+                    ? "以下：颜色不超过上限；生成图实际色数少于上限时按实际色数输出。"
+                    : "固定：颜色超过上限时精确削到该数量；原图色数不足时无法造色，仍按实际输出。",
+                    _hintStyle);
 
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -625,6 +677,8 @@ namespace PixelPerfectTool
                 }
             }
             EndCard();
+
+            DrawStep2AutoDetect();
 
             BeginCard("源图定位预览（在画布内拖拽移动源图）");
             DrawStep2Preview();
@@ -726,6 +780,44 @@ namespace PixelPerfectTool
                 case ConvMethod.Neighbor: return "向四周外扩 25% 区域后再做平均，边缘过渡更柔和。";
                 default: return "";
             }
+        }
+
+        /// <summary>步骤②智能网格检测卡片：Sobel 梯度自动识别网格尺寸并对齐边缘，免手动拖拽定位。</summary>
+        private void DrawStep2AutoDetect()
+        {
+            BeginCard("智能网格检测（perfectPixel 移植）");
+            EditorGUILayout.LabelField("⚠ 仅适用于“已经是像素图的大图”修正——检测的是现成像素块的网格边界；对非像素风格的普通图片无效。", _warnStyle);
+            EditorGUILayout.LabelField("基于 Sobel 梯度自动识别网格尺寸并把网格线对齐到真实像素块边缘，无需手动拖拽定位。", _hintStyle);
+
+            _autoUseRefine = EditorGUILayout.ToggleLeft(
+                new GUIContent("边缘对齐(refine)", "用 Sobel 梯度把每条网格线吸附到真实像素块边缘；关闭则按检测尺寸均匀切分"),
+                _autoUseRefine);
+            using (new EditorGUI.DisabledScope(!_autoUseRefine))
+            {
+                _refineIntensity = EditorGUILayout.Slider(
+                    new GUIContent("对齐强度", "网格线吸附搜索范围占格宽的比例(0~0.5)，越大允许偏移越多"),
+                    _refineIntensity, 0f, 0.5f);
+            }
+            _autoFixSquare = EditorGUILayout.ToggleLeft(
+                new GUIContent("近正方形强制正方", "当检测结果长宽仅差 1 时补/裁一行一列使其为正方形"),
+                _autoFixSquare);
+
+            EditorGUILayout.LabelField("采样沿用上方“取色算法”。检测失败时可回退手动模式。", _hintStyle);
+
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                if (GUILayout.Button("仅检测网格尺寸"))
+                    AutoDetectGridSizeOnly();
+                Color prev = GUI.backgroundColor;
+                GUI.backgroundColor = kGenColor;
+                if (GUILayout.Button("智能一键转换 → 步骤③"))
+                    AutoDetectAndConvert();
+                GUI.backgroundColor = prev;
+            }
+
+            if (!string.IsNullOrEmpty(_autoMessage))
+                EditorGUILayout.HelpBox(_autoMessage, MessageType.Info);
+            EndCard();
         }
 
         #endregion
@@ -2216,6 +2308,32 @@ namespace PixelPerfectTool
                     disp[(h - 1 - y) * w + x] = topDown[y * w + x];
             _srcDisplayTex.SetPixels32(disp);
             _srcDisplayTex.Apply();
+
+            // 载入时统计一次源图颜色数并缓存，供步骤② UI 显示（避免每帧 OnGUI 重算，性能优化）
+            ComputeSourceColorStats();
+        }
+
+        /// <summary>
+        /// 统计源图不同颜色数并缓存：精确色数(按 RGB) 与近似色数(每通道量化到 32 级，合并抗锯齿/渐变相近色)。
+        /// 仅在 LoadSource 时调用一次；全透明像素不计入。
+        /// </summary>
+        private void ComputeSourceColorStats()
+        {
+            _srcColorCountExact = -1;
+            _srcColorCountApprox = -1;
+            if (_srcTopDown == null) return;
+            var exact = new HashSet<int>();
+            var approx = new HashSet<int>();
+            for (int k = 0; k < _srcTopDown.Length; k++)
+            {
+                Color32 c = _srcTopDown[k];
+                if (c.a == 0) continue; // 透明像素不计入颜色统计
+                exact.Add((c.r << 16) | (c.g << 8) | c.b);
+                // 每通道右移 3 位(保留高 5 位=32 级)，把抗锯齿/渐变产生的相近色并到同一近似色
+                approx.Add(((c.r >> 3) << 10) | ((c.g >> 3) << 5) | (c.b >> 3));
+            }
+            _srcColorCountExact = exact.Count;
+            _srcColorCountApprox = approx.Count;
         }
 
         /// <summary>重置全部状态并回到步骤①。</summary>
@@ -2228,7 +2346,9 @@ namespace PixelPerfectTool
             _srcTopDown = null; _srcW = _srcH = 0;
             _previewCellSize = 4; _zoomPercent = 100f; _imageScale = 1f; _offsetX = _offsetY = 0f;
             _method = ConvMethod.Most;
-            _similarityThreshold = kDefaultSimilarityThreshold; _limitColors = false; _maxColors = 16;
+            _similarityThreshold = kDefaultSimilarityThreshold; _limitColors = false; _maxColors = 16; _colorLimitMode = ColorLimitMode.AtMost;
+            _srcColorCountExact = _srcColorCountApprox = -1;
+            _autoUseRefine = true; _refineIntensity = 0.25f; _autoFixSquare = true; _autoMessage = "";
             _pixels = null;
             if (_artTex != null) { DestroyImmediate(_artTex); _artTex = null; }
             _canvasZoom = 1; _resultZoom = 6; _resultScroll = Vector2.zero;
@@ -2297,7 +2417,7 @@ namespace PixelPerfectTool
 
             // 限制最终颜色数量：超出上限则对生成图做颜色量化
             if (_limitColors)
-                QuantizeToMaxColors(_maxColors);
+                QuantizeToMaxColors(_maxColors, _colorLimitMode);
         }
 
         /// <summary>
@@ -2305,7 +2425,7 @@ namespace PixelPerfectTool
         /// 频率加权最远点采样选初始代表色 → K-means 精化（代表色取簇内最常用色）→ 每个像素映射到最近代表色。
         /// 透明像素保持透明。
         /// </summary>
-        private void QuantizeToMaxColors(int maxColors)
+        private void QuantizeToMaxColors(int maxColors, ColorLimitMode mode)
         {
             if (_pixels == null || maxColors < 1) return;
 
@@ -2389,6 +2509,25 @@ namespace PixelPerfectTool
                 }
                 for (int s = 0; s < kc; s++) if (hasMember[s]) centers[s] = newCenters[s];
                 if (!changed && iter > 0) break;
+            }
+
+            // 3.5 固定模式：若有空簇致代表色不足 kc，用"当前量化误差最大的元色"补成新代表色，尽量凑满 kc 种（色数不足时自然停止）
+            if (mode == ColorLimitMode.Exact)
+            {
+                bool[] used = new bool[kc];
+                for (int i = 0; i < distinct; i++) used[assign[i]] = true;
+                for (int s = 0; s < kc; s++)
+                {
+                    if (used[s]) continue;
+                    int far = -1; double farD = 0;
+                    for (int i = 0; i < distinct; i++)
+                    {
+                        double d = ColorDistSq(colors[i], centers[assign[i]]);
+                        if (d > farD) { farD = d; far = i; }
+                    }
+                    if (far < 0 || farD <= 0) break; // 色数已用尽，无法再分裂
+                    centers[s] = colors[far]; assign[far] = s; used[s] = true;
+                }
             }
 
             // 4. 把每个非透明像素映射到最近的代表色
@@ -2569,6 +2708,353 @@ namespace PixelPerfectTool
             public float repR, repG, repB;
             public float totalWeight;
             public float sumR, sumG, sumB;
+        }
+
+        #endregion
+
+        #region 智能网格检测 - perfectPixel 移植（Sobel 梯度）
+
+        // 移植自 https://github.com/theamusing/perfectPixel 的纯 numpy 后端 perfect_pixel_noCV2.py。
+        // 原实现主检测器为 FFT 频谱分析、梯度法为回退；本移植采用梯度法(estimate_grid_gradient)作为主检测器，
+        // 免去在 C# 手写 2D-FFT 的复杂度与正确性风险（FFT 主检测器可作为后续增强）；
+        // refine_grids / find_best_grid / 采样与 fix_square 逻辑忠实移植，采样复用本工具已有的 5 种取色算法。
+
+        /// <summary>仅检测网格尺寸并填入 _gridWidth/_gridHeight + 居中适配预览，供用户核对或手动微调后再转换。</summary>
+        private void AutoDetectGridSizeOnly()
+        {
+            if (_srcTopDown == null) { _autoMessage = "尚未载入源图。"; return; }
+            if (!DetectGridScale(out int gw, out int gh))
+            {
+                _autoMessage = "检测失败：未找到规则网格（梯度峰值不足）。请手动设置网格尺寸。";
+                return;
+            }
+            _gridWidth = Mathf.Clamp(gw, 1, kMaxImageSize);
+            _gridHeight = Mathf.Clamp(gh, 1, kMaxImageSize);
+            RefitImage();
+            _autoMessage = $"检测到网格 {_gridWidth}×{_gridHeight}，已填入并居中适配。可微调后手动转换，或点“智能一键转换”。";
+        }
+
+        /// <summary>一键：检测尺寸 →（可选）Sobel 边缘对齐 refine → 采样生成像素图 → 进入步骤③。</summary>
+        private void AutoDetectAndConvert()
+        {
+            if (_srcTopDown == null) { _autoMessage = "尚未载入源图。"; return; }
+            if (!DetectGridScale(out int gw, out int gh))
+            {
+                _autoMessage = "检测失败：未找到规则网格（梯度峰值不足）。请手动设置网格尺寸后转换。";
+                return;
+            }
+
+            List<int> xs, ys;
+            if (_autoUseRefine)
+                RefineGrids(gw, gh, _refineIntensity, out xs, out ys);
+            else
+                BuildUniformGrid(gw, gh, out xs, out ys);
+
+            if (xs.Count < 2 || ys.Count < 2)
+            {
+                _autoMessage = "检测到网格但网格线对齐失败，请改用手动模式。";
+                return;
+            }
+
+            ConvertByCoords(xs, ys);
+            _autoMessage = $"完成：检测 {gw}×{gh} → 输出 {_gridWidth}×{_gridHeight}。";
+            EnterStep3();
+        }
+
+        /// <summary>梯度法检测网格尺寸（格子数）。对应 detect_grid_scale 的梯度分支。返回 false 表示检测失败。</summary>
+        private bool DetectGridScale(out int gridW, out int gridH)
+        {
+            gridW = gridH = 0;
+            int W = _srcW, H = _srcH;
+            if (W < 8 || H < 8) return false;
+
+            float[] gray = RgbToGray(_srcTopDown, W, H);
+            SobelAbsProjections(gray, W, H, out float[] gxSum, out float[] gySum);
+            if (!EstimateGridGradient(gxSum, gySum, W, H, 0.2f, 4, out int gw, out int gh))
+                return false;
+
+            // 由检测尺寸推像素块边长，再回推格子数：对齐长宽比、稳定结果（对应原逻辑）。
+            double pxX = (double)W / gw, pxY = (double)H / gh;
+            const double maxRatio = 1.5;
+            double pixelSize = (pxX / pxY > maxRatio || pxY / pxX > maxRatio)
+                ? Math.Min(pxX, pxY)
+                : (pxX + pxY) * 0.5;
+            if (pixelSize < 1e-6) return false;
+
+            gridW = (int)Math.Round(W / pixelSize);
+            gridH = (int)Math.Round(H / pixelSize);
+            return gridW >= 1 && gridH >= 1;
+        }
+
+        /// <summary>梯度法估计网格尺寸：找梯度投影峰 → 峰间距中位数 → 尺寸/中位间距。峰不足 4 返回 false。</summary>
+        private static bool EstimateGridGradient(float[] gxSum, float[] gySum, int W, int H, float relThr, int minInterval, out int gridW, out int gridH)
+        {
+            gridW = gridH = 0;
+            List<int> px = FindProjectionPeaks(gxSum, relThr, minInterval);
+            List<int> py = FindProjectionPeaks(gySum, relThr, minInterval);
+            if (px.Count < 4 || py.Count < 4) return false;
+
+            double mx = MedianInterval(px), my = MedianInterval(py);
+            if (mx < 1e-6 || my < 1e-6) return false;
+
+            gridW = (int)Math.Round(W / mx);
+            gridH = (int)Math.Round(H / my);
+            return gridW >= 1 && gridH >= 1;
+        }
+
+        /// <summary>在一维梯度投影里找局部峰：值大于左右邻且 ≥ relThr×峰值，且与上个峰间隔 ≥ minInterval。</summary>
+        private static List<int> FindProjectionPeaks(float[] v, float relThr, int minInterval)
+        {
+            var peaks = new List<int>();
+            float mx = 0f;
+            for (int i = 0; i < v.Length; i++) if (v[i] > mx) mx = v[i];
+            float thr = relThr * mx;
+            for (int i = 1; i < v.Length - 1; i++)
+            {
+                if (v[i] > v[i - 1] && v[i] > v[i + 1] && v[i] >= thr)
+                {
+                    if (peaks.Count == 0 || i - peaks[peaks.Count - 1] >= minInterval)
+                        peaks.Add(i);
+                }
+            }
+            return peaks;
+        }
+
+        /// <summary>相邻峰间距的中位数（空返回 0）。</summary>
+        private static double MedianInterval(List<int> peaks)
+        {
+            var iv = new List<int>();
+            for (int i = 1; i < peaks.Count; i++) iv.Add(peaks[i] - peaks[i - 1]);
+            if (iv.Count == 0) return 0;
+            iv.Sort();
+            int m = iv.Count / 2;
+            return (iv.Count % 2 == 1) ? iv[m] : (iv[m - 1] + iv[m]) / 2.0;
+        }
+
+        /// <summary>Sobel 边缘对齐：从中心向两侧按格宽步进，每条网格线用 find_best_grid 吸附到梯度峰，输出排序去重后的网格线坐标（源图空间）。</summary>
+        private void RefineGrids(int gridX, int gridY, float intensity, out List<int> xs, out List<int> ys)
+        {
+            int W = _srcW, H = _srcH;
+            float[] gray = RgbToGray(_srcTopDown, W, H);
+            SobelAbsProjections(gray, W, H, out float[] gxSum, out float[] gySum);
+            double cellW = (double)W / gridX, cellH = (double)H / gridY;
+            double range = intensity;
+            xs = new List<int>();
+            ys = new List<int>();
+
+            int guardX = gridX + gridY + 16, guardY = guardX;
+
+            // X 正向：中心向右
+            double x = FindBestGrid(W / 2.0, cellW, cellW, gxSum);
+            int guard = 0;
+            while (x < W + cellW / 2.0 && guard++ < guardX)
+            {
+                x = FindBestGrid(x, cellW * range, cellW * range, gxSum);
+                xs.Add((int)Math.Round(x));
+                x += cellW;
+            }
+            // X 负向：中心向左
+            x = FindBestGrid(W / 2.0, cellW, cellW, gxSum) - cellW;
+            guard = 0;
+            while (x > -cellW / 2.0 && guard++ < guardX)
+            {
+                x = FindBestGrid(x, cellW * range, cellW * range, gxSum);
+                xs.Add((int)Math.Round(x));
+                x -= cellW;
+            }
+            // Y 正向：中心向下
+            double y = FindBestGrid(H / 2.0, cellH, cellH, gySum);
+            guard = 0;
+            while (y < H + cellH / 2.0 && guard++ < guardY)
+            {
+                y = FindBestGrid(y, cellH * range, cellH * range, gySum);
+                ys.Add((int)Math.Round(y));
+                y += cellH;
+            }
+            // Y 负向：中心向上
+            y = FindBestGrid(H / 2.0, cellH, cellH, gySum) - cellH;
+            guard = 0;
+            while (y > -cellH / 2.0 && guard++ < guardY)
+            {
+                y = FindBestGrid(y, cellH * range, cellH * range, gySum);
+                ys.Add((int)Math.Round(y));
+                y -= cellH;
+            }
+
+            xs.Sort();
+            ys.Sort();
+            DedupSortedCoords(xs);
+            DedupSortedCoords(ys);
+        }
+
+        /// <summary>在 [origin-rangeMin, origin+rangeMax] 内找梯度最强的局部峰作为网格线位置；无峰则返回 round(origin)。对应 find_best_grid(thr=0)。</summary>
+        private static int FindBestGrid(double origin, double rangeMin, double rangeMax, float[] grad)
+        {
+            int best = (int)Math.Round(origin);
+            float mx = 0f;
+            for (int i = 0; i < grad.Length; i++) if (grad[i] > mx) mx = grad[i];
+            if (mx < 1e-6f) return best;
+
+            int lo = -(int)Math.Round(rangeMin), hi = (int)Math.Round(rangeMax);
+            float bestVal = -1f;
+            for (int i = lo; i <= hi; i++)
+            {
+                int cand = (int)Math.Round(origin + i);
+                if (cand <= 0 || cand >= grad.Length - 1) continue;
+                if (grad[cand] > grad[cand - 1] && grad[cand] > grad[cand + 1])
+                {
+                    if (grad[cand] > bestVal) { bestVal = grad[cand]; best = cand; }
+                }
+            }
+            return best;
+        }
+
+        /// <summary>不做 refine 时按检测尺寸生成均匀网格线（源图空间）。</summary>
+        private void BuildUniformGrid(int gridX, int gridY, out List<int> xs, out List<int> ys)
+        {
+            xs = new List<int>();
+            ys = new List<int>();
+            for (int i = 0; i <= gridX; i++) xs.Add((int)Math.Round((double)_srcW * i / gridX));
+            for (int j = 0; j <= gridY; j++) ys.Add((int)Math.Round((double)_srcH * j / gridY));
+        }
+
+        /// <summary>按给定网格线坐标（源图空间）逐格采样生成 _pixels，并同步 _gridWidth/_gridHeight；支持 fix_square 与颜色数量限制。</summary>
+        private void ConvertByCoords(List<int> xs, List<int> ys)
+        {
+            int nx = xs.Count - 1, ny = ys.Count - 1;
+            Color32[] outPix = new Color32[nx * ny];
+            for (int k = 0; k < outPix.Length; k++) outPix[k] = kTransparent;
+
+            for (int j = 0; j < ny; j++)
+            {
+                int y0 = Mathf.Clamp(ys[j], 0, _srcH), y1 = Mathf.Clamp(ys[j + 1], 0, _srcH);
+                if (y1 <= y0) y1 = Mathf.Min(y0 + 1, _srcH);
+                for (int i = 0; i < nx; i++)
+                {
+                    int x0 = Mathf.Clamp(xs[i], 0, _srcW), x1 = Mathf.Clamp(xs[i + 1], 0, _srcW);
+                    if (x1 <= x0) x1 = Mathf.Min(x0 + 1, _srcW);
+                    if (SampleSourceRect(x0, y0, x1, y1, out Color32 c))
+                        outPix[j * nx + i] = c;
+                }
+            }
+
+            if (_autoFixSquare && Math.Abs(nx - ny) == 1)
+                FixSquare(ref outPix, ref nx, ref ny);
+
+            _gridWidth = nx;
+            _gridHeight = ny;
+            _pixels = outPix;
+            if (_limitColors) QuantizeToMaxColors(_maxColors, _colorLimitMode);
+        }
+
+        /// <summary>按当前取色算法对一个源图矩形采样（复用 Convert 的采样器）；邻域算法四周外扩 25%。</summary>
+        private bool SampleSourceRect(int x0, int y0, int x1, int y1, out Color32 result)
+        {
+            if (_method == ConvMethod.Neighbor)
+            {
+                int mx = Mathf.RoundToInt((x1 - x0) * 0.25f), my = Mathf.RoundToInt((y1 - y0) * 0.25f);
+                x0 = Mathf.Max(0, x0 - mx); y0 = Mathf.Max(0, y0 - my);
+                x1 = Mathf.Min(_srcW, x1 + mx); y1 = Mathf.Min(_srcH, y1 + my);
+            }
+            if (_method == ConvMethod.Average || _method == ConvMethod.Neighbor)
+                return SampleAverage(x0, y0, x1, y1, out result);
+            if (_method == ConvMethod.Most)
+                return SampleMostUsed(x0, y0, x1, y1, out result);
+            return SampleWeighted(x0, y0, x1, y1, _method, out result);
+        }
+
+        /// <summary>近正方形强制正方（对应原工具 fix_square）：长宽仅差 1 时按奇偶裁末列/末行或复制首行/首列补齐。</summary>
+        private static void FixSquare(ref Color32[] pix, ref int nx, ref int ny)
+        {
+            if (nx > ny)
+            {
+                if (nx % 2 == 1) // 裁掉最后一列
+                {
+                    int nnx = nx - 1;
+                    var np = new Color32[nnx * ny];
+                    for (int j = 0; j < ny; j++)
+                        for (int i = 0; i < nnx; i++) np[j * nnx + i] = pix[j * nx + i];
+                    pix = np; nx = nnx;
+                }
+                else // 顶部复制首行补一行
+                {
+                    int nny = ny + 1;
+                    var np = new Color32[nx * nny];
+                    for (int i = 0; i < nx; i++) np[i] = pix[i];
+                    for (int j = 0; j < ny; j++)
+                        for (int i = 0; i < nx; i++) np[(j + 1) * nx + i] = pix[j * nx + i];
+                    pix = np; ny = nny;
+                }
+            }
+            else // ny > nx
+            {
+                if (ny % 2 == 1) // 裁掉最后一行
+                {
+                    int nny = ny - 1;
+                    var np = new Color32[nx * nny];
+                    for (int j = 0; j < nny; j++)
+                        for (int i = 0; i < nx; i++) np[j * nx + i] = pix[j * nx + i];
+                    pix = np; ny = nny;
+                }
+                else // 左侧复制首列补一列
+                {
+                    int nnx = nx + 1;
+                    var np = new Color32[nnx * ny];
+                    for (int j = 0; j < ny; j++)
+                    {
+                        np[j * nnx] = pix[j * nx];
+                        for (int i = 0; i < nx; i++) np[j * nnx + (i + 1)] = pix[j * nx + i];
+                    }
+                    pix = np; nx = nnx;
+                }
+            }
+        }
+
+        /// <summary>已排序坐标去除相邻重复项（吸附到同一峰会产生重复网格线，避免出现零宽格子）。</summary>
+        private static void DedupSortedCoords(List<int> c)
+        {
+            for (int i = c.Count - 1; i > 0; i--)
+                if (c[i] == c[i - 1]) c.RemoveAt(i);
+        }
+
+        /// <summary>源图（自上而下）转灰度：0.299R+0.587G+0.114B，忽略透明。</summary>
+        private static float[] RgbToGray(Color32[] src, int w, int h)
+        {
+            float[] g = new float[w * h];
+            for (int i = 0; i < g.Length; i++)
+            {
+                Color32 c = src[i];
+                g[i] = 0.299f * c.r + 0.587f * c.g + 0.114f * c.b;
+            }
+            return g;
+        }
+
+        /// <summary>3×3 Sobel 卷积（边缘 clamp），输出按列求和的 |gx|（长 W）与按行求和的 |gy|（长 H），用于网格线检测。</summary>
+        private static void SobelAbsProjections(float[] gray, int w, int h, out float[] gxSum, out float[] gySum)
+        {
+            gxSum = new float[w];
+            gySum = new float[h];
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    float p00 = Gp(gray, w, h, x - 1, y - 1), p01 = Gp(gray, w, h, x, y - 1), p02 = Gp(gray, w, h, x + 1, y - 1);
+                    float p10 = Gp(gray, w, h, x - 1, y), p12 = Gp(gray, w, h, x + 1, y);
+                    float p20 = Gp(gray, w, h, x - 1, y + 1), p21 = Gp(gray, w, h, x, y + 1), p22 = Gp(gray, w, h, x + 1, y + 1);
+                    float gx = (-p00 + p02) + (-2f * p10 + 2f * p12) + (-p20 + p22);
+                    float gy = (-p00 - 2f * p01 - p02) + (p20 + 2f * p21 + p22);
+                    gxSum[x] += Mathf.Abs(gx);
+                    gySum[y] += Mathf.Abs(gy);
+                }
+            }
+        }
+
+        /// <summary>灰度取样（越界 clamp 到边缘），供 Sobel 卷积用。</summary>
+        private static float Gp(float[] g, int w, int h, int x, int y)
+        {
+            if (x < 0) x = 0; else if (x >= w) x = w - 1;
+            if (y < 0) y = 0; else if (y >= h) y = h - 1;
+            return g[y * w + x];
         }
 
         #endregion

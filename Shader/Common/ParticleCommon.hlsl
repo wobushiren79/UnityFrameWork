@@ -7,22 +7,28 @@
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
+// Alpha 扩张描边通用函数(ApplyAlphaOutline)，供各粒子 shader 复用
+#include "Outline.hlsl"
 
 TEXTURE2D(_BaseMap);
 SAMPLER(sampler_BaseMap);
 
-// 公共材质字段(贴图ST/染色/裁剪/柔和粒子+相机淡出参数/整体偏移)。
+// 公共材质字段(贴图ST+纹素尺寸/染色/裁剪/柔和粒子+相机淡出参数/整体偏移/描边)。
 // 由引用方的 CBUFFER 在块首展开，其后紧跟该 shader 特有字段，
 // 保证全部 material uniform 仍在同一 UnityPerMaterial 块内(SRP Batcher 兼容)。
+// _BaseMap_TexelSize 由 Unity 按所赋贴图自动填充，放在 UnityPerMaterial 内保持 SRP Batcher 兼容。
 #define PARTICLE_COMMON_CBUFFER \
     float4 _BaseMap_ST; \
+    float4 _BaseMap_TexelSize; \
     half4  _BaseColor; \
     half   _Cutoff; \
     float  _SoftParticleNearFade; \
     float  _SoftParticleFarFade; \
     float  _CameraNearFade; \
     float  _CameraFarFade; \
-    float4 _PositionOffset;
+    float4 _PositionOffset; \
+    half4  _OutlineColor; \
+    half   _OutlineSize;
 
 // 粒子淡出系数：柔和粒子(与场景深度相交淡出) * 相机近距离淡出，未开启对应开关时返回 1。
 // 参数化设计(不直接引用全局 uniform)，便于被各 shader 复用。
