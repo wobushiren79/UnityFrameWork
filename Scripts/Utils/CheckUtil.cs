@@ -38,6 +38,9 @@ public class CheckUtil {
     /// <returns></returns>
     public static bool CheckIsPointerUI()
     {
+        //无活跃 EventSystem 时无法判断，视为未点到 UI，避免空引用
+        if (EventSystem.current == null)
+            return false;
         //点击到了UI
         if (Application.platform == RuntimePlatform.Android || Application.platform == RuntimePlatform.IPhonePlayer)
         {

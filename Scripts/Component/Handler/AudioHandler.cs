@@ -247,6 +247,8 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
         public int token;
         //加载回调到达前若被停止则置 true，回调据此丢弃
         public bool canceled;
+        //播放速率/音调：1=原速，2=加快一倍（同时升调），供走路等需要变速的循环音效使用
+        public float pitch = 1f;
     }
     //活跃连续音效：key=音频id（含加载中）
     protected Dictionary<long, LoopSoundEntry> dicLoopActive = new Dictionary<long, LoopSoundEntry>();
@@ -256,25 +258,19 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     protected List<long> listLoopPaused = new List<long>();
 
     /// <summary>
-    /// 播放连续音效（按 id 单路循环，默认音量为音效音量 soundVolume）。
-    /// 同一 id 已在播（含加载中）则忽略，避免重复起源。
+    /// 播放连续音效（按 id 单路循环）。同一 id 已在播（含加载中）则忽略，避免重复起源。
+    /// 最终音量 = volumeScale × 配置 volume_scale。
     /// </summary>
     /// <param name="loopId">音频 id（复用普通音频配置，按其 audio_type 定位资源）</param>
-    public void PlayLoopSound(long loopId)
-    {
-        GameConfigBean gameConfig = GameDataHandler.Instance.manager.GetGameConfig();
-        PlayLoopSound(loopId, gameConfig.soundVolume);
-    }
-
-    /// <summary>
-    /// 播放连续音效（指定基础音量）。最终音量 = volumeScale × 配置 volume_scale。
-    /// </summary>
-    /// <param name="loopId">音频 id</param>
-    /// <param name="volumeScale">基础音量（通常传音效音量 soundVolume）</param>
-    public void PlayLoopSound(long loopId, float volumeScale)
+    /// <param name="volumeScale">基础音量；&lt;0 时取音效音量 soundVolume（默认行为）</param>
+    /// <param name="pitch">播放速率/音调，1=原速，2=加快一倍（同时升调）</param>
+    public void PlayLoopSound(long loopId, float volumeScale = -1f, float pitch = 1f)
     {
         if (loopId == 0)
             return;
+        //音量缺省(<0)时取音效音量 soundVolume
+        if (volumeScale < 0f)
+            volumeScale = GameDataHandler.Instance.manager.GetGameConfig().soundVolume;
         //去重：同 id 已活跃（播放中或加载中）直接返回
         if (dicLoopActive.ContainsKey(loopId))
             return;
@@ -287,7 +283,7 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
         //配置 volume_scale：0 或空视为 1（不缩放）
         float configScale = audioInfo.volume_scale > 0 ? audioInfo.volume_scale : 1f;
         int token = ++loopTokenSeed;
-        LoopSoundEntry entry = new LoopSoundEntry { source = null, volumeScale = configScale, token = token, canceled = false };
+        LoopSoundEntry entry = new LoopSoundEntry { source = null, volumeScale = configScale, token = token, canceled = false, pitch = pitch };
         dicLoopActive[loopId] = entry;
         //复用现有按 audio_type 的加载路由：走路声(audio_type=0)从 Audio/Sound/ 取 clip
         manager.LoadClipDataByAddressbles((AuidoTypeEnum)audioInfo.audio_type, audioInfo.name_res, (audioClip) =>
@@ -311,6 +307,7 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
             source.clip = audioClip;
             source.loop = true;
             source.volume = volumeScale * configScale;
+            source.pitch = entry.pitch;
             source.Play();
             entry.source = source;
         });

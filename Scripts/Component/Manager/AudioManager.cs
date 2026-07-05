@@ -219,6 +219,8 @@ public partial class AudioManager : BaseManager
         source.Stop();
         source.clip = null;
         source.loop = false;
+        //复位播放速率，避免上一个变速循环音效(如加速走路声)污染下次复用
+        source.pitch = 1f;
         source.gameObject.SetActive(false);
         queueLoopSourceIdle.Enqueue(source);
     }
