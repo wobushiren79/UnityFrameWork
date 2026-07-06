@@ -10,11 +10,19 @@
 //    - 岸边泡沫线 (基于场景深度, 无需贴图)
 //  提示: 网格面数越少棱面感越强; 建议用较稀疏的 Plane 网格。
 //  前置: URP Asset 开启 Depth Texture (用于岸边泡沫与软融)
+//  波纹尺寸: 波纹在世界空间采样, 尺寸恒为固定的世界尺寸, 与 mesh 的 Transform/父级缩放
+//        完全无关 —— 无论把水面放大多少倍, 波纹都不会被拉大。_EffectScale 仅作波纹密度
+//        微调(越大波越密/越小, 默认 1)。泡沫/水深等岸边效果同样为绝对世界尺寸。
+//        注意: 波纹是逐顶点位移, 低模网格放大后顶点稀疏会使波纹采样不足而变淡/消失,
+//        大面积水面请改用细分较密的平面网格(而非放大内置低模网格)。
 // =============================================================================
-Shader "URP/Shader_Water_LowPoly"
+Shader "FrameWork/URP/WaterLowPoly"
 {
     Properties
     {
+        [Header(Density)]
+        _EffectScale    ("波纹密度 (固定世界尺寸,与缩放无关,默认1)", Float)  = 1.0
+
         [Header(Colors)]
         _CrestColor     ("波峰颜色 (亮)", Color)          = (0.4, 0.8, 0.9, 0.85)
         _TroughColor    ("波谷颜色 (暗)", Color)          = (0.05, 0.35, 0.55, 0.95)
@@ -32,6 +40,7 @@ Shader "URP/Shader_Water_LowPoly"
         _SpecularStrength ("太阳高光强度", Range(0, 8))   = 1.5
         _SpecularColor    ("高光颜色", Color)             = (1, 1, 1, 1)
         _AmbientBoost     ("环境亮度补偿", Range(0, 2))   = 0.3
+        _ShadowStrength   ("阴影强度 (0=不受阴影)", Range(0, 1)) = 1.0
 
         [Header(Shore Foam)]
         _FoamColor      ("泡沫颜色", Color)               = (1, 1, 1, 1)
@@ -70,6 +79,7 @@ Shader "URP/Shader_Water_LowPoly"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
+            #include "../Effect/Water/WaterWave.hlsl"
 
             struct Attributes
             {
@@ -86,6 +96,7 @@ Shader "URP/Shader_Water_LowPoly"
             };
 
             CBUFFER_START(UnityPerMaterial)
+                float  _EffectScale;
                 float4 _CrestColor;
                 float4 _TroughColor;
                 float  _ColorBlend;
@@ -98,29 +109,22 @@ Shader "URP/Shader_Water_LowPoly"
                 float  _SpecularStrength;
                 float4 _SpecularColor;
                 float  _AmbientBoost;
+                float  _ShadowStrength;
                 float4 _FoamColor;
                 float  _FoamDistance;
                 float  _EdgeFade;
             CBUFFER_END
 
-            // 多正弦波叠加高度 (-1..1 大致范围)
-            float WaveHeight(float2 pos)
-            {
-                float t = _Time.y * _WaveSpeed;
-                float s = _WaveScale;
-                float h = 0;
-                h += sin(dot(pos, float2( 1.0, 0.4)) * s + t)         * 0.5;
-                h += sin(dot(pos, float2(-0.6, 1.0)) * s * 1.3 + t*1.2) * 0.3;
-                h += sin(dot(pos, float2( 0.3,-0.8)) * s * 0.7 + t*0.8) * 0.2;
-                return h;
-            }
+            // 波形函数抽到 Effect/Water/WaterWave.hlsl 共用 (WaterWaveHeight 返回原始幅度高度)
 
             Varyings vert(Attributes input)
             {
                 Varyings o = (Varyings)0;
                 float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
 
-                float h = WaveHeight(positionWS.xz);
+                // 波纹在世界空间采样 => 波长恒为固定世界尺寸, 与 Transform/父级缩放完全无关,
+                // 缩放 mesh 波纹绝不被拉大 (positionWS 已含全部缩放)。_EffectScale 仅作密度微调。
+                float h = WaterWaveHeight(positionWS.xz * _EffectScale, _WaveSpeed, _WaveScale);
                 positionWS.y += h * _WaveHeight;
 
                 o.positionWS = positionWS;
@@ -146,10 +150,12 @@ Shader "URP/Shader_Water_LowPoly"
                 float crest = saturate(input.waveHeight * _ColorBlend * 0.5 + 0.5);
                 half4 waterColor = lerp(_TroughColor, _CrestColor, crest);
 
-                // === 主光漫反射 (棱面感来源) ===
-                Light mainLight = GetMainLight();
+                // === 主光漫反射 (棱面感来源) + 阴影 ===
+                // 透明物走逐片元阴影坐标; shadowFactor 按 _ShadowStrength 插值受阴影程度
+                Light mainLight = GetMainLight(TransformWorldToShadowCoord(input.positionWS));
+                float shadowFactor = lerp(1.0, mainLight.shadowAttenuation, _ShadowStrength);
                 float NdotL = saturate(dot(normalWS, mainLight.direction));
-                float3 diffuse = waterColor.rgb * (NdotL * mainLight.color * mainLight.shadowAttenuation + _AmbientBoost);
+                float3 diffuse = waterColor.rgb * (NdotL * mainLight.color * shadowFactor + _AmbientBoost);
 
                 // === 反射 + 菲涅尔 ===
                 float3 reflectDir = reflect(-viewDirWS, normalWS);
@@ -162,7 +168,7 @@ Shader "URP/Shader_Water_LowPoly"
                 float3 halfVec = normalize(mainLight.direction + viewDirWS);
                 float NdotH = saturate(dot(normalWS, halfVec));
                 float spec = pow(NdotH, exp2(_Smoothness * 11.0 + 1.0)) * _SpecularStrength;
-                color += _SpecularColor.rgb * spec * mainLight.color;
+                color += _SpecularColor.rgb * spec * mainLight.color * shadowFactor;
 
                 // === 岸边泡沫 (基于场景深度) ===
                 float2 screenUV = input.screenPos.xy / input.screenPos.w;
@@ -170,6 +176,7 @@ Shader "URP/Shader_Water_LowPoly"
                 float  surfEye  = LinearEyeDepth(input.positionCS.z, _ZBufferParams);
                 float  depthDiff = max(sceneEye - surfEye, 0);
 
+                // 泡沫/软融是岸边物理效果, 维持固定世界尺寸 (不随 mesh 缩放)
                 float foam = 1.0 - saturate(depthDiff / max(_FoamDistance, 0.001));
                 foam = smoothstep(0.6, 1.0, foam);
                 color = lerp(color, _FoamColor.rgb, foam);
