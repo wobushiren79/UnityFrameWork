@@ -382,6 +382,93 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     }
     #endregion
 
+    #region 定时淡出音效（一次性播放+末段淡出，借用连续音效池独立音源）
+    /// <summary>
+    /// 播放一段"定时播放 + 末段淡出"的音效：借用连续音效池的独立音源，前 fadeStartTime 秒保持原音量，
+    /// 从 fadeStartTime 到 playDuration 按曲线(默认线性)淡出到 0，到 playDuration 停止并自动回收音源。
+    /// 用于"只取长音效的前一段并平滑收尾"的场景（如 10s 音效只用 5s、第 4s 起淡出）。
+    /// 说明：为一次性播放，不登记到 dicLoopActive，故不参与全局 Pause/Stop/音量刷新，也暂不支持中途打断。
+    /// </summary>
+    /// <param name="soundId">音频 id（复用普通音频配置，按其 audio_type 定位资源）</param>
+    /// <param name="playDuration">总播放时长（秒），到点停止；应 ≤ clip 实际长度</param>
+    /// <param name="fadeStartTime">淡出起始时刻（秒），此前保持原音量；应 ≤ playDuration</param>
+    /// <param name="volumeScale">基础音量；&lt;0 时取音效音量 soundVolume（默认行为）</param>
+    public void PlaySoundTimedFade(long soundId, float playDuration, float fadeStartTime, float volumeScale = -1f)
+    {
+        if (soundId == 0)
+            return;
+        //音量缺省(<0)时取音效音量 soundVolume
+        if (volumeScale < 0f)
+            volumeScale = GameDataHandler.Instance.manager.GetGameConfig().soundVolume;
+        //音量为0直接不播
+        if (volumeScale <= 0f)
+            return;
+        //参数纠偏：淡出起点不早于0、不晚于总时长
+        if (fadeStartTime < 0f)
+            fadeStartTime = 0f;
+        if (fadeStartTime > playDuration)
+            fadeStartTime = playDuration;
+        AudioInfoBean audioInfo = AudioInfoCfg.GetItemData(soundId);
+        if (audioInfo == null)
+        {
+            LogUtil.LogError($"定时淡出音效失败 没有找到ID {soundId} 的音频配置");
+            return;
+        }
+        //配置 volume_scale：0 或空视为 1（不缩放），叠加得最终基础音量
+        float configScale = audioInfo.volume_scale > 0 ? audioInfo.volume_scale : 1f;
+        float baseVolume = volumeScale * configScale;
+        //按 audio_type 复用现有加载路由取 clip
+        manager.LoadClipDataByAddressbles((AuidoTypeEnum)audioInfo.audio_type, audioInfo.name_res, (audioClip) =>
+        {
+            if (audioClip == null)
+            {
+                LogUtil.LogError($"定时淡出音效失败 没有名字为:{audioInfo.name_res} 的音频资源");
+                return;
+            }
+            AudioSource source = manager.DequeueLoopSource();
+            //音源池已满则放弃本次播放
+            if (source == null)
+                return;
+            source.clip = audioClip;
+            source.loop = false;
+            source.volume = baseVolume;
+            source.Play();
+            StartCoroutine(CoroutineForPlayTimedFade(source, baseVolume, playDuration, fadeStartTime));
+        });
+    }
+
+    /// <summary>
+    /// 协程-定时淡出：前 fadeStartTime 秒原音量，之后线性将音量淡到 0，到 playDuration 停止并回收音源。
+    /// </summary>
+    /// <param name="source">播放中的独立音源（来自连续音效池）</param>
+    /// <param name="baseVolume">淡出前的基础音量</param>
+    /// <param name="playDuration">总播放时长（秒）</param>
+    /// <param name="fadeStartTime">淡出起始时刻（秒）</param>
+    IEnumerator CoroutineForPlayTimedFade(AudioSource source, float baseVolume, float playDuration, float fadeStartTime)
+    {
+        //前段：保持原音量直到淡出起点
+        if (fadeStartTime > 0f)
+            yield return new WaitForSeconds(fadeStartTime);
+        //淡出段时长
+        float fadeDuration = playDuration - fadeStartTime;
+        if (fadeDuration > 0f)
+        {
+            float elapsed = 0f;
+            while (elapsed < fadeDuration && source != null)
+            {
+                //归一化进度 0→1，线性淡出音量系数 1→0
+                float progress = elapsed / fadeDuration;
+                source.volume = baseVolume * (1f - progress);
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+        }
+        //到点归还音源到池（内部 Stop + 复位 volume/pitch）
+        if (source != null)
+            manager.RecycleLoopSource(source);
+    }
+    #endregion
+
     #region 停止相关
     /// <summary>
     /// 停止播放
