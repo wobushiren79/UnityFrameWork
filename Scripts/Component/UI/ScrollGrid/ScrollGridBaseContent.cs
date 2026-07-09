@@ -496,68 +496,89 @@ public class ScrollGridBaseContent : BaseMonoBehaviour
     }
 
     /// <summary>
-    /// 滚动过程中，重复利用cell
+    /// 滚动过程中重复利用cell：把滚出视野的cell整页搬到另一端复用。
+    /// 用while按整页反复搬移(而非只搬一页)，以兼容快速拖拽下拉条一次跳过多页的情形——
+    /// 否则cell只搬一页仍在视野外，导致列表空白、道具消失。
     /// </summary>
     protected void OnValueChange(Vector2 pos)
     {
         if (contentType == 0)
         {
+            float pageWidth = (this.col + 1) * this.cellWidth;
             foreach (ScrollGridCell cell in this.cellList)
             {
                 RectTransform cellRect = (RectTransform)cell.transform;
-                float dist = this.scrollRect.content.offsetMin.x + cellRect.anchoredPosition3D.x;
                 float minLeft = -this.cellWidth / 2;
                 float maxRight = this.col * this.cellWidth + this.cellWidth / 2;
-                //限定复用边界
-                if (dist < minLeft)
+                float dist = this.scrollRect.content.offsetMin.x + cellRect.anchoredPosition3D.x;
+                bool moved = false;
+                //滚出左侧：整页右移，直到回到复用窗口内(content右边界兜底防越界)
+                while (dist < minLeft)
                 {
-                    //控制cell的anchoredPosition3D在content的范围内才重复利用。
-                    float newX = cellRect.anchoredPosition3D.x + (this.col + 1) * this.cellWidth;
-                    if (newX < this.scrollRect.content.rect.width)
+                    float newX = cellRect.anchoredPosition3D.x + pageWidth;
+                    if (newX >= this.scrollRect.content.rect.width)
                     {
-                        cellRect.anchoredPosition3D = new Vector3(newX, cellRect.anchoredPosition3D.y, 0);
-                        this.CellUpdate(cell);
+                        break;
                     }
+                    cellRect.anchoredPosition3D = new Vector3(newX, cellRect.anchoredPosition3D.y, 0);
+                    dist = this.scrollRect.content.offsetMin.x + newX;
+                    moved = true;
                 }
-                if (dist > maxRight)
+                //滚出右侧：整页左移，直到回到复用窗口内(content左边界兜底防越界)
+                while (dist > maxRight)
                 {
-                    float newX = cellRect.anchoredPosition3D.x - (this.col + 1) * this.cellWidth;
-                    if (newX > 0)
+                    float newX = cellRect.anchoredPosition3D.x - pageWidth;
+                    if (newX <= 0)
                     {
-                        cellRect.anchoredPosition3D = new Vector3(newX, cellRect.anchoredPosition3D.y, 0);
-                        this.CellUpdate(cell);
+                        break;
                     }
+                    cellRect.anchoredPosition3D = new Vector3(newX, cellRect.anchoredPosition3D.y, 0);
+                    dist = this.scrollRect.content.offsetMin.x + newX;
+                    moved = true;
+                }
+                if (moved)
+                {
+                    this.CellUpdate(cell);
                 }
             }
         }
         else
         {
+            float pageHeight = (this.row + 1) * this.cellHeight;
             foreach (ScrollGridCell cell in this.cellList)
             {
                 RectTransform cellRect = (RectTransform)cell.transform;
-                float dist = this.scrollRect.content.offsetMax.y + cellRect.anchoredPosition3D.y;
                 float maxTop = this.cellHeight / 2;
                 float minBottom = -((this.row + 1) * this.cellHeight) + this.cellHeight / 2;
-                if (dist > maxTop)
+                float dist = this.scrollRect.content.offsetMax.y + cellRect.anchoredPosition3D.y;
+                bool moved = false;
+                //滚出上方：整页下移，直到回到复用窗口内(content下边界兜底防越界)
+                while (dist > maxTop)
                 {
-                    float newY = cellRect.anchoredPosition3D.y - (this.row + 1) * this.cellHeight;
-                    //保证cell的anchoredPosition3D只在content的高的范围内活动，下同理
-                    if (newY > -this.scrollRect.content.rect.height)
+                    float newY = cellRect.anchoredPosition3D.y - pageHeight;
+                    if (newY <= -this.scrollRect.content.rect.height)
                     {
-                        //重复利用cell，重置位置到视野范围内。
-                        cellRect.anchoredPosition3D = new Vector3(cellRect.anchoredPosition3D.x, newY, 0);
-                        this.CellUpdate(cell);
+                        break;
                     }
-
+                    cellRect.anchoredPosition3D = new Vector3(cellRect.anchoredPosition3D.x, newY, 0);
+                    dist = this.scrollRect.content.offsetMax.y + newY;
+                    moved = true;
                 }
-                else if (dist < minBottom)
+                //滚出下方：整页上移，直到回到复用窗口内(content上边界兜底防越界)
+                while (dist < minBottom)
                 {
-                    float newY = cellRect.anchoredPosition3D.y + (this.row + 1) * this.cellHeight;
-                    if (newY < 0)
+                    float newY = cellRect.anchoredPosition3D.y + pageHeight;
+                    if (newY >= 0)
                     {
-                        cellRect.anchoredPosition3D = new Vector3(cellRect.anchoredPosition3D.x, newY, 0);
-                        this.CellUpdate(cell);
+                        break;
                     }
+                    cellRect.anchoredPosition3D = new Vector3(cellRect.anchoredPosition3D.x, newY, 0);
+                    dist = this.scrollRect.content.offsetMax.y + newY;
+                    moved = true;
+                }
+                if (moved)
+                {
+                    this.CellUpdate(cell);
                 }
             }
         }
