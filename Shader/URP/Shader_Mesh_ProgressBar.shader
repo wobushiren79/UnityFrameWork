@@ -2,6 +2,9 @@ Shader "FrameWork/URP/MeshProgressBar"
 {
     Properties
     {
+        [Header(Shape)]
+        [Enum(Bar,0,Radial,1)] _ShapeType ("进度条形状 (0=条形 / 1=圆形)", Float) = 0
+
         [Header(Background)]
         _BgMap ("背景贴图 (进度条底图)", 2D) = "white" {}
         [HDR] _BgColor ("背景颜色", Color) = (0.15, 0.15, 0.15, 1)
@@ -10,11 +13,31 @@ Shader "FrameWork/URP/MeshProgressBar"
         _FillMap ("进度贴图 (随进度填充的图)", 2D) = "white" {}
         [HDR] _FillColor ("进度颜色", Color) = (0.2, 0.9, 0.3, 1)
 
+        [Header(Composite)]
+        [Toggle] _FillShowThrough ("进度独立显示 (开=进度不被背景透明区裁剪 / 关=背景当轮廓蒙版 / 默认开)", Float) = 1
+
         [Header(Progress)]
         _Progress ("当前进度 (0=空 / 1=满)", Range(0, 1)) = 0.5
         [Enum(LeftToRight,0,RightToLeft,1,BottomToTop,2,TopToBottom,3)]
-        _FillDirection ("填充方向 (进度增长方向)", Float) = 0
+        _FillDirection ("条形填充方向 (进度增长方向 / 仅条形)", Float) = 0
         _EdgeSoftness ("填充边缘软化 (0=硬边 / 越大越柔和)", Range(0, 0.2)) = 0.005
+
+        [Header(Radial)]
+        [Enum(Clockwise,0,CounterClockwise,1)]
+        _RadialDirection ("圆形进度方向 (0=顺时针 / 1=逆时针 / 仅圆形)", Float) = 0
+        _RadialStartAngle ("圆形起始角度 (从12点顺时针 单位度 / 仅圆形)", Range(0, 360)) = 0
+
+        [Header(Radial Background Rotate)]
+        [Toggle] _BgRotateEnable ("背景旋转开关 (仅圆形有效 / 默认关闭)", Float) = 0
+        _BgRotateSpeed ("背景旋转速度 (度每秒)", Float) = 60
+        [Enum(Clockwise,0,CounterClockwise,1)]
+        _BgRotateDirection ("背景旋转方向 (0=顺时针 / 1=逆时针)", Float) = 0
+
+        [Header(Radial Fill Rotate)]
+        [Toggle] _FillRotateEnable ("进度旋转开关 (仅圆形有效 / 默认关闭)", Float) = 0
+        _FillRotateSpeed ("进度旋转速度 (度每秒)", Float) = 60
+        [Enum(Clockwise,0,CounterClockwise,1)]
+        _FillRotateDirection ("进度旋转方向 (0=顺时针 / 1=逆时针)", Float) = 0
 
         [Header(Highlight)]
         [Toggle] _HighlightEnable ("开启高光版 (让颜色发光 / 需开 Bloom 后处理)", Float) = 0
@@ -78,6 +101,16 @@ Shader "FrameWork/URP/MeshProgressBar"
                 half   _HighlightEnable;
                 half   _BgHighlight;
                 half   _FillHighlight;
+                half   _ShapeType;
+                half   _RadialDirection;
+                half   _RadialStartAngle;
+                half   _BgRotateEnable;
+                half   _BgRotateSpeed;
+                half   _BgRotateDirection;
+                half   _FillRotateEnable;
+                half   _FillRotateSpeed;
+                half   _FillRotateDirection;
+                half   _FillShowThrough;
             CBUFFER_END
 
             struct Attributes
@@ -107,6 +140,30 @@ Shader "FrameWork/URP/MeshProgressBar"
                 else                           return 1.0 - uv.y;   // 上 → 下
             }
 
+            /// 圆形进度坐标(0~1)：以 UV 中心为圆心, 从12点起按方向绕一圈, 值 <= 进度处视为已填充
+            half GetRadialCoord (float2 uv)
+            {
+                float2 d = uv - 0.5;
+                // atan2(x,y): 0 在正上方(12点), 顺时针增大 → 归一化到 0~1
+                half t = frac(atan2(d.x, d.y) / TWO_PI + 1.0);
+                t = frac(t - _RadialStartAngle / 360.0 + 1.0);     // 起始角度偏移
+                if (_RadialDirection > 0.5) t = frac(1.0 - t);     // 逆时针则反向
+                return t;
+            }
+
+            /// 按时间绕 UV 中心旋转采样坐标(仅圆形且开启时生效), 供背景/进度复用以让贴图转动
+            float2 RotateUVAroundCenter (float2 uv, half enable, half speed, half dir)
+            {
+                if (_ShapeType < 0.5 || enable < 0.5) return uv;
+                // 顺时针为正: 旋转采样坐标(逆时针)使贴图视觉上顺时针转; 用 float 防止时间累积后半精度抖动
+                float dirSign = (dir < 0.5) ? 1.0 : -1.0;
+                float ang = _Time.y * radians(speed) * dirSign;
+                float s, c;
+                sincos(ang, s, c);
+                float2 p = uv - 0.5;
+                return float2(p.x * c - p.y * s, p.x * s + p.y * c) + 0.5;
+            }
+
             Varyings vert (Attributes IN)
             {
                 Varyings OUT = (Varyings)0;
@@ -126,9 +183,11 @@ Shader "FrameWork/URP/MeshProgressBar"
             {
                 UNITY_SETUP_INSTANCE_ID(IN);
 
-                // 背景与进度各自采样自己的贴图(独立 Tiling/Offset)并染色
-                half4 bg   = SAMPLE_TEXTURE2D(_BgMap,   sampler_BgMap,   TRANSFORM_TEX(IN.uv, _BgMap))   * _BgColor;
-                half4 fill = SAMPLE_TEXTURE2D(_FillMap, sampler_FillMap, TRANSFORM_TEX(IN.uv, _FillMap)) * _FillColor;
+                // 圆形下可绕中心旋转的采样坐标: 背景仅贴图转; 进度的 fillUV 同时驱动贴图与进度弧角度(整条弧一起转)
+                float2 bgUV   = RotateUVAroundCenter(IN.uv, _BgRotateEnable,   _BgRotateSpeed,   _BgRotateDirection);
+                float2 fillUV = RotateUVAroundCenter(IN.uv, _FillRotateEnable, _FillRotateSpeed, _FillRotateDirection);
+                half4 bg   = SAMPLE_TEXTURE2D(_BgMap,   sampler_BgMap,   TRANSFORM_TEX(bgUV,   _BgMap))   * _BgColor;
+                half4 fill = SAMPLE_TEXTURE2D(_FillMap, sampler_FillMap, TRANSFORM_TEX(fillUV, _FillMap)) * _FillColor;
 
                 // 高光版：分别放大背景/进度颜色的亮度(配合 Bloom 产生发光)
                 if (_HighlightEnable > 0.5)
@@ -137,14 +196,27 @@ Shader "FrameWork/URP/MeshProgressBar"
                     fill.rgb *= _FillHighlight;
                 }
 
-                // 进度遮罩：填充坐标 <= 当前进度处为 1，边缘按软化宽度平滑过渡
-                half coord = GetFillCoord(IN.uv);
+                // 进度遮罩：条形按方向取坐标; 圆形按角度取坐标, 用旋转后的 fillUV 让整条进度弧(含贴图)整体旋转
+                half coord = (_ShapeType < 0.5) ? GetFillCoord(IN.uv) : GetRadialCoord(fillUV);
                 half fillMask = 1.0 - smoothstep(_Progress - _EdgeSoftness, _Progress + _EdgeSoftness, coord);
 
-                // 在进度范围内用进度色覆盖背景色(按进度图自身 alpha 混合)，整体形状由背景 alpha 决定
+                // 进度覆盖量：进度范围内 * 进度图自身 alpha
                 half over = fillMask * fill.a;
-                half3 rgb = lerp(bg.rgb, fill.rgb, over);
-                half  a   = bg.a;
+
+                half3 rgb;
+                half  a;
+                if (_FillShowThrough > 0.5)
+                {
+                    // 独立显示：背景/进度各带 alpha 做标准 source-over, 背景透明处也能看到纯净进度色
+                    a   = over + bg.a * (1.0 - over);
+                    rgb = (fill.rgb * over + bg.rgb * bg.a * (1.0 - over)) / max(a, 1e-4h);
+                }
+                else
+                {
+                    // 蒙版模式：进度色叠在背景上, 整体形状由背景 alpha 裁剪
+                    rgb = lerp(bg.rgb, fill.rgb, over);
+                    a   = bg.a;
+                }
 
                 #if defined(_LIT_ON)
                     // 双面渲染时背面法线翻转，保证两面都能正确受光
@@ -160,4 +232,5 @@ Shader "FrameWork/URP/MeshProgressBar"
     }
 
     FallBack "Universal Render Pipeline/Unlit"
+    CustomEditor "MeshProgressBarShaderGUI"
 }
