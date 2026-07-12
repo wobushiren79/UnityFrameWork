@@ -12,6 +12,11 @@ public partial class IconHandler : BaseHandler<IconHandler, IconManager>
     /// </summary>
     public const string AtlasTagUI = "UI";
 
+    /// <summary>
+    /// 未知图标(缺图/加载失败)的统一 fallback 图标名，位于 UI 图集内。
+    /// </summary>
+    public const string IconNameUnKnow = "icon_unknow";
+
     //是否初始化图集
     protected bool isInitAtlas = false;
 
@@ -40,7 +45,7 @@ public partial class IconHandler : BaseHandler<IconHandler, IconManager>
     /// <returns></returns>
     public void GetUnKnowSprite(Action<Sprite> callBack)
     {
-        manager.GetSprite($"AtlasFor{AtlasTagUI}", "icon_unknow", callBack);
+        manager.GetSprite($"AtlasFor{AtlasTagUI}", IconNameUnKnow, callBack);
     }
 
     /// <summary>
