@@ -12,6 +12,10 @@ public class PopupButtonCommonView : BaseUIView, IPointerEnterHandler, IPointerE
     protected Button btnTarget;
     //弹窗数据
     protected PopupEnum popupEnum;
+    //实际展示中的弹窗类型:展示后 popupEnum 可能被 SetData 改写(如装备卸下后槽位改显部位名 Text 弹窗),隐藏须用展示时记录的类型,避免关错弹窗致原弹窗残留
+    protected PopupEnum popupEnumShowing;
+    //当前是否有弹窗展示中,用于 ClearData 判定是否需要隐藏
+    protected bool isPopupShowing = false;
 
     protected object targetData;
 
@@ -55,6 +59,9 @@ public class PopupButtonCommonView : BaseUIView, IPointerEnterHandler, IPointerE
         popupShowView.SetTrigger(gameObject, ClearData);
         PopupShowCommonView popupShowCommonView = popupShowView as PopupShowCommonView;
         popupShowCommonView.SetData(targetData);
+        //记录实际展示的弹窗类型,隐藏时以此为准(此后 popupEnum 若被改写不影响正确关闭)
+        popupEnumShowing = popupEnum;
+        isPopupShowing = true;
     }
 
     #region 监听相关
@@ -102,19 +109,25 @@ public class PopupButtonCommonView : BaseUIView, IPointerEnterHandler, IPointerE
         actionForExit?.Invoke(this);
     }
 
+    /// <summary>
+    /// 点击触发对象:隐藏当前悬浮弹窗(与 PopupButtonView.ButtonClick 行为一致)。修复点击卸下装备等改变槽位数据的操作后,悬浮弹窗残留不关闭的问题。
+    /// </summary>
     public void OnClickForTarget()
     {
-
+        ClearData();
     }
 
     /// <summary>
-    /// 清除数据
+    /// 清除数据:隐藏展示中的弹窗(以展示时记录的类型为准,避免 popupEnum 被改写后关错弹窗)
     /// </summary>
     public virtual void ClearData()
-    {               
+    {
         timeDelayShowUpdate = 0;
         timeDelayShowStart = false;
-        UIHandler.Instance.HidePopup(popupEnum);
+        if (!isPopupShowing)
+            return;
+        UIHandler.Instance.HidePopup(popupEnumShowing);
+        isPopupShowing = false;
     }
 
 }

@@ -4,7 +4,8 @@ using UnityEngine;
 
 /// <summary>
 /// FrameWork/URP/MeshProgressBar 进度条 shader 的材质面板。
-/// 把参数按 形状/进度/背景/背景渐变/背景时间渐变/填充/合成/圆形/旋转/高光/光照/渲染面 分组为可折叠区块显示(轻量版 PaletteFX 风格)，
+/// 把参数按 形状/进度/背景/背景渐变/背景时间渐变/填充/合成/圆形/旋转/高光/光照 分组为可折叠区块显示(轻量版 PaletteFX 风格)，
+/// 末尾的 表面类型/渲染模式/Alpha 裁剪/渲染面 由通用助手 <see cref="SurfaceOptionsGUI"/> 合并成一个"渲染设置"折叠组绘制并同步渲染状态。
 /// 带一级开关的分组在开关关闭时置灰组内参数。按"属性存在才画"自适应，末尾兜底"其他"组避免漏显示。
 /// </summary>
 public class MeshProgressBarShaderGUI : ShaderGUI
@@ -27,6 +28,7 @@ public class MeshProgressBarShaderGUI : ShaderGUI
     }
 
     // 按分组顺序排列；圆形/旋转相关分组仅对圆形模式有意义, 标签中已注明。
+    // 表面类型/渲染模式/Alpha 裁剪/渲染面 不在此列, 交由 SurfaceOptionsGUI 统一绘制。
     private static readonly Section[] sections = new Section[]
     {
         new Section("形状",         null, new[] { "_ShapeType" }),
@@ -41,7 +43,6 @@ public class MeshProgressBarShaderGUI : ShaderGUI
         new Section("圆形-进度旋转", "_FillRotateEnable", new[] { "_FillRotateSpeed", "_FillRotateDirection" }),
         new Section("高光",         "_HighlightEnable",  new[] { "_BgHighlight", "_FillHighlight" }),
         new Section("光照",         "_LitEnable", new string[0]),
-        new Section("渲染面",       null, new[] { "_Cull" }),
     };
 
     #endregion
@@ -68,7 +69,10 @@ public class MeshProgressBarShaderGUI : ShaderGUI
 
     #region 面板绘制
 
-    /// <summary>绘制整个材质面板：分组折叠区块 + 底部渲染队列/实例化。</summary>
+    /// <summary>SurfaceOptionsGUI 用的渲染状态签名(表面类型+Alpha 裁剪), 用于检测切换以重设队列/RenderType。</summary>
+    private float lastSurfaceStateKey = float.NaN;
+
+    /// <summary>绘制整个材质面板：分组折叠区块 + 通用"渲染设置"组 + 底部渲染队列/实例化。</summary>
     public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] properties)
     {
         HashSet<string> drawn = new HashSet<string>();
@@ -78,7 +82,13 @@ public class MeshProgressBarShaderGUI : ShaderGUI
             DrawSection(materialEditor, properties, section, drawn);
         }
 
+        // 表面类型/渲染模式/Alpha 裁剪/渲染面 合并组(复用宿主的折叠绘制器保持风格统一)
+        SurfaceOptionsGUI.Draw(materialEditor, properties, drawn, Foldout);
+
         DrawRemaining(materialEditor, properties, drawn);
+
+        // 把上述预设同步为实际渲染状态(_SrcBlend/_DstBlend/_ZWrite/队列/RenderType)
+        SurfaceOptionsGUI.Sync(materialEditor, properties, ref lastSurfaceStateKey);
 
         EditorGUILayout.Space(8);
         EditorGUILayout.LabelField("渲染选项", EditorStyles.boldLabel);

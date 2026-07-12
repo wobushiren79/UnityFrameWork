@@ -57,8 +57,18 @@ Shader "FrameWork/URP/MeshProgressBar"
         [Header(Lit)]
         [Toggle(_LIT_ON)] _LitEnable ("开启光照 (受主光/附加光/阴影/环境光 / 默认关闭)", Float) = 0
 
-        [Header(Render Face)]
-        [Enum(On,0,Off,2)] _Cull ("是否开启双面渲染 (On=两面都显示 / Off=仅显示正面)", Float) = 2
+        // 表面类型/渲染模式/Alpha 裁剪/渲染面 由通用面板 SurfaceOptionsGUI 合并为"渲染设置"折叠组
+        [Header(Surface Options)]
+        [Enum(Opaque,0,Transparent,1)] _Surface ("表面类型 (0=不透明 / 1=透明 / 默认透明)", Float) = 1
+        [Enum(AlphaBlend,0,Additive,1,PremultipliedAlpha,2)]
+        _BlendMode ("渲染模式 (仅透明表面生效 / 0=标准透明 / 1=加法叠加发光 / 2=预乘透明)", Float) = 0
+        [Toggle(_ALPHATEST_ON)] _AlphaClip ("Alpha 裁剪 (按阈值镂空丢弃像素 / 默认关闭)", Float) = 0
+        _Cutoff ("裁剪阈值 (低于此 Alpha 的像素被丢弃 / 仅开启裁剪时生效)", Range(0, 1)) = 0.5
+        [Enum(On,0,Off,2)] _Cull ("渲染面 (On=双面都显示 / Off=仅显示正面)", Float) = 2
+        // 表面类型/渲染模式预设驱动的实际渲染状态(材质面板不直接暴露), 由 Blend/ZWrite 语句读取
+        [HideInInspector] _SrcBlend ("__src", Float) = 5
+        [HideInInspector] _DstBlend ("__dst", Float) = 10
+        [HideInInspector] _ZWrite ("__zw", Float) = 0
     }
 
     SubShader
@@ -71,14 +81,14 @@ Shader "FrameWork/URP/MeshProgressBar"
             "IgnoreProjector" = "True"
         }
 
-        // 半透明叠加：进度条通常悬浮显示，不写深度、不投影
+        // 渲染状态由材质面板"表面类型/透明模式"预设驱动: 混合因子/深度写入/队列随之切换, 不投影
         Pass
         {
             Name "Forward"
             Tags { "LightMode" = "UniversalForward" }
 
-            Blend SrcAlpha OneMinusSrcAlpha
-            ZWrite Off
+            Blend [_SrcBlend] [_DstBlend]
+            ZWrite [_ZWrite]
             Cull [_Cull]
 
             HLSLPROGRAM
@@ -87,6 +97,7 @@ Shader "FrameWork/URP/MeshProgressBar"
 
             #pragma multi_compile_instancing
             #pragma shader_feature_local _LIT_ON
+            #pragma shader_feature_local _ALPHATEST_ON
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
             #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
@@ -96,6 +107,8 @@ Shader "FrameWork/URP/MeshProgressBar"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             // 光照库(SurfaceData/InputData/BlinnPhong) → 通用受光助手
             #include "../Common/CommonLit.hlsl"
+            // 通用渲染设置件(Alpha 裁剪 ApplyAlphaClip + _Cutoff 字段宏)
+            #include "../Common/SurfaceOptions.hlsl"
 
             TEXTURE2D(_BgMap);   SAMPLER(sampler_BgMap);
             TEXTURE2D(_FillMap); SAMPLER(sampler_FillMap);
@@ -126,6 +139,7 @@ Shader "FrameWork/URP/MeshProgressBar"
                 half   _FillRotateSpeed;
                 half   _FillRotateDirection;
                 half   _FillShowThrough;
+                SURFACE_OPTIONS_CBUFFER   // Alpha 裁剪阈值 _Cutoff
             CBUFFER_END
 
             struct Attributes
@@ -257,6 +271,9 @@ Shader "FrameWork/URP/MeshProgressBar"
                     rgb = lerp(bg.rgb, fill.rgb, over);
                     a   = bg.a;
                 }
+
+                // Alpha 裁剪(镂空)：开启 _ALPHATEST_ON 时丢弃低于 _Cutoff 的像素(不透明表面镂空常用)
+                ApplyAlphaClip(a, _Cutoff);
 
                 #if defined(_LIT_ON)
                     // 双面渲染时背面法线翻转，保证两面都能正确受光
