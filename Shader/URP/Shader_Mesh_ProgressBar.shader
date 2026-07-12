@@ -9,6 +9,12 @@ Shader "FrameWork/URP/MeshProgressBar"
         _BgMap ("背景贴图 (进度条底图)", 2D) = "white" {}
         [HDR] _BgColor ("背景颜色", Color) = (0.15, 0.15, 0.15, 1)
 
+        [Header(Background Gradient)]
+        [Toggle] _BgGradientEnable ("背景渐变开关 (开=背景用两色线性渐变 / 关=纯背景色 / 默认关闭)", Float) = 0
+        [HDR] _BgColor2 ("背景渐变结束颜色 (渐变另一端 / 起点用背景颜色)", Color) = (0.05, 0.05, 0.05, 1)
+        [Enum(LeftToRight,0,RightToLeft,1,BottomToTop,2,TopToBottom,3)]
+        _BgGradientDirection ("背景渐变方向 (颜色过渡方向)", Float) = 2
+
         [Header(Fill)]
         _FillMap ("进度贴图 (随进度填充的图)", 2D) = "white" {}
         [HDR] _FillColor ("进度颜色", Color) = (0.2, 0.9, 0.3, 1)
@@ -94,6 +100,9 @@ Shader "FrameWork/URP/MeshProgressBar"
                 float4 _BgMap_ST;
                 float4 _FillMap_ST;
                 half4  _BgColor;
+                half4  _BgColor2;
+                half   _BgGradientEnable;
+                half   _BgGradientDirection;
                 half4  _FillColor;
                 half   _Progress;
                 half   _FillDirection;
@@ -138,6 +147,15 @@ Shader "FrameWork/URP/MeshProgressBar"
                 else if (_FillDirection < 1.5) return 1.0 - uv.x;   // 右 → 左
                 else if (_FillDirection < 2.5) return uv.y;         // 下 → 上
                 else                           return 1.0 - uv.y;   // 上 → 下
+            }
+
+            /// 按方向取该像素沿 UV 的线性渐变系数(0~1), 供背景渐变在两色间插值
+            half GetGradientCoord (float2 uv, half dir)
+            {
+                if (dir < 0.5)      return uv.x;         // 左 → 右
+                else if (dir < 1.5) return 1.0 - uv.x;   // 右 → 左
+                else if (dir < 2.5) return uv.y;         // 下 → 上
+                else                return 1.0 - uv.y;   // 上 → 下
             }
 
             /// 圆形进度坐标(0~1)：以 UV 中心为圆心, 从12点起按方向绕一圈, 值 <= 进度处视为已填充
@@ -186,7 +204,13 @@ Shader "FrameWork/URP/MeshProgressBar"
                 // 圆形下可绕中心旋转的采样坐标: 背景仅贴图转; 进度的 fillUV 同时驱动贴图与进度弧角度(整条弧一起转)
                 float2 bgUV   = RotateUVAroundCenter(IN.uv, _BgRotateEnable,   _BgRotateSpeed,   _BgRotateDirection);
                 float2 fillUV = RotateUVAroundCenter(IN.uv, _FillRotateEnable, _FillRotateSpeed, _FillRotateDirection);
-                half4 bg   = SAMPLE_TEXTURE2D(_BgMap,   sampler_BgMap,   TRANSFORM_TEX(bgUV,   _BgMap))   * _BgColor;
+                // 背景着色：开渐变时按方向在 背景颜色 → 渐变结束颜色 间线性插值(用未旋转的 IN.uv 使渐变随网格稳定)
+                half4 bgTint = _BgColor;
+                if (_BgGradientEnable > 0.5)
+                {
+                    bgTint = lerp(_BgColor, _BgColor2, GetGradientCoord(IN.uv, _BgGradientDirection));
+                }
+                half4 bg   = SAMPLE_TEXTURE2D(_BgMap,   sampler_BgMap,   TRANSFORM_TEX(bgUV,   _BgMap))   * bgTint;
                 half4 fill = SAMPLE_TEXTURE2D(_FillMap, sampler_FillMap, TRANSFORM_TEX(fillUV, _FillMap)) * _FillColor;
 
                 // 高光版：分别放大背景/进度颜色的亮度(配合 Bloom 产生发光)

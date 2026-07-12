@@ -4,7 +4,7 @@ using UnityEngine;
 
 /// <summary>
 /// FrameWork/URP/MeshProgressBar 进度条 shader 的材质面板。
-/// 把参数按 形状/进度/背景/填充/合成/圆形/旋转/高光/光照/渲染面 分组为可折叠区块显示(轻量版 PaletteFX 风格)，
+/// 把参数按 形状/进度/背景/背景渐变/填充/合成/圆形/旋转/高光/光照/渲染面 分组为可折叠区块显示(轻量版 PaletteFX 风格)，
 /// 带一级开关的分组在开关关闭时置灰组内参数。按"属性存在才画"自适应，末尾兜底"其他"组避免漏显示。
 /// </summary>
 public class MeshProgressBarShaderGUI : ShaderGUI
@@ -32,6 +32,7 @@ public class MeshProgressBarShaderGUI : ShaderGUI
         new Section("形状",         null, new[] { "_ShapeType" }),
         new Section("进度",         null, new[] { "_Progress", "_FillDirection", "_EdgeSoftness" }),
         new Section("背景",         null, new[] { "_BgMap", "_BgColor" }),
+        new Section("背景渐变",     "_BgGradientEnable", new[] { "_BgColor2", "_BgGradientDirection" }),
         new Section("进度填充",     null, new[] { "_FillMap", "_FillColor" }),
         new Section("合成",         null, new[] { "_FillShowThrough" }),
         new Section("圆形",         null, new[] { "_RadialDirection", "_RadialStartAngle" }),
