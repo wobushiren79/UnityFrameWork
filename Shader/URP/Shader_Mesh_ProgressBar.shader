@@ -15,6 +15,10 @@ Shader "FrameWork/URP/MeshProgressBar"
         [Enum(LeftToRight,0,RightToLeft,1,BottomToTop,2,TopToBottom,3)]
         _BgGradientDirection ("背景渐变方向 (颜色过渡方向)", Float) = 2
 
+        [Header(Background Time Gradient)]
+        [Toggle] _BgTimeGradientEnable ("背景时间渐变开关 (开=背景色随时间在 背景颜色-渐变结束颜色 间循环 / 默认关闭)", Float) = 0
+        _BgTimeGradientSpeed ("背景时间渐变速度 (每秒循环次数 / 越大变色越快)", Float) = 0.5
+
         [Header(Fill)]
         _FillMap ("进度贴图 (随进度填充的图)", 2D) = "white" {}
         [HDR] _FillColor ("进度颜色", Color) = (0.2, 0.9, 0.3, 1)
@@ -103,6 +107,8 @@ Shader "FrameWork/URP/MeshProgressBar"
                 half4  _BgColor2;
                 half   _BgGradientEnable;
                 half   _BgGradientDirection;
+                half   _BgTimeGradientEnable;
+                half   _BgTimeGradientSpeed;
                 half4  _FillColor;
                 half   _Progress;
                 half   _FillDirection;
@@ -204,11 +210,21 @@ Shader "FrameWork/URP/MeshProgressBar"
                 // 圆形下可绕中心旋转的采样坐标: 背景仅贴图转; 进度的 fillUV 同时驱动贴图与进度弧角度(整条弧一起转)
                 float2 bgUV   = RotateUVAroundCenter(IN.uv, _BgRotateEnable,   _BgRotateSpeed,   _BgRotateDirection);
                 float2 fillUV = RotateUVAroundCenter(IN.uv, _FillRotateEnable, _FillRotateSpeed, _FillRotateDirection);
-                // 背景着色：开渐变时按方向在 背景颜色 → 渐变结束颜色 间线性插值(用未旋转的 IN.uv 使渐变随网格稳定)
+                // 背景着色(用未旋转的 IN.uv 使渐变随网格稳定)：
+                // 空间渐变=按方向在 背景颜色→渐变结束颜色 间线性插值; 时间渐变=让插值系数随时间循环
                 half4 bgTint = _BgColor;
                 if (_BgGradientEnable > 0.5)
                 {
-                    bgTint = lerp(_BgColor, _BgColor2, GetGradientCoord(IN.uv, _BgGradientDirection));
+                    half g = GetGradientCoord(IN.uv, _BgGradientDirection);
+                    // 叠加时间渐变时: 空间渐变沿方向随时间滚动流动(frac 循环)
+                    if (_BgTimeGradientEnable > 0.5) g = frac(g + _Time.y * _BgTimeGradientSpeed);
+                    bgTint = lerp(_BgColor, _BgColor2, g);
+                }
+                else if (_BgTimeGradientEnable > 0.5)
+                {
+                    // 纯时间渐变: 整片背景在两色间往复呼吸(sin 平滑无跳变)
+                    half pulse = 0.5h + 0.5h * sin(_Time.y * _BgTimeGradientSpeed * TWO_PI);
+                    bgTint = lerp(_BgColor, _BgColor2, pulse);
                 }
                 half4 bg   = SAMPLE_TEXTURE2D(_BgMap,   sampler_BgMap,   TRANSFORM_TEX(bgUV,   _BgMap))   * bgTint;
                 half4 fill = SAMPLE_TEXTURE2D(_FillMap, sampler_FillMap, TRANSFORM_TEX(fillUV, _FillMap)) * _FillColor;
