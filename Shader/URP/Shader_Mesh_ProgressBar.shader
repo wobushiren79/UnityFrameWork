@@ -189,6 +189,13 @@ Shader "FrameWork/URP/MeshProgressBar"
                 return t;
             }
 
+            /// 判定采样坐标是否落在 [0,1] UV 方框内: 旋转后越界的角落返回 0, 裁掉 Clamp 边缘拉伸拖影
+            half UVInsideBox (float2 uv)
+            {
+                float2 inside = step(0.0, uv) * step(uv, float2(1.0, 1.0));
+                return inside.x * inside.y;
+            }
+
             /// 按时间绕 UV 中心旋转采样坐标(仅圆形且开启时生效), 供背景/进度复用以让贴图转动
             float2 RotateUVAroundCenter (float2 uv, half enable, half speed, half dir)
             {
@@ -242,6 +249,10 @@ Shader "FrameWork/URP/MeshProgressBar"
                 }
                 half4 bg   = SAMPLE_TEXTURE2D(_BgMap,   sampler_BgMap,   TRANSFORM_TEX(bgUV,   _BgMap))   * bgTint;
                 half4 fill = SAMPLE_TEXTURE2D(_FillMap, sampler_FillMap, TRANSFORM_TEX(fillUV, _FillMap)) * _FillColor;
+
+                // 旋转后越界的角落置空: 防止 Clamp 环绕把贴边像素向角落拉伸成拖影(未旋转时 UV 在 [0,1] 内不受影响)
+                bg   *= UVInsideBox(bgUV);
+                fill *= UVInsideBox(fillUV);
 
                 // 高光版：分别放大背景/进度颜色的亮度(配合 Bloom 产生发光)
                 if (_HighlightEnable > 0.5)
