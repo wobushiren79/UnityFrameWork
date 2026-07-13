@@ -81,6 +81,9 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     {
         Action<SkeletonDataAsset> actionForSetData = (skeletonDataAsset) =>
         {
+            //骨骼资源与当前一致时跳过, 避免复用同一魔物对象时无谓重建
+            if (skeletonAnimation != null && skeletonAnimation.skeletonDataAsset == skeletonDataAsset)
+                return;
             SetSkeletonDataAsset(skeletonAnimation, skeletonDataAsset);
         };
 
@@ -101,6 +104,9 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     {
         Action<SkeletonDataAsset> actionForSetData = (skeletonDataAsset) =>
         {
+            //骨骼资源与当前一致时跳过, 避免复用同一魔物对象时无谓重建
+            if (skeletonGraphic != null && skeletonGraphic.skeletonDataAsset == skeletonDataAsset)
+                return;
             SetSkeletonDataAsset(skeletonGraphic, skeletonDataAsset);
         };
         if (isSync)
