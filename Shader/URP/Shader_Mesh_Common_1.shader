@@ -5,7 +5,6 @@ Shader "FrameWork/URP/MeshCommon1"
         [Header(Surface)]
         [MainTexture] _BaseMap ("主贴图", 2D) = "white" {}
         [MainColor]   _BaseColor ("染色颜色", Color) = (1, 1, 1, 1)
-        _Cutoff ("透明裁剪阈值 (Alpha 低于此值丢弃)", Range(0, 1)) = 0.5
 
         [Header(Lit)]
         [Toggle(_LIT_ON)] _LitEnable ("开启光照 (受主光/附加光/阴影/环境光 / 默认关闭)", Float) = 0
@@ -15,12 +14,26 @@ Shader "FrameWork/URP/MeshCommon1"
         [HDR] _OutlineColor ("描边颜色", Color) = (0, 0, 0, 1)
         _OutlineSize ("描边大小 (向外扩展的纹素数)", Range(0, 10)) = 1.0
 
-        [Header(Render Face)]
-        [Enum(On,0,Off,2)] _Cull ("是否开启双面渲染 (On=两面都显示 / Off=仅显示正面)", Float) = 0
-
         [Header(Transform)]
         _VertexOffset ("位置偏移 (物体空间 XYZ)", Vector) = (0, 0, 0, 0)
         _VertexRotation ("角度旋转 (欧拉角 XYZ / 度)", Vector) = (0, 0, 0, 0)
+
+        // 表面类型/渲染模式/Alpha 裁剪/渲染面 由通用面板 SurfaceOptionsGUI 合并为"渲染设置"折叠组，
+        // 表面类型可设不透明(Opaque)或透明(Transparent)，混合因子/深度写入由预设驱动到 _SrcBlend/_DstBlend/_ZWrite
+        [Header(Surface Options)]
+        [Enum(Opaque,0,Transparent,1)] _Surface ("表面类型 (0=不透明 / 1=透明 / 默认不透明)", Float) = 0
+        [Enum(AlphaBlend,0,Additive,1,PremultipliedAlpha,2)]
+        _BlendMode ("渲染模式 (仅透明表面生效 / 0=标准透明 / 1=加法叠加发光 / 2=预乘透明)", Float) = 0
+        [Toggle(_ALPHATEST_ON)] _AlphaClip ("Alpha 裁剪 (按阈值镂空丢弃像素 / 不透明网格默认开启)", Float) = 1
+        _Cutoff ("裁剪阈值 (低于此 Alpha 的像素被丢弃 / 仅开启裁剪时生效)", Range(0, 1)) = 0.5
+        [Enum(On,0,Off,2)] _Cull ("渲染面 (On=双面都显示 / Off=仅显示正面)", Float) = 0
+        // 表面类型/渲染模式预设驱动的实际渲染状态(材质面板不直接暴露), 由 Blend/ZWrite 语句读取
+        [HideInInspector] _SrcBlend ("__src", Float) = 1
+        [HideInInspector] _DstBlend ("__dst", Float) = 0
+        [HideInInspector] _ZWrite ("__zw", Float) = 1
+
+        // 渲染优先级偏移(相对基础队列 AlphaTest 2450)，由 MeshCommonShaderGUI 以"优先级"滑条绘制并写入 material.renderQueue
+        [HideInInspector] _QueueOffset ("Queue Offset", Float) = 0.0
     }
 
     SubShader
@@ -33,10 +46,11 @@ Shader "FrameWork/URP/MeshCommon1"
             "IgnoreProjector"= "True"
         }
 
-        // 所有 Pass 共用：材质参数 + 贴图声明 + 顶点位移旋转助手
+        // 所有 Pass 共用：材质参数 + 贴图声明 + 顶点位移旋转助手 + 通用 Alpha 裁剪
         HLSLINCLUDE
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
         #include "../Common/Transform.hlsl"
+        #include "../Common/SurfaceOptions.hlsl"   // 通用渲染设置件：ApplyAlphaClip(按 _ALPHATEST_ON 镂空)
 
         TEXTURE2D(_BaseMap);
         SAMPLER(sampler_BaseMap);
@@ -59,7 +73,9 @@ Shader "FrameWork/URP/MeshCommon1"
             Name "Forward"
             Tags { "LightMode" = "UniversalForward" }
 
-            ZWrite On
+            // 混合因子/深度写入由材质面板"表面类型/渲染模式"预设驱动(不透明=One Zero+写深度, 透明=按模式混合+不写深度)
+            Blend [_SrcBlend] [_DstBlend]
+            ZWrite [_ZWrite]
             Cull [_Cull]
 
             HLSLPROGRAM
@@ -69,6 +85,7 @@ Shader "FrameWork/URP/MeshCommon1"
             #pragma multi_compile_instancing
             #pragma shader_feature_local _LIT_ON
             #pragma shader_feature_local _OUTLINE_ON
+            #pragma shader_feature_local _ALPHATEST_ON
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
             #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
@@ -129,12 +146,13 @@ Shader "FrameWork/URP/MeshCommon1"
                                                    IN.uv, _BaseMap_TexelSize.xy, _OutlineSize, _OutlineColor);
                 #endif
                 half4 col = baseSample * _BaseColor;
-                clip(col.a - _Cutoff);
+                // Alpha 裁剪(镂空)：仅开启 _ALPHATEST_ON 时丢弃低于 _Cutoff 的像素；不透明表面默认不裁剪
+                ApplyAlphaClip(col.a, _Cutoff);
 
                 #if defined(_LIT_ON)
-                    // 双面渲染：背面法线翻转，保证两面都能正确受光
+                    // 双面渲染：背面法线翻转，保证两面都能正确受光；透明表面用 col.a 参与混合
                     half3 normalWS = normalize(IN.normalWS) * IS_FRONT_VFACE(cullFace, 1.0, -1.0);
-                    return ApplyCommonLit(col.rgb, 1.0, IN.positionWS, normalWS, IN.positionHCS, IN.fogFactor);
+                    return ApplyCommonLit(col.rgb, col.a, IN.positionWS, normalWS, IN.positionHCS, IN.fogFactor);
                 #else
                     col.rgb = MixFog(col.rgb, IN.fogFactor);
                     return col;
@@ -160,6 +178,7 @@ Shader "FrameWork/URP/MeshCommon1"
 
             #pragma multi_compile_instancing
             #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
+            #pragma shader_feature_local _ALPHATEST_ON
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
 
@@ -220,7 +239,7 @@ Shader "FrameWork/URP/MeshCommon1"
             {
                 UNITY_SETUP_INSTANCE_ID(IN);
                 half alpha = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv).a * _BaseColor.a;
-                clip(alpha - _Cutoff);
+                ApplyAlphaClip(alpha, _Cutoff);   // 仅开启裁剪时按轮廓镂空阴影
                 return 0;
             }
             ENDHLSL
@@ -240,6 +259,7 @@ Shader "FrameWork/URP/MeshCommon1"
             #pragma vertex DepthOnlyVertex
             #pragma fragment DepthOnlyFragment
             #pragma multi_compile_instancing
+            #pragma shader_feature_local _ALPHATEST_ON
 
             struct Attributes
             {
@@ -274,7 +294,7 @@ Shader "FrameWork/URP/MeshCommon1"
             {
                 UNITY_SETUP_INSTANCE_ID(IN);
                 half alpha = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv).a * _BaseColor.a;
-                clip(alpha - _Cutoff);
+                ApplyAlphaClip(alpha, _Cutoff);   // 仅开启裁剪时按轮廓镂空深度
                 return 0;
             }
             ENDHLSL
@@ -282,4 +302,5 @@ Shader "FrameWork/URP/MeshCommon1"
     }
 
     FallBack "Universal Render Pipeline/Unlit"
+    CustomEditor "MeshCommonShaderGUI"
 }

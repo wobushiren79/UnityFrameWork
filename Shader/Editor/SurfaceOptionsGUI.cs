@@ -54,14 +54,20 @@ public static class SurfaceOptionsGUI
             return;
         }
 
-        bool opaque = surface != null && Mathf.RoundToInt(surface.floatValue) == 0;
-
         EditorGUI.indentLevel++;
 
         if (surface != null)
         {
+            EditorGUI.BeginChangeCheck();
             editor.ShaderProperty(surface, surface.displayName);
+            // 切到不透明时默认打开 Alpha 裁剪(本项目不透明网格多为镂空 cutout, 需按轮廓裁剪)；用户仍可手动再关闭
+            if (EditorGUI.EndChangeCheck() && alphaClip != null && Mathf.RoundToInt(surface.floatValue) == 0)
+            {
+                SetAlphaClip(editor, alphaClip, true);
+            }
         }
+
+        bool opaque = surface != null && Mathf.RoundToInt(surface.floatValue) == 0;
 
         // 渲染模式(混合预设)仅透明表面有意义, 不透明时置灰
         if (blendMode != null)
@@ -104,10 +110,12 @@ public static class SurfaceOptionsGUI
 
     /// <summary>
     /// 把表面类型/渲染模式/Alpha 裁剪预设同步为实际渲染状态到所有选中材质。
-    /// _SrcBlend/_DstBlend/_ZWrite 每帧幂等同步(仅值变化才写)；渲染队列/RenderType 仅在渲染状态切换时重设(保留手动改的队列)。
+    /// _SrcBlend/_DstBlend/_ZWrite 每帧幂等同步(仅值变化才写)；RenderType 标签在渲染状态切换时重设；
+    /// 渲染队列仅在 manageQueue=true 时随切换重设(保留手动改的队列)。
     /// </summary>
     /// <param name="lastStateKey">宿主持有的上次渲染状态签名(首帧传 float.NaN)，用于检测切换。</param>
-    public static void Sync(MaterialEditor editor, MaterialProperty[] properties, ref float lastStateKey)
+    /// <param name="manageQueue">是否由本助手管理 renderQueue：宿主若另有队列控制(如"优先级"滑条)应传 false，仅同步混合/深度/RenderType。</param>
+    public static void Sync(MaterialEditor editor, MaterialProperty[] properties, ref float lastStateKey, bool manageQueue = true)
     {
         MaterialProperty surfaceProp = Find("_Surface", properties);
         if (surfaceProp == null)
@@ -156,21 +164,22 @@ public static class SurfaceOptionsGUI
 
             if (stateChanged)
             {
+                // RenderType 标签始终随表面状态重设；renderQueue 仅在本助手托管队列时才重设(否则留给宿主)
                 if (surface == 0 && alphaClipOn)
                 {
                     // 不透明镂空: 归入 AlphaTest 阶段
                     mat.SetOverrideTag("RenderType", "TransparentCutout");
-                    mat.renderQueue = (int)RenderQueue.AlphaTest;
+                    if (manageQueue) mat.renderQueue = (int)RenderQueue.AlphaTest;
                 }
                 else if (surface == 0)
                 {
                     mat.SetOverrideTag("RenderType", "Opaque");
-                    mat.renderQueue = (int)RenderQueue.Geometry;
+                    if (manageQueue) mat.renderQueue = (int)RenderQueue.Geometry;
                 }
                 else
                 {
                     mat.SetOverrideTag("RenderType", "Transparent");
-                    mat.renderQueue = (int)RenderQueue.Transparent;
+                    if (manageQueue) mat.renderQueue = (int)RenderQueue.Transparent;
                 }
             }
         }
@@ -194,6 +203,19 @@ public static class SurfaceOptionsGUI
     private static void Register(HashSet<string> drawn, MaterialProperty p)
     {
         if (p != null) drawn.Add(p.name);
+    }
+
+    /// <summary>同步设置 Alpha 裁剪的属性值与 _ALPHATEST_ON 关键字(二者须一致，否则面板值与实际变体脱节)。</summary>
+    private static void SetAlphaClip(MaterialEditor editor, MaterialProperty alphaClip, bool on)
+    {
+        alphaClip.floatValue = on ? 1f : 0f;
+        foreach (UnityEngine.Object target in editor.targets)
+        {
+            Material mat = target as Material;
+            if (mat == null) continue;
+            if (on) mat.EnableKeyword("_ALPHATEST_ON");
+            else    mat.DisableKeyword("_ALPHATEST_ON");
+        }
     }
 
     #endregion
