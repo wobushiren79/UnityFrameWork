@@ -442,7 +442,9 @@ public class AddressableWindow : EditorWindow
                     bool matched = false;
                     for (int f = 0; f < listSavePath.Count; f++)
                     {
-                        if (!string.IsNullOrEmpty(listSavePath[f]) && assetPathFile.Contains(listSavePath[f]))
+                        string savePath = listSavePath[f];
+                        // 目录边界匹配:正好等于保存路径或为其子目录,避免AttackMode前缀吞掉AttackModeVisual
+                        if (!string.IsNullOrEmpty(savePath) && (assetPathFile == savePath || assetPathFile.StartsWith(savePath + "/")))
                         {
                             AddressableUtil.MoveAssetEntry(itemAssetEntry, groupName);
                             AddressableUtil.ClearAllLabel(itemAssetEntry);

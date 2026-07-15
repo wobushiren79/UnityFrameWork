@@ -23,11 +23,48 @@ public class ProjectAssetCollectorWindow : EditorWindow
     /// </summary>
     private static string cacheKey;
     
+    // --- 资源类型筛选 ---
+    /// <summary>
+    /// 资源细分类型筛选枚举（用于下拉筛选，顺序需与 filterLabels 一致）
+    /// </summary>
+    private enum AssetFilterType
+    {
+        All,                // 全部
+        Folder,             // 文件夹
+        Prefab,             // 预制体
+        Material,           // 材质球
+        Scene,              // 场景
+        Texture,            // 贴图/精灵
+        Model,              // 模型
+        Animation,          // 动画
+        Audio,              // 音频
+        Script,             // 脚本/Shader
+        ScriptableObject,   // 配置资源(.asset)
+        Other,              // 其它
+    }
+
+    /// <summary>
+    /// 下拉筛选显示标签（顺序与 AssetFilterType 一致）
+    /// </summary>
+    private static readonly string[] filterLabels =
+    {
+        "全部", "文件夹", "预制体", "材质球", "场景", "贴图/精灵",
+        "模型", "动画", "音频", "脚本/Shader", "配置(.asset)", "其它",
+    };
+
     // --- 成员变量 ---
     private List<string> assetPaths = new List<string>();
+    /// <summary>
+    /// 当前筛选后用于展示/操作的路径列表（全部筛选时与 assetPaths 同引用）
+    /// </summary>
+    private List<string> filteredPaths = new List<string>();
+    /// <summary>
+    /// 当前选中的筛选类型
+    /// </summary>
+    private AssetFilterType currentFilter = AssetFilterType.All;
     private ReorderableList reorderableList;
     private Vector2 scrollPosition;
-    
+
     // 拖拽区域状态
     private bool isDragOver = false;
     
@@ -48,8 +85,8 @@ public class ProjectAssetCollectorWindow : EditorWindow
     {
         // 加载缓存数据
         LoadCache();
-        // 初始化ReorderableList
-        InitializeReorderableList();
+        // 构建筛选列表并初始化ReorderableList
+        RebuildFilteredList();
     }
 
     private void OnDisable()
@@ -83,7 +120,9 @@ public class ProjectAssetCollectorWindow : EditorWindow
 
     private void InitializeReorderableList()
     {
-        reorderableList = new ReorderableList(assetPaths, typeof(string), true, true, false, true)
+        // 仅在“全部”筛选下允许拖拽排序（此时列表与主列表同引用，排序可直接落到缓存）
+        bool draggable = currentFilter == AssetFilterType.All;
+        reorderableList = new ReorderableList(filteredPaths, typeof(string), draggable, true, false, true)
         {
             drawHeaderCallback = DrawListHeader,
             drawElementCallback = DrawListElement,
@@ -91,6 +130,58 @@ public class ProjectAssetCollectorWindow : EditorWindow
             onReorderCallback = OnReorderItems,
             elementHeight = ITEM_HEIGHT
         };
+    }
+
+    /// <summary>
+    /// 根据当前筛选类型重建 filteredPaths，并重新绑定 ReorderableList。
+    /// “全部”时直接引用 assetPaths，保证拖拽排序落到主列表；其它类型则为筛选副本。
+    /// </summary>
+    private void RebuildFilteredList()
+    {
+        if (currentFilter == AssetFilterType.All)
+        {
+            filteredPaths = assetPaths;
+        }
+        else
+        {
+            filteredPaths = assetPaths.FindAll(p => GetAssetFilterType(p) == currentFilter);
+        }
+        InitializeReorderableList();
+    }
+
+    /// <summary>
+    /// 按资源路径判定其细分类型：优先判断文件夹，再按扩展名归类。
+    /// </summary>
+    private AssetFilterType GetAssetFilterType(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return AssetFilterType.Other;
+        if (AssetDatabase.IsValidFolder(path)) return AssetFilterType.Folder;
+
+        string ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
+        switch (ext)
+        {
+            case ".prefab":
+                return AssetFilterType.Prefab;
+            case ".mat":
+                return AssetFilterType.Material;
+            case ".unity":
+                return AssetFilterType.Scene;
+            case ".png": case ".jpg": case ".jpeg": case ".tga": case ".psd":
+            case ".gif": case ".bmp": case ".tif": case ".tiff": case ".exr":
+                return AssetFilterType.Texture;
+            case ".fbx": case ".obj": case ".blend": case ".dae": case ".3ds": case ".max":
+                return AssetFilterType.Model;
+            case ".anim": case ".controller": case ".overridecontroller": case ".playable":
+                return AssetFilterType.Animation;
+            case ".wav": case ".mp3": case ".ogg": case ".aiff": case ".aif":
+                return AssetFilterType.Audio;
+            case ".cs": case ".js": case ".shader": case ".cginc": case ".hlsl": case ".compute":
+                return AssetFilterType.Script;
+            case ".asset":
+                return AssetFilterType.ScriptableObject;
+            default:
+                return AssetFilterType.Other;
+        }
     }
 
     // --- UI 绘制 ---
@@ -106,7 +197,11 @@ public class ProjectAssetCollectorWindow : EditorWindow
         // 拖拽区域
         DrawDropArea();
         EditorGUILayout.Space(5);
-        
+
+        // 类型筛选下拉
+        DrawFilterDropdown();
+        EditorGUILayout.Space(5);
+
         // 操作按钮
         DrawOperationButtons();
         EditorGUILayout.Space(5);
@@ -209,9 +304,26 @@ public class ProjectAssetCollectorWindow : EditorWindow
         
         if (hasNewAsset)
         {
+            RebuildFilteredList();
             SaveCache();
             Repaint();
         }
+    }
+
+    /// <summary>
+    /// 绘制资源类型筛选下拉，切换时重建筛选列表。
+    /// </summary>
+    private void DrawFilterDropdown()
+    {
+        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.LabelField("筛选类型", GUILayout.Width(60));
+        AssetFilterType newFilter = (AssetFilterType)EditorGUILayout.Popup((int)currentFilter, filterLabels);
+        if (newFilter != currentFilter)
+        {
+            currentFilter = newFilter;
+            RebuildFilteredList();
+        }
+        EditorGUILayout.EndHorizontal();
     }
 
     private void DrawOperationButtons()
@@ -225,6 +337,7 @@ public class ProjectAssetCollectorWindow : EditorWindow
             if (assetPaths.Count == 0 || EditorUtility.DisplayDialog("确认清空", "确定要清空所有收藏的资源吗？", "确定", "取消"))
             {
                 assetPaths.Clear();
+                RebuildFilteredList();
                 SaveCache();
             }
         }
@@ -249,6 +362,7 @@ public class ProjectAssetCollectorWindow : EditorWindow
         
         if (removedCount > 0)
         {
+            RebuildFilteredList();
             SaveCache();
             EditorUtility.DisplayDialog("刷新完成", $"已移除 {removedCount} 个无效的资源路径", "确定");
         }
@@ -267,7 +381,13 @@ public class ProjectAssetCollectorWindow : EditorWindow
             EditorGUILayout.HelpBox("暂无收藏的资源\n请将Project中的资源拖入上方区域", MessageType.Info);
             return;
         }
-        
+
+        if (filteredPaths.Count == 0)
+        {
+            EditorGUILayout.HelpBox($"当前筛选（{filterLabels[(int)currentFilter]}）下暂无资源", MessageType.Info);
+            return;
+        }
+
         scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
         reorderableList.DoLayoutList();
         EditorGUILayout.EndScrollView();
@@ -275,14 +395,22 @@ public class ProjectAssetCollectorWindow : EditorWindow
 
     private void DrawListHeader(Rect rect)
     {
-        EditorGUI.LabelField(rect, $"收藏列表 ({assetPaths.Count}个)");
+        // 全部时仅显示总数；筛选时显示“筛选类型 命中数/总数”
+        if (currentFilter == AssetFilterType.All)
+        {
+            EditorGUI.LabelField(rect, $"收藏列表 ({assetPaths.Count}个)");
+        }
+        else
+        {
+            EditorGUI.LabelField(rect, $"收藏列表 - {filterLabels[(int)currentFilter]} ({filteredPaths.Count}/{assetPaths.Count}个)");
+        }
     }
 
     private void DrawListElement(Rect rect, int index, bool isActive, bool isFocused)
     {
-        if (index < 0 || index >= assetPaths.Count) return;
-        
-        string path = assetPaths[index];
+        if (index < 0 || index >= filteredPaths.Count) return;
+
+        string path = filteredPaths[index];
         Object asset = AssetDatabase.LoadAssetAtPath<Object>(path);
         
         // 计算各区域的Rect
@@ -345,15 +473,19 @@ public class ProjectAssetCollectorWindow : EditorWindow
 
     private void OnRemoveItem(ReorderableList list)
     {
-        if (list.index >= 0 && list.index < assetPaths.Count)
+        if (list.index >= 0 && list.index < filteredPaths.Count)
         {
-            assetPaths.RemoveAt(list.index);
+            // 按路径从主列表移除，兼容筛选副本与主列表两种情形
+            string path = filteredPaths[list.index];
+            assetPaths.Remove(path);
+            RebuildFilteredList();
             SaveCache();
         }
     }
 
     private void OnReorderItems(ReorderableList list)
     {
+        // 仅在“全部”筛选下可拖拽，此时 filteredPaths 与 assetPaths 同引用，排序已落到主列表
         SaveCache();
     }
 
@@ -398,7 +530,7 @@ public class ProjectAssetCollectorWindow : EditorWindow
         EditorGUILayout.Space(5);
         EditorGUILayout.BeginHorizontal();
         GUILayout.FlexibleSpace();
-        EditorGUILayout.LabelField("提示：拖动列表项可调整顺序", EditorStyles.miniLabel, GUILayout.Width(180));
+        EditorGUILayout.LabelField("提示：全部筛选下可拖动列表项调整顺序", EditorStyles.miniLabel, GUILayout.Width(240));
         EditorGUILayout.EndHorizontal();
     }
 
