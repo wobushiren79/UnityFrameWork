@@ -9,6 +9,8 @@
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
 // Alpha 扩张描边通用函数(ApplyAlphaOutline)，供各粒子 shader 复用
 #include "Outline.hlsl"
+// 通用渲染设置件：ApplyAlphaClip(按 _ALPHATEST_ON 镂空)，供各粒子 shader 复用
+#include "SurfaceOptions.hlsl"
 
 TEXTURE2D(_BaseMap);
 SAMPLER(sampler_BaseMap);

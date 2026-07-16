@@ -5,7 +5,19 @@ Shader "FrameWork/Particle/TreeWindSway"
         [Header(Surface)]
         [MainTexture] _BaseMap ("树木贴图", 2D) = "white" {}
         [MainColor]   _BaseColor ("染色颜色 (再乘以粒子颜色)", Color) = (1, 1, 1, 1)
-        _Cutoff ("透明裁剪阈值 (0=不裁剪)", Range(0, 1)) = 0.0
+
+        // 表面类型/渲染模式/Alpha 裁剪/渲染面 由通用面板 SurfaceOptionsGUI 合并为"渲染设置"折叠组，
+        // 表面类型可设不透明(Opaque)/透明(Transparent)，混合因子/深度写入由预设驱动到 _SrcBlend/_DstBlend/_ZWrite
+        [Header(Surface Options)]
+        [Enum(Opaque,0,Transparent,1)] _Surface ("表面类型 (0=不透明 / 1=透明 / 默认不透明)", Float) = 0
+        [Enum(AlphaBlend,0,Additive,1,PremultipliedAlpha,2)]
+        _BlendMode ("渲染模式 (仅透明表面生效 / 0=标准透明 / 1=加法叠加发光 / 2=预乘透明)", Float) = 0
+        [Toggle(_ALPHATEST_ON)] _AlphaClip ("Alpha 裁剪 (按阈值镂空丢弃像素 / 不透明时默认开启)", Float) = 1
+        _Cutoff ("裁剪阈值 (低于此 Alpha 的像素被丢弃 / 仅开启裁剪时生效)", Range(0, 1)) = 0.5
+        [Enum(On,0,Off,2)] _Cull ("渲染面 (On=双面都显示 / Off=仅显示正面)", Float) = 0
+        [HideInInspector] _SrcBlend ("__src", Float) = 1
+        [HideInInspector] _DstBlend ("__dst", Float) = 0
+        [HideInInspector] _ZWrite ("__zw", Float) = 1
 
         [Header(Lit)]
         // 勾选=受光(BlinnPhong) / 取消=无光；默认受光(与合并前的 Lit 版一致)。
@@ -16,14 +28,6 @@ Shader "FrameWork/Particle/TreeWindSway"
         [Toggle(_OUTLINE_ON)] _OutlineEnable ("开启描边 (沿轮廓 Alpha 外扩 / 默认关闭)", Float) = 0
         [HDR] _OutlineColor ("描边颜色", Color) = (0, 0, 0, 1)
         _OutlineSize ("描边大小 (向外扩展的纹素数)", Range(0, 10)) = 1.0
-
-        [Header(Particle Blend)]
-        [Enum(UnityEngine.Rendering.BlendMode)] _BlendSrc ("源混合因子 (默认 SrcAlpha)", Float) = 5
-        [Enum(UnityEngine.Rendering.BlendMode)] _BlendDst ("目标混合因子 (普通=OneMinusSrcAlpha / 叠加=One)", Float) = 10
-        [ToggleUI] _ZWrite ("写入深度 (粒子通常关闭)", Float) = 0
-
-        [Header(Render Face)]
-        [Enum(On,0,Off,2)] _Cull ("是否开启双面渲染 (On=两面都显示 / Off=仅显示正面)", Float) = 0
 
         [Header(Soft Particles)]
         [Toggle(_SOFTPARTICLES_ON)] _SoftParticlesEnabled ("柔和粒子 (与场景相交处淡出 / 需开启相机深度纹理)", Float) = 0
@@ -57,8 +61,8 @@ Shader "FrameWork/Particle/TreeWindSway"
     {
         Tags
         {
-            "RenderType"     = "Transparent"
-            "Queue"          = "Transparent"
+            "RenderType"     = "TransparentCutout"
+            "Queue"          = "AlphaTest"
             "RenderPipeline" = "UniversalPipeline"
             "IgnoreProjector"= "True"
         }
@@ -69,7 +73,8 @@ Shader "FrameWork/Particle/TreeWindSway"
             Name "ParticleForward"
             Tags { "LightMode" = "UniversalForward" }
 
-            Blend [_BlendSrc] [_BlendDst]
+            // 混合因子/深度写入由材质面板"表面类型/渲染模式"预设驱动(不透明=One Zero+写深度, 透明=按模式混合+不写深度)
+            Blend [_SrcBlend] [_DstBlend]
             ZWrite [_ZWrite]
             Cull [_Cull]
 
@@ -78,6 +83,7 @@ Shader "FrameWork/Particle/TreeWindSway"
             #pragma fragment frag
 
             #pragma shader_feature_local _UNLIT_ON
+            #pragma shader_feature_local _ALPHATEST_ON
             #pragma shader_feature_local _SOFTPARTICLES_ON
             #pragma shader_feature_local _CAMERAFADE_ON
             #pragma shader_feature_local _OUTLINE_ON
@@ -146,7 +152,8 @@ Shader "FrameWork/Particle/TreeWindSway"
                                                    IN.uv, _BaseMap_TexelSize.xy, _OutlineSize, _OutlineColor);
                 #endif
                 half4 col = baseSample * _BaseColor * IN.color;
-                clip(col.a - _Cutoff);
+                // Alpha 裁剪(镂空)：仅开启 _ALPHATEST_ON 时丢弃低于 _Cutoff 的像素；不透明表面默认开启
+                ApplyAlphaClip(col.a, _Cutoff);
 
                 half fade = ParticleFade(IN.screenPos, _SoftParticleNearFade, _SoftParticleFarFade,
                                          _CameraNearFade, _CameraFarFade);

@@ -5,7 +5,7 @@ using UnityEngine.Rendering;
 
 /// <summary>
 /// 网格通用 Shader(FrameWork/URP/MeshCommon1) 的材质面板：
-/// 把参数按 表面/光照/描边/变换 分组为可折叠区块，末尾的 表面类型/渲染模式/Alpha 裁剪/渲染面
+/// 把参数按 表面/光照/描边/变换/自动旋转 分组为可折叠区块，末尾的 表面类型/渲染模式/Alpha 裁剪/渲染面
 /// 由通用助手 <see cref="SurfaceOptionsGUI"/> 合并成一个"渲染设置"折叠组绘制并同步混合/深度状态
 /// (表面类型可设不透明/透明)；再追加一个仿 URP Lit 的「优先级(Sorting Priority)」滑条，
 /// 以相对基础队列(AlphaTest 2450)的偏移量直接改写 material.renderQueue，控制同深度/共面时的渲染先后。
@@ -47,7 +47,8 @@ public class MeshCommonShaderGUI : ShaderGUI
         new Section("表面", null,            new[] { "_BaseMap", "_BaseColor" }),
         new Section("光照", "_LitEnable",    new string[0]),
         new Section("描边", "_OutlineEnable", new[] { "_OutlineColor", "_OutlineSize" }),
-        new Section("变换", null,            new[] { "_VertexOffset", "_VertexRotation" }),
+        new Section("变换", null,            new[] { "_VertexScale", "_VertexOffset", "_VertexRotation" }),
+        new Section("自动旋转", "_AutoRotateEnable", new[] { "_RotateDirection", "_RotateSpeed" }),
     };
 
     #endregion

@@ -4,7 +4,19 @@ Shader "FrameWork/SpriteRenderer/GrassWindSway"
     {
         [MainTexture] _BaseMap ("草贴图", 2D) = "white" {}
         [MainColor]   _BaseColor ("染色颜色", Color) = (1, 1, 1, 1)
-        _Cutoff ("透明裁剪阈值 (0=不裁剪)", Range(0, 1)) = 0.0
+
+        // 表面类型/渲染模式/Alpha 裁剪/渲染面 由通用面板 SurfaceOptionsGUI 合并为"渲染设置"折叠组，
+        // 表面类型可设不透明(Opaque)/透明(Transparent)，混合因子/深度写入由预设驱动到 _SrcBlend/_DstBlend/_ZWrite
+        [Header(Surface Options)]
+        [Enum(Opaque,0,Transparent,1)] _Surface ("表面类型 (0=不透明 / 1=透明 / 默认不透明)", Float) = 0
+        [Enum(AlphaBlend,0,Additive,1,PremultipliedAlpha,2)]
+        _BlendMode ("渲染模式 (仅透明表面生效 / 0=标准透明 / 1=加法叠加发光 / 2=预乘透明)", Float) = 0
+        [Toggle(_ALPHATEST_ON)] _AlphaClip ("Alpha 裁剪 (按阈值镂空丢弃像素 / 不透明时默认开启)", Float) = 1
+        _Cutoff ("裁剪阈值 (低于此 Alpha 的像素被丢弃 / 仅开启裁剪时生效)", Range(0, 1)) = 0.5
+        [Enum(On,0,Off,2)] _Cull ("渲染面 (On=双面都显示 / Off=仅显示正面)", Float) = 0
+        [HideInInspector] _SrcBlend ("__src", Float) = 1
+        [HideInInspector] _DstBlend ("__dst", Float) = 0
+        [HideInInspector] _ZWrite ("__zw", Float) = 1
 
         [Header(Lit)]
         // 勾选=受光(BlinnPhong) / 取消=无光；默认无光(与合并前的精灵版一致)。
@@ -15,9 +27,6 @@ Shader "FrameWork/SpriteRenderer/GrassWindSway"
         [Toggle(_OUTLINE_ON)] _OutlineEnable ("开启描边 (沿轮廓 Alpha 外扩 / 默认关闭)", Float) = 0
         [HDR] _OutlineColor ("描边颜色", Color) = (0, 0, 0, 1)
         _OutlineSize ("描边大小 (向外扩展的纹素数)", Range(0, 10)) = 1.0
-
-        [Header(Render Face)]
-        [Enum(On,0,Off,2)] _Cull ("是否开启双面渲染 (On=两面都显示 / Off=仅显示正面)", Float) = 0
 
         [Header(Position Offset)]
         _PositionOffset ("位置偏移 (XYZ 顶点整体偏移)", Vector) = (0, 0, 0, 0)
@@ -42,8 +51,8 @@ Shader "FrameWork/SpriteRenderer/GrassWindSway"
     {
         Tags
         {
-            "RenderType"     = "Transparent"
-            "Queue"          = "Transparent"
+            "RenderType"     = "TransparentCutout"
+            "Queue"          = "AlphaTest"
             "RenderPipeline" = "UniversalPipeline"
             "IgnoreProjector"= "True"
         }
@@ -53,8 +62,9 @@ Shader "FrameWork/SpriteRenderer/GrassWindSway"
             Name "SpriteForward"
             Tags { "LightMode" = "UniversalForward" }
 
-            Blend SrcAlpha OneMinusSrcAlpha
-            ZWrite Off
+            // 混合因子/深度写入由材质面板"表面类型/渲染模式"预设驱动(不透明=One Zero+写深度, 透明=按模式混合+不写深度)
+            Blend [_SrcBlend] [_DstBlend]
+            ZWrite [_ZWrite]
             Cull [_Cull]
 
             HLSLPROGRAM
@@ -63,15 +73,17 @@ Shader "FrameWork/SpriteRenderer/GrassWindSway"
             #pragma multi_compile_instancing
             #pragma shader_feature_local _UNLIT_ON
             #pragma shader_feature_local _OUTLINE_ON
+            #pragma shader_feature_local _ALPHATEST_ON
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
             #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
             #pragma multi_compile_fog
 
-            // 光照库(SurfaceData/InputData/BlinnPhong) → 通用受光助手；描边助手
+            // 光照库(SurfaceData/InputData/BlinnPhong) → 通用受光助手；描边助手；通用渲染设置(ApplyAlphaClip)
             #include "../Common/CommonLit.hlsl"
             #include "../Common/Outline.hlsl"
+            #include "../Common/SurfaceOptions.hlsl"
 
             struct Attributes
             {
@@ -173,8 +185,8 @@ Shader "FrameWork/SpriteRenderer/GrassWindSway"
                 #endif
                 half4 col = baseSample * _BaseColor;
 
-                // 可选 Alpha 裁剪（_Cutoff > 0 时生效）
-                clip(col.a - _Cutoff);
+                // Alpha 裁剪(镂空)：仅开启 _ALPHATEST_ON 时丢弃低于 _Cutoff 的像素；不透明表面默认开启
+                ApplyAlphaClip(col.a, _Cutoff);
 
                 #if defined(_UNLIT_ON)
                     // 无光：直接输出染色(与合并前一致，精灵默认无雾)

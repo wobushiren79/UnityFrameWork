@@ -15,8 +15,16 @@ Shader "FrameWork/URP/MeshCommon1"
         _OutlineSize ("描边大小 (向外扩展的纹素数)", Range(0, 10)) = 1.0
 
         [Header(Transform)]
+        _VertexScale ("大小 (整体缩放倍数 / 物体空间)", Float) = 1
+        // 物体空间 XY 各轴缩放：作用于顶点最内层(自旋/偏移之前)，用于修正非方形贴图的宽高比(默认1不改)；一般由代码写入(如 DSP 换图弹道)，故隐藏
+        [HideInInspector] _VertexScaleXY ("大小XY (物体空间 XY 各轴缩放)", Vector) = (1, 1, 1, 1)
         _VertexOffset ("位置偏移 (物体空间 XYZ)", Vector) = (0, 0, 0, 0)
         _VertexRotation ("角度旋转 (欧拉角 XYZ / 度)", Vector) = (0, 0, 0, 0)
+
+        [Header(Auto Rotate)]
+        [Toggle(_ROTATE_TIME_ON)] _AutoRotateEnable ("开启随时间旋转 (绕物体原点自动旋转 / 默认关闭)", Float) = 0
+        [Enum(Forward, 0, Reverse, 1)] _RotateDirection ("旋转方向 (0=正向 / 1=反向)", Float) = 0
+        _RotateSpeed ("旋转速度 (每轴 度每秒 XYZ)", Vector) = (0, 0, 0, 0)
 
         // 表面类型/渲染模式/Alpha 裁剪/渲染面 由通用面板 SurfaceOptionsGUI 合并为"渲染设置"折叠组，
         // 表面类型可设不透明(Opaque)或透明(Transparent)，混合因子/深度写入由预设驱动到 _SrcBlend/_DstBlend/_ZWrite
@@ -34,6 +42,9 @@ Shader "FrameWork/URP/MeshCommon1"
 
         // 渲染优先级偏移(相对基础队列 AlphaTest 2450)，由 MeshCommonShaderGUI 以"优先级"滑条绘制并写入 material.renderQueue
         [HideInInspector] _QueueOffset ("Queue Offset", Float) = 0.0
+
+        // 外部灌入的平坦环境光补偿(仅 Lit 生效)：供 GPU Instancing 批量绘制(DrawMeshInstanced)通过 MaterialPropertyBlock 补齐 SampleSH 读不到的环境光；默认0，普通渲染(预制/材质直用)不受影响
+        [HideInInspector] _InstancedFlatGI ("Instanced Flat GI", Vector) = (0, 0, 0, 0)
     }
 
     SubShader
@@ -62,8 +73,13 @@ Shader "FrameWork/URP/MeshCommon1"
             half   _Cutoff;
             half4  _OutlineColor;
             half   _OutlineSize;
+            float  _VertexScale;         // 物体空间整体缩放倍数(默认1)
+            float4 _VertexScaleXY;       // 物体空间 XY 各轴缩放(最内层, 修正非方形贴图宽高比; 默认(1,1))
             float4 _VertexOffset;        // 物体空间位置偏移(xyz)
             float4 _VertexRotation;      // 欧拉角旋转(xyz, 度)
+            float4 _RotateSpeed;         // 随时间旋转的每轴角速度(xyz, 度/秒)
+            half   _RotateDirection;     // 旋转方向(0 正向 / 1 反向, 顶点着色器换算为 +1/-1)
+            half4  _InstancedFlatGI;     // 外部灌入的平坦环境光补偿(rgb, 仅 Lit 生效; 默认0)
         CBUFFER_END
         ENDHLSL
 
@@ -86,6 +102,7 @@ Shader "FrameWork/URP/MeshCommon1"
             #pragma shader_feature_local _LIT_ON
             #pragma shader_feature_local _OUTLINE_ON
             #pragma shader_feature_local _ALPHATEST_ON
+            #pragma shader_feature_local _ROTATE_TIME_ON
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
             #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
@@ -122,8 +139,14 @@ Shader "FrameWork/URP/MeshCommon1"
                 UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
 
                 // 物体空间先按欧拉角旋转再加偏移，法线用同一矩阵旋转
-                float3x3 rotMat = BuildEulerRotationMatrix(_VertexRotation.xyz);
-                float3 positionOS = ApplyVertexTransform(IN.positionOS.xyz, rotMat, _VertexOffset.xyz);
+                // 随时间旋转开启时叠加"角速度×方向×时间(_Time.y)"，否则用静态欧拉角
+                float3 vertexEuler = _VertexRotation.xyz;
+                #if defined(_ROTATE_TIME_ON)
+                    vertexEuler = ApplyTimeRotationEuler(vertexEuler, _RotateSpeed.xyz, 1.0 - 2.0 * _RotateDirection, _Time.y);
+                #endif
+                float3x3 rotMat = BuildEulerRotationMatrix(vertexEuler);
+                // 先按 _VertexScale 整体缩放, 再旋转+偏移(法线不随均匀缩放改变方向, 无需缩放)
+                float3 positionOS = ApplyVertexTransform(IN.positionOS.xyz * _VertexScale * float3(_VertexScaleXY.x, _VertexScaleXY.y, 1.0), rotMat, _VertexOffset.xyz);
                 float3 normalOS   = mul(rotMat, IN.normalOS);
 
                 VertexPositionInputs posInputs = GetVertexPositionInputs(positionOS);
@@ -152,7 +175,10 @@ Shader "FrameWork/URP/MeshCommon1"
                 #if defined(_LIT_ON)
                     // 双面渲染：背面法线翻转，保证两面都能正确受光；透明表面用 col.a 参与混合
                     half3 normalWS = normalize(IN.normalWS) * IS_FRONT_VFACE(cullFace, 1.0, -1.0);
-                    return ApplyCommonLit(col.rgb, col.a, IN.positionWS, normalWS, IN.positionHCS, IN.fogFactor);
+                    half4 litColor = ApplyCommonLit(col.rgb, col.a, IN.positionWS, normalWS, IN.positionHCS, IN.fogFactor);
+                    // 补 DrawMeshInstanced 缺失的环境光：SampleSH 对实例化绘制读不到环境探针→偏暗，用外部灌入的平坦 GI 补齐(rgb 加到反照率上)；普通渲染 _InstancedFlatGI=0 无影响
+                    litColor.rgb += col.rgb * _InstancedFlatGI.rgb;
+                    return litColor;
                 #else
                     col.rgb = MixFog(col.rgb, IN.fogFactor);
                     return col;
@@ -179,6 +205,7 @@ Shader "FrameWork/URP/MeshCommon1"
             #pragma multi_compile_instancing
             #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
             #pragma shader_feature_local _ALPHATEST_ON
+            #pragma shader_feature_local _ROTATE_TIME_ON
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
 
@@ -224,8 +251,14 @@ Shader "FrameWork/URP/MeshCommon1"
                 UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
 
                 // 与 Forward 一致地先旋转+偏移，保证阴影轮廓跟随变换
-                float3x3 rotMat = BuildEulerRotationMatrix(_VertexRotation.xyz);
-                float3 positionOS = ApplyVertexTransform(IN.positionOS.xyz, rotMat, _VertexOffset.xyz);
+                // 随时间旋转开启时叠加"角速度×方向×时间(_Time.y)"，否则用静态欧拉角
+                float3 vertexEuler = _VertexRotation.xyz;
+                #if defined(_ROTATE_TIME_ON)
+                    vertexEuler = ApplyTimeRotationEuler(vertexEuler, _RotateSpeed.xyz, 1.0 - 2.0 * _RotateDirection, _Time.y);
+                #endif
+                float3x3 rotMat = BuildEulerRotationMatrix(vertexEuler);
+                // 先按 _VertexScale 整体缩放, 再旋转+偏移(法线不随均匀缩放改变方向, 无需缩放)
+                float3 positionOS = ApplyVertexTransform(IN.positionOS.xyz * _VertexScale * float3(_VertexScaleXY.x, _VertexScaleXY.y, 1.0), rotMat, _VertexOffset.xyz);
                 float3 normalOS   = mul(rotMat, IN.normalOS);
 
                 float3 positionWS = TransformObjectToWorld(positionOS);
@@ -260,6 +293,7 @@ Shader "FrameWork/URP/MeshCommon1"
             #pragma fragment DepthOnlyFragment
             #pragma multi_compile_instancing
             #pragma shader_feature_local _ALPHATEST_ON
+            #pragma shader_feature_local _ROTATE_TIME_ON
 
             struct Attributes
             {
@@ -282,8 +316,14 @@ Shader "FrameWork/URP/MeshCommon1"
                 UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
 
                 // 与 Forward 一致地先旋转+偏移，保证深度轮廓跟随变换
-                float3x3 rotMat = BuildEulerRotationMatrix(_VertexRotation.xyz);
-                float3 positionOS = ApplyVertexTransform(IN.positionOS.xyz, rotMat, _VertexOffset.xyz);
+                // 随时间旋转开启时叠加"角速度×方向×时间(_Time.y)"，否则用静态欧拉角
+                float3 vertexEuler = _VertexRotation.xyz;
+                #if defined(_ROTATE_TIME_ON)
+                    vertexEuler = ApplyTimeRotationEuler(vertexEuler, _RotateSpeed.xyz, 1.0 - 2.0 * _RotateDirection, _Time.y);
+                #endif
+                float3x3 rotMat = BuildEulerRotationMatrix(vertexEuler);
+                // 先按 _VertexScale 整体缩放, 再旋转+偏移(法线不随均匀缩放改变方向, 无需缩放)
+                float3 positionOS = ApplyVertexTransform(IN.positionOS.xyz * _VertexScale * float3(_VertexScaleXY.x, _VertexScaleXY.y, 1.0), rotMat, _VertexOffset.xyz);
 
                 OUT.positionHCS = TransformObjectToHClip(positionOS);
                 OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap);

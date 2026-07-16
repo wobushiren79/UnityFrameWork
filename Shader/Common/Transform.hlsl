@@ -36,4 +36,11 @@ float3 ApplyVertexTransform(float3 positionOS, float3x3 rotation, float3 offset)
     return mul(rotation, positionOS) + offset;
 }
 
+// 随时间自动旋转：在静态欧拉角基础上叠加"每轴角速度 × 方向 × 时间"得到当前帧欧拉角(度)。
+// speed 单位度/秒(每轴独立), direction=+1 正向 / -1 反向, time 传 _Time.y(秒)。
+float3 ApplyTimeRotationEuler(float3 staticEuler, float3 speed, float direction, float time)
+{
+    return staticEuler + speed * direction * time;
+}
+
 #endif // COMMON_TRANSFORM_INCLUDED

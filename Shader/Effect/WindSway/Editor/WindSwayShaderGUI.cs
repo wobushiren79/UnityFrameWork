@@ -4,9 +4,11 @@ using UnityEngine;
 
 /// <summary>
 /// GrassWindSway / TreeWindSway 系列 shader 的通用材质面板。
-/// 把参数按 表面/光照/描边/混合/风摆/抖动... 分组为可折叠区块显示(轻量版 PaletteFX 风格)。
+/// 把参数按 表面/光照/描边/风摆/抖动... 分组为可折叠区块显示(轻量版 PaletteFX 风格)。
 /// 6 个 shader(粒子 · Mesh · SpriteRenderer × 草/树)共用本 GUI；粒子草/树已把 Lit/Unlit
 /// 合并为单 shader、用 _LitEnable(ToggleOff _UNLIT_ON) 切换受光。
+/// 表面类型/渲染模式/Alpha 裁剪/渲染面 由通用助手 <see cref="SurfaceOptionsGUI"/> 合并为"渲染设置"
+/// 折叠组绘制并把预设同步为实际混合/深度/队列状态(表面类型可设不透明/透明，默认不透明+开启 Alpha 裁剪)。
 /// 按"属性存在才画"的方式自适应各 shader 不同的参数集，无需为每个 shader 单独写面板。
 /// </summary>
 public class WindSwayShaderGUI : ShaderGUI
@@ -29,13 +31,12 @@ public class WindSwayShaderGUI : ShaderGUI
     }
 
     // 全 shader 参数并集，按分组顺序排列；每个 shader 只会命中自己实际拥有的参数。
+    // 表面类型/渲染模式/Alpha 裁剪(_Cutoff)/渲染面 不在此列，交由 SurfaceOptionsGUI 统一绘制成"渲染设置"组。
     private static readonly Section[] sections = new Section[]
     {
-        new Section("表面",     null, new[] { "_BaseMap", "_BaseColor", "_Cutoff" }),
+        new Section("表面",     null, new[] { "_BaseMap", "_BaseColor" }),
         new Section("光照",     "_LitEnable", new string[0]),
         new Section("描边",     "_OutlineEnable", new[] { "_OutlineColor", "_OutlineSize" }),
-        new Section("粒子混合", null, new[] { "_BlendSrc", "_BlendDst", "_ZWrite" }),
-        new Section("渲染面",   null, new[] { "_Cull" }),
         new Section("柔和粒子", "_SoftParticlesEnabled", new[] { "_SoftParticleNearFade", "_SoftParticleFarFade" }),
         new Section("相机淡出", "_CameraFadeEnabled", new[] { "_CameraNearFade", "_CameraFarFade" }),
         new Section("位置偏移", null, new[] { "_PositionOffset" }),
@@ -68,7 +69,10 @@ public class WindSwayShaderGUI : ShaderGUI
 
     #region 面板绘制
 
-    /// <summary>绘制整个材质面板：分组折叠区块 + 底部渲染队列/实例化。</summary>
+    /// <summary>SurfaceOptionsGUI 用的渲染状态签名(表面类型+Alpha 裁剪)，用于检测切换以重设混合/深度/队列。</summary>
+    private float lastSurfaceStateKey = float.NaN;
+
+    /// <summary>绘制整个材质面板：分组折叠区块 + 通用"渲染设置"组 + 底部渲染队列/实例化。</summary>
     public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] properties)
     {
         HashSet<string> drawn = new HashSet<string>();
@@ -78,7 +82,13 @@ public class WindSwayShaderGUI : ShaderGUI
             DrawSection(materialEditor, properties, section, drawn);
         }
 
+        // 表面类型/渲染模式/Alpha 裁剪/渲染面 合并组(复用宿主的折叠绘制器保持风格统一)
+        SurfaceOptionsGUI.Draw(materialEditor, properties, drawn, Foldout);
+
         DrawRemaining(materialEditor, properties, drawn);
+
+        // 把表面类型/渲染模式预设同步为实际混合/深度/RenderType/队列状态
+        SurfaceOptionsGUI.Sync(materialEditor, properties, ref lastSurfaceStateKey);
 
         EditorGUILayout.Space(8);
         EditorGUILayout.LabelField("渲染选项", EditorStyles.boldLabel);
