@@ -42,6 +42,8 @@ public class MeshCommonShaderGUI : ShaderGUI
     }
 
     // 表面类型/渲染模式/Alpha 裁剪/渲染面 不在此列, 交由 SurfaceOptionsGUI 统一绘制成"渲染设置"组。
+    // 组内参数在当前 shader 上不存在时整组自动跳过(DrawSection 的 present.Count 判定), 故本数组是"全部宿主 shader 的参数并集":
+    // MeshCommon1 不显示火球/火星组、MeshFireBallInstanced1 不显示光照/描边组，各取所需。
     private static readonly Section[] sections = new Section[]
     {
         new Section("表面", null,            new[] { "_BaseMap", "_BaseColor" }),
@@ -49,6 +51,13 @@ public class MeshCommonShaderGUI : ShaderGUI
         new Section("描边", "_OutlineEnable", new[] { "_OutlineColor", "_OutlineSize" }),
         new Section("变换", null,            new[] { "_VertexScale", "_VertexOffset", "_VertexRotation" }),
         new Section("自动旋转", "_AutoRotateEnable", new[] { "_RotateDirection", "_RotateSpeed" }),
+        // 火球(MeshFireBallInstanced1 专属)：**中心火球在前, 火星在后**(本数组顺序 = Inspector 显示顺序,
+        // 与该 shader 的 Properties/Header 排列保持一致; 改这里就是改面板上下顺序)
+        new Section("中心火球", "_CoreEnable", new[] { "_CoreMap", "_CoreSize", "_CoreColorHot", "_CoreColorCold",
+                                                      "_CoreNoiseScale", "_CoreNoiseSpeed", "_CoreNoiseStrength",
+                                                      "_CoreEdgeSoft", "_CorePulseAmount", "_CorePulseSpeed" }),
+        new Section("火星运动", null, new[] { "_SparkRate", "_SparkDistance", "_SparkEase", "_SparkGravity", "_SparkOriginRadius" }),
+        new Section("火星外观", null, new[] { "_SparkSizeStart", "_SparkSizeEnd", "_SparkColorStart", "_SparkColorEnd", "_SparkFadeIn", "_SparkFadeOut" }),
     };
 
     #endregion
