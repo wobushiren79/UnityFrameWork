@@ -42,6 +42,17 @@ public partial class EffectManager : BaseManager
     }
 
     /// <summary>
+    /// 同步获取粒子模型预制(按 res_name 从 Effects 路径加载并缓存到 dicEffectModel)：不实例化、不入池、不需要 EffectBase 组件。
+    /// <para>供需要自管 VisualEffect 实例的调用方拿"模板预制"用(如弹道拖尾 VFX 批量渲染，自行 Instantiate 多份并每帧喂 GraphicsBuffer)，与血液等粒子同一加载源/缓存。</para>
+    /// </summary>
+    public GameObject GetEffectModelSync(string effectName)
+    {
+        if (string.IsNullOrEmpty(effectName))
+            return null;
+        return GetModelForAddressablesSync(dicEffectModel, $"{pathEffect}/{effectName}.prefab");
+    }
+
+    /// <summary>
     /// 获取持续性粒子
     /// </summary>
     /// <param name="effectName"></param>
