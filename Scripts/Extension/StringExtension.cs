@@ -147,6 +147,46 @@ public static class StringExtension
     }
 
     /// <summary>
+    /// string拆分成「枚举:long数值」字典(如 A:1&B:4)
+    /// 与 SplitForDictionary&lt;T&gt;(值为string) 的差异：单条缺省 :数值 时按 defaultValue 补齐(而非丢弃该条)；
+    /// 无法识别的枚举名/非数值不抛异常, 跳过并记入 listErrorKey(可空, 用于配置错误上报)
+    /// </summary>
+    /// <typeparam name="T">键的枚举类型</typeparam>
+    /// <param name="selfData">源字符串</param>
+    /// <param name="listErrorKey">无法识别的条目回收列表(可空)</param>
+    /// <param name="defaultValue">单条缺省 :数值 时的补齐值</param>
+    /// <param name="keyValueSeparator">键值分隔符</param>
+    /// <param name="pairSeparator">条目分隔符</param>
+    public static Dictionary<T, long> SplitForDictionaryEnumLong<T>(this string selfData, List<string> listErrorKey = null, long defaultValue = 1, char keyValueSeparator = ':', char pairSeparator = '&') where T : struct, Enum
+    {
+        var dicData = new Dictionary<T, long>();
+        if (string.IsNullOrEmpty(selfData))
+        {
+            return dicData;
+        }
+        string[] arrayPair = selfData.Split(new[] { pairSeparator }, StringSplitOptions.RemoveEmptyEntries);
+        for (int i = 0; i < arrayPair.Length; i++)
+        {
+            string[] itemData = arrayPair[i].Split(new[] { keyValueSeparator }, 2);
+            //Enum.TryParse 对数字字符串也会成功, 需再用 IsDefined 排除未定义的数值
+            if (!Enum.TryParse(itemData[0], out T key) || !Enum.IsDefined(typeof(T), key))
+            {
+                listErrorKey?.Add(arrayPair[i]);
+                continue;
+            }
+            long value = defaultValue;
+            if (itemData.Length > 1 && !long.TryParse(itemData[1], out value))
+            {
+                listErrorKey?.Add(arrayPair[i]);
+                continue;
+            }
+            //同键重复时后者覆盖前者, 不抛异常
+            dicData[key] = value;
+        }
+        return dicData;
+    }
+
+    /// <summary>
     /// string通过指定字符拆分成数组
     /// </summary>
     /// <param name="selfData"></param>
