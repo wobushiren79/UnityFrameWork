@@ -19,9 +19,35 @@ Shader "FrameWork/URP/MeshProgressBar"
         [Toggle] _BgTimeGradientEnable ("背景时间渐变开关 (开=背景色随时间在 背景颜色-渐变结束颜色 间循环 / 默认关闭)", Float) = 0
         _BgTimeGradientSpeed ("背景时间渐变速度 (每秒循环次数 / 越大变色越快)", Float) = 0.5
 
+        [Header(Background Flow Light)]
+        [Toggle] _BgFlowLightEnable ("背景流光开关 (开=背景上有一条循环扫过的亮带 / 默认关闭)", Float) = 0
+        [HDR] _BgFlowLightColor ("背景流光颜色 (HDR>1 配合 Bloom 发光)", Color) = (1, 1, 1, 1)
+        _BgFlowLightSpeed ("背景流光速度 (每秒扫过次数 / 负值反向)", Float) = 0.5
+        _BgFlowLightWidth ("背景流光宽度 (亮带宽度占循环周期的比例)", Range(0.01, 0.5)) = 0.12
+        _BgFlowLightAngle ("背景流光角度 (0=左到右 / 45=对角 / 90=下到上)", Range(0, 360)) = 45
+        _BgFlowLightSoftness ("背景流光软边 (亮带边缘柔和度)", Range(0.001, 0.5)) = 0.08
+
         [Header(Fill)]
         _FillMap ("进度贴图 (随进度填充的图)", 2D) = "white" {}
         [HDR] _FillColor ("进度颜色", Color) = (0.2, 0.9, 0.3, 1)
+
+        [Header(Fill Gradient)]
+        [Toggle] _FillGradientEnable ("进度渐变开关 (开=进度用两色线性渐变 / 关=纯进度色 / 默认关闭)", Float) = 0
+        [HDR] _FillColor2 ("进度渐变结束颜色 (渐变另一端 / 起点用进度颜色)", Color) = (0.1, 0.5, 0.15, 1)
+        [Enum(LeftToRight,0,RightToLeft,1,BottomToTop,2,TopToBottom,3)]
+        _FillGradientDirection ("进度渐变方向 (颜色过渡方向)", Float) = 0
+
+        [Header(Fill Time Gradient)]
+        [Toggle] _FillTimeGradientEnable ("进度时间渐变开关 (开=进度色随时间在 进度颜色-渐变结束颜色 间循环 / 默认关闭)", Float) = 0
+        _FillTimeGradientSpeed ("进度时间渐变速度 (每秒循环次数 / 越大变色越快)", Float) = 0.5
+
+        [Header(Fill Flow Light)]
+        [Toggle] _FillFlowLightEnable ("进度流光开关 (开=进度条上有一条循环扫过的亮带 / 默认关闭)", Float) = 0
+        [HDR] _FillFlowLightColor ("进度流光颜色 (HDR>1 配合 Bloom 发光)", Color) = (1, 1, 1, 1)
+        _FillFlowLightSpeed ("进度流光速度 (每秒扫过次数 / 负值反向)", Float) = 0.5
+        _FillFlowLightWidth ("进度流光宽度 (亮带宽度占循环周期的比例)", Range(0.01, 0.5)) = 0.12
+        _FillFlowLightAngle ("进度流光角度 (0=左到右 / 45=对角 / 90=下到上)", Range(0, 360)) = 45
+        _FillFlowLightSoftness ("进度流光软边 (亮带边缘柔和度)", Range(0.001, 0.5)) = 0.08
 
         [Header(Composite)]
         [Toggle] _FillShowThrough ("进度独立显示 (开=进度不被背景透明区裁剪 / 关=背景当轮廓蒙版 / 默认开)", Float) = 1
@@ -122,7 +148,24 @@ Shader "FrameWork/URP/MeshProgressBar"
                 half   _BgGradientDirection;
                 half   _BgTimeGradientEnable;
                 half   _BgTimeGradientSpeed;
+                half   _BgFlowLightEnable;
+                half4  _BgFlowLightColor;
+                half   _BgFlowLightSpeed;
+                half   _BgFlowLightWidth;
+                half   _BgFlowLightAngle;
+                half   _BgFlowLightSoftness;
                 half4  _FillColor;
+                half   _FillGradientEnable;
+                half4  _FillColor2;
+                half   _FillGradientDirection;
+                half   _FillTimeGradientEnable;
+                half   _FillTimeGradientSpeed;
+                half   _FillFlowLightEnable;
+                half4  _FillFlowLightColor;
+                half   _FillFlowLightSpeed;
+                half   _FillFlowLightWidth;
+                half   _FillFlowLightAngle;
+                half   _FillFlowLightSoftness;
                 half   _Progress;
                 half   _FillDirection;
                 half   _EdgeSoftness;
@@ -176,6 +219,20 @@ Shader "FrameWork/URP/MeshProgressBar"
                 else if (dir < 1.5) return 1.0 - uv.x;   // 右 → 左
                 else if (dir < 2.5) return uv.y;         // 下 → 上
                 else                return 1.0 - uv.y;   // 上 → 下
+            }
+
+            /// 流光带强度(0~1)：把 UV 投影到 angle 方向随时间滚动, 在 width 半宽内产生一条 softness 软边的循环亮带
+            half GetFlowLightMask (float2 uv, half angle, half speed, half width, half softness)
+            {
+                float rad = radians(angle);
+                float2 dir = float2(cos(rad), sin(rad));
+                // 投影坐标(中心化后任意角度都能完整扫过整面), 随时间 frac 循环滚动; 用 float 防止时间累积后半精度抖动
+                float coord = frac(dot(uv - 0.5, dir) + 0.5 - _Time.y * speed);
+                // 亮带中心 0.5: 三角波 + smoothstep 软边(全程 float, 避免 half/float 混合提升)
+                float d = abs(coord - 0.5);
+                float w = width;
+                float s = softness;
+                return 1.0 - smoothstep(max(w - s, 0.0), w + s, d);
             }
 
             /// 圆形进度坐标(0~1)：以 UV 中心为圆心, 从12点起按方向绕一圈, 值 <= 进度处视为已填充
@@ -248,7 +305,20 @@ Shader "FrameWork/URP/MeshProgressBar"
                     bgTint = lerp(_BgColor, _BgColor2, pulse);
                 }
                 half4 bg   = SAMPLE_TEXTURE2D(_BgMap,   sampler_BgMap,   TRANSFORM_TEX(bgUV,   _BgMap))   * bgTint;
-                half4 fill = SAMPLE_TEXTURE2D(_FillMap, sampler_FillMap, TRANSFORM_TEX(fillUV, _FillMap)) * _FillColor;
+                // 进度着色(同背景用未旋转的 IN.uv 使渐变随网格稳定)：空间渐变=按方向在 进度颜色→渐变结束颜色 间插值; 时间渐变=系数随时间循环
+                half4 fillTint = _FillColor;
+                if (_FillGradientEnable > 0.5)
+                {
+                    half g = GetGradientCoord(IN.uv, _FillGradientDirection);
+                    if (_FillTimeGradientEnable > 0.5) g = frac(g + _Time.y * _FillTimeGradientSpeed);
+                    fillTint = lerp(_FillColor, _FillColor2, g);
+                }
+                else if (_FillTimeGradientEnable > 0.5)
+                {
+                    half pulse = 0.5h + 0.5h * sin(_Time.y * _FillTimeGradientSpeed * TWO_PI);
+                    fillTint = lerp(_FillColor, _FillColor2, pulse);
+                }
+                half4 fill = SAMPLE_TEXTURE2D(_FillMap, sampler_FillMap, TRANSFORM_TEX(fillUV, _FillMap)) * fillTint;
 
                 // 旋转后越界的角落置空: 防止 Clamp 环绕把贴边像素向角落拉伸成拖影(未旋转时 UV 在 [0,1] 内不受影响)
                 bg   *= UVInsideBox(bgUV);
@@ -281,6 +351,19 @@ Shader "FrameWork/URP/MeshProgressBar"
                     // 蒙版模式：进度色叠在背景上, 整体形状由背景 alpha 裁剪
                     rgb = lerp(bg.rgb, fill.rgb, over);
                     a   = bg.a;
+                }
+
+                // 流光：背景/进度各一条随时间循环扫过的亮带(用未旋转 IN.uv 保持扫描方向稳定), 加法式叠在合成色上
+                // 背景亮带乘 bg.a 只在背景可见处发光; 进度亮带乘 over(=进度遮罩*进度图alpha) 只在已填充区发光
+                if (_BgFlowLightEnable > 0.5)
+                {
+                    half m = GetFlowLightMask(IN.uv, _BgFlowLightAngle, _BgFlowLightSpeed, _BgFlowLightWidth, _BgFlowLightSoftness);
+                    rgb += _BgFlowLightColor.rgb * m * bg.a;
+                }
+                if (_FillFlowLightEnable > 0.5)
+                {
+                    half m = GetFlowLightMask(IN.uv, _FillFlowLightAngle, _FillFlowLightSpeed, _FillFlowLightWidth, _FillFlowLightSoftness);
+                    rgb += _FillFlowLightColor.rgb * m * over;
                 }
 
                 // Alpha 裁剪(镂空)：开启 _ALPHATEST_ON 时丢弃低于 _Cutoff 的像素(不透明表面镂空常用)

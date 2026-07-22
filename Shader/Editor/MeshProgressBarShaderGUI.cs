@@ -4,7 +4,7 @@ using UnityEngine;
 
 /// <summary>
 /// FrameWork/URP/MeshProgressBar 进度条 shader 的材质面板。
-/// 把参数按 形状/进度/背景/背景渐变/背景时间渐变/填充/合成/圆形/旋转/高光/光照 分组为可折叠区块显示(轻量版 PaletteFX 风格)，
+/// 把参数按 形状/进度/背景/背景渐变/背景时间渐变/背景流光/填充/进度渐变/进度时间渐变/进度流光/合成/圆形/旋转/高光/光照 分组为可折叠区块显示(轻量版 PaletteFX 风格)，
 /// 末尾的 表面类型/渲染模式/Alpha 裁剪/渲染面 由通用助手 <see cref="SurfaceOptionsGUI"/> 合并成一个"渲染设置"折叠组绘制并同步渲染状态。
 /// 带一级开关的分组在开关关闭时置灰组内参数。按"属性存在才画"自适应，末尾兜底"其他"组避免漏显示。
 /// </summary>
@@ -36,7 +36,11 @@ public class MeshProgressBarShaderGUI : ShaderGUI
         new Section("背景",         null, new[] { "_BgMap", "_BgColor" }),
         new Section("背景渐变",     "_BgGradientEnable", new[] { "_BgColor2", "_BgGradientDirection" }),
         new Section("背景时间渐变", "_BgTimeGradientEnable", new[] { "_BgTimeGradientSpeed" }),
+        new Section("背景流光",     "_BgFlowLightEnable", new[] { "_BgFlowLightColor", "_BgFlowLightSpeed", "_BgFlowLightWidth", "_BgFlowLightAngle", "_BgFlowLightSoftness" }),
         new Section("进度填充",     null, new[] { "_FillMap", "_FillColor" }),
+        new Section("进度渐变",     "_FillGradientEnable", new[] { "_FillColor2", "_FillGradientDirection" }),
+        new Section("进度时间渐变", "_FillTimeGradientEnable", new[] { "_FillTimeGradientSpeed" }),
+        new Section("进度流光",     "_FillFlowLightEnable", new[] { "_FillFlowLightColor", "_FillFlowLightSpeed", "_FillFlowLightWidth", "_FillFlowLightAngle", "_FillFlowLightSoftness" }),
         new Section("合成",         null, new[] { "_FillShowThrough" }),
         new Section("圆形",         null, new[] { "_RadialDirection", "_RadialStartAngle" }),
         new Section("圆形-背景旋转", "_BgRotateEnable",   new[] { "_BgRotateSpeed", "_BgRotateDirection" }),
