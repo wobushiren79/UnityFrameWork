@@ -25,7 +25,7 @@ namespace PixelImageEditor
     {
         #region 枚举
 
-        /// <summary>取色（转换）算法，与原工具的 most / most_light / most_dark / average / neighbor 一一对应。</summary>
+        /// <summary>取色（转换）算法：most / most_light / most_dark / average / neighbor 与原工具一一对应，nearest_neighbor 为本工具新增。</summary>
         private enum ConvMethod
         {
             /// <summary>最常用颜色：格内相近色聚类后取主簇中使用最多的颜色。</summary>
@@ -38,6 +38,8 @@ namespace PixelImageEditor
             Average = 3,
             /// <summary>邻域颜色：在格子四周各外扩 25% 后再做平均，过渡更柔和。</summary>
             Neighbor = 4,
+            /// <summary>最近邻颜色：取格中心映射到源图后距离最近的一个像素原色，不做任何混合，边缘最锐利。</summary>
+            NearestNeighbor = 5,
         }
 
         /// <summary>最终颜色数量限制模式。</summary>

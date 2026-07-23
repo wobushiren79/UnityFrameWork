@@ -69,7 +69,7 @@ namespace PixelImageEditor
 
             _method = (ConvMethod)EditorGUILayout.Popup("取色算法", (int)_method, new[]
             {
-                "最常用颜色", "最常用颜色（偏亮）", "最常用颜色（偏暗）", "平均颜色", "邻域颜色"
+                "最常用颜色", "最常用颜色（偏亮）", "最常用颜色（偏暗）", "平均颜色", "邻域颜色", "最近邻颜色"
             });
             EditorGUILayout.LabelField(MethodHint(_method), _hintStyle);
 
@@ -82,7 +82,7 @@ namespace PixelImageEditor
                     _similarityThreshold, 0, 100);
             }
             if (!clustering)
-                EditorGUILayout.LabelField("（当前算法为平均/邻域，不使用相似度阈值）", _hintStyle);
+                EditorGUILayout.LabelField("（当前算法为平均/邻域/最近邻，不使用相似度阈值）", _hintStyle);
 
             // 最终颜色数量限制（转换后对生成图做颜色量化）
             using (new EditorGUILayout.HorizontalScope())
@@ -220,6 +220,7 @@ namespace PixelImageEditor
                 case ConvMethod.MostDark: return "按亮度加权聚类，权重偏向更暗的颜色。";
                 case ConvMethod.Average: return "格内所有非透明像素 RGB 的算术平均。";
                 case ConvMethod.Neighbor: return "向四周外扩 25% 区域后再做平均，边缘过渡更柔和。";
+                case ConvMethod.NearestNeighbor: return "取格中心映射到源图后最近的一个像素原色，不做混合；边缘最锐利，但细线/小细节可能丢失。";
                 default: return "";
             }
         }
@@ -302,7 +303,9 @@ namespace PixelImageEditor
 
                     Color32 result;
                     bool hasColor;
-                    if (_method == ConvMethod.Average || _method == ConvMethod.Neighbor)
+                    if (_method == ConvMethod.NearestNeighbor)
+                        hasColor = SampleNearestNeighbor((cx0 + cx1) * 0.5f, (cy0 + cy1) * 0.5f, out result);
+                    else if (_method == ConvMethod.Average || _method == ConvMethod.Neighbor)
                         hasColor = SampleAverage(rOx0, rOy0, rOx1, rOy1, out result);
                     else if (_method == ConvMethod.Most)
                         hasColor = SampleMostUsed(rOx0, rOy0, rOx1, rOy1, out result);
@@ -471,6 +474,20 @@ namespace PixelImageEditor
                                  (byte)Mathf.RoundToInt(sumG / (float)count),
                                  (byte)Mathf.RoundToInt(sumB / (float)count), 255);
             return true;
+        }
+
+        /// <summary>最近邻：把画布坐标映射到源图，取距离最近的一个源像素原色（不混合，保留原 alpha）；越界或该像素全透明时返回 false。</summary>
+        private bool SampleNearestNeighbor(float canvasX, float canvasY, out Color32 result)
+        {
+            int sx = Mathf.FloorToInt((canvasX - _offsetX) / _imageScale + 0.5f);
+            int sy = Mathf.FloorToInt((canvasY - _offsetY) / _imageScale + 0.5f);
+            if (sx >= 0 && sx < _srcW && sy >= 0 && sy < _srcH)
+            {
+                Color32 c = _srcTopDown[sy * _srcW + sx];
+                if (c.a != 0) { result = c; return true; }
+            }
+            result = kTransparent;
+            return false;
         }
 
         /// <summary>最常用颜色：精确色直方图 → 相近色聚类 → 主簇内取使用最多色。</summary>
@@ -846,7 +863,7 @@ namespace PixelImageEditor
             if (_limitColors) QuantizeToMaxColors(_maxColors, _colorLimitMode);
         }
 
-        /// <summary>按当前取色算法对一个源图矩形采样（复用 Convert 的采样器）；邻域算法四周外扩 25%。</summary>
+        /// <summary>按当前取色算法对一个源图矩形采样（复用 Convert 的采样器）；邻域算法四周外扩 25%，最近邻取矩形中心像素。</summary>
         private bool SampleSourceRect(int x0, int y0, int x1, int y1, out Color32 result)
         {
             if (_method == ConvMethod.Neighbor)
@@ -854,6 +871,15 @@ namespace PixelImageEditor
                 int mx = Mathf.RoundToInt((x1 - x0) * 0.25f), my = Mathf.RoundToInt((y1 - y0) * 0.25f);
                 x0 = Mathf.Max(0, x0 - mx); y0 = Mathf.Max(0, y0 - my);
                 x1 = Mathf.Min(_srcW, x1 + mx); y1 = Mathf.Min(_srcH, y1 + my);
+            }
+            if (_method == ConvMethod.NearestNeighbor)
+            {
+                // 矩形已在源图空间，直接取中心处最近的像素原色
+                int cx = Mathf.Clamp((x0 + x1) / 2, 0, _srcW - 1);
+                int cy = Mathf.Clamp((y0 + y1) / 2, 0, _srcH - 1);
+                Color32 c = _srcTopDown[cy * _srcW + cx];
+                result = c.a != 0 ? c : kTransparent;
+                return c.a != 0;
             }
             if (_method == ConvMethod.Average || _method == ConvMethod.Neighbor)
                 return SampleAverage(x0, y0, x1, y1, out result);
