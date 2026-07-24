@@ -305,10 +305,10 @@ public class SpineWindow : EditorWindow
     {
         if (attachment == null) return;
 
-        // 处理区域附件
+        // 处理区域附件（4.3: Region 属性已移除，改为通过 Sequence.Regions[0] 访问）
         if (attachment is RegionAttachment regionAttachment)
         {
-            AtlasRegion atlasRegion = regionAttachment.Region as AtlasRegion;
+            AtlasRegion atlasRegion = regionAttachment.Sequence.Regions[0] as AtlasRegion;
             if (atlasRegion != null)
             {
                 regions.Add(atlasRegion.name);
@@ -317,7 +317,7 @@ public class SpineWindow : EditorWindow
         // 处理网格附件
         else if (attachment is MeshAttachment meshAttachment)
         {
-            AtlasRegion atlasRegion = meshAttachment.Region as AtlasRegion;
+            AtlasRegion atlasRegion = meshAttachment.Sequence.Regions[0] as AtlasRegion;
             if (atlasRegion != null)
             {
                 regions.Add(atlasRegion.name);
@@ -362,7 +362,7 @@ public class SpineWindow : EditorWindow
                 {
                     if (!(entry.Attachment is RegionAttachment regionAtt)) continue;
 
-                    AtlasRegion atlasRegion = regionAtt.Region as AtlasRegion;
+                    AtlasRegion atlasRegion = regionAtt.Sequence.Regions[0] as AtlasRegion;
                     if (atlasRegion == null) continue;
 
                     string regionName = atlasRegion.name;
@@ -409,15 +409,15 @@ public class SpineWindow : EditorWindow
                         // 2. 创建临时的 Skeleton 实例
                         Skeleton skeleton = new Skeleton(skeletonData);
                         // 3. 应用默认姿势（初始变换）
-                        skeleton.SetToSetupPose(); // 应用默认骨骼和插槽的初始位置
-                        skeleton.UpdateWorldTransform(Skeleton.Physics.Update); // 计算世界变换
+                        skeleton.SetupPose(); // 4.3: SetToSetupPose() → SetupPose()
+                        skeleton.UpdateWorldTransform(Spine.Physics.Update); // 4.3: Skeleton.Physics → Spine.Physics
                         // 4. 查找插槽
                         Slot slot = skeleton.FindSlot(region.name);
                         // 5. 获取插槽的父骨骼
                         Bone bone = slot.Bone;
                         // 6. 计算世界坐标
                         // 将附件的本地偏移转换为世界坐标
-                        bone.LocalToWorld(targetAttachment.X, targetAttachment.Y, out float worldX, out float worldY);
+                        bone.AppliedPose.LocalToWorld(targetAttachment.X, targetAttachment.Y, out float worldX, out float worldY);
 
                         Texture2D newTex = CreateRegionTexture(region, sourceTexture);
                         originTex = MergeTexturesForOverlay(originTex, newTex, worldX, worldY);

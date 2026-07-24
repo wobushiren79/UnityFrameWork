@@ -24,6 +24,10 @@ Shader "FrameWork/URP/MeshTextInstanced1"
     //   淡出: a *= 1 - ((t-_FadeStart)/(_FadeEnd-_FadeStart))^_FadeEase —— 旧 DOFade(0, 0.8s, InQuad)
     //   弹跳: s *= 1 + _PopScale × sin(saturate(age/_PopDuration)×π)   —— 旧 DOScale(1.2, 0.15s, 2×Yoyo)
     //
+    // 【渲染队列 = Transparent+500】飘字必须恒在 Spine 生物/粒子(默认 Transparent=3000)之上：透明组内大家
+    //   ZWrite Off 都不写深度，ZTest 管不到彼此，遮挡纯按「队列→距离从远到近」排序、后画者盖前画者
+    //   (曾用默认 3000，进攻生物比飘字锚点更靠近相机而后画，把飘字压在身后)；+500 保证飘字在它们全部之后绘制。
+    //
     // 【⚠️寿终保险丝】age ≥ _Lifetime 的实例塌缩成零尺寸——C# 槽剔除是主路径，这里是兜底，
     // 防止 C# 停更(如战斗结束未清场)时在屏数字永久残留。
     Properties
@@ -58,7 +62,8 @@ Shader "FrameWork/URP/MeshTextInstanced1"
         [HideInInspector] _TextTime ("出生时刻 (逐实例 / Time.timeSinceLevelLoad 基准)", Float) = 0
 
         [Header(Rendering)]
-        [Enum(UnityEngine.Rendering.CompareFunction)] _ZTest ("深度测试 (LEqual=被场景遮挡 / Always=恒在最前)", Float) = 4
+        // ZTest 只对「写了深度的物体」(不透明/AlphaTest 裁剪)生效；透明物体间(Spine生物等)的遮挡由 Queue+距离排序决定，见文件头【渲染队列】
+        [Enum(UnityEngine.Rendering.CompareFunction)] _ZTest ("深度测试 (Always=不被写深度物体遮挡; 透明间遮挡看 Queue)", Float) = 4
     }
 
     SubShader
@@ -66,7 +71,8 @@ Shader "FrameWork/URP/MeshTextInstanced1"
         Tags
         {
             "RenderType"     = "Transparent"
-            "Queue"          = "Transparent"
+            // +500: 提到默认透明组(3000, Spine生物/粒子)之后绘制, 恒在最前——透明组内 ZWrite Off 互不看深度, 遮挡只由队列+距离排序决定
+            "Queue"          = "Transparent+500"
             "RenderPipeline" = "UniversalPipeline"
             "IgnoreProjector"= "True"
         }

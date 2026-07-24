@@ -38,7 +38,8 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     public SkeletonAnimation AddSkeletonAnimation(GameObject targetObj, string assetName, Dictionary<string, SpineSkinBean> skinData = null)
     {
         var skeletonDataAsset = GetSkeletonDataAssetWithMod(assetName);
-        SkeletonAnimation skeletonAnimation = SkeletonAnimation.AddToGameObject(targetObj, skeletonDataAsset);
+        // 4.3: AddToGameObject 返回 SkeletonComponents<SkeletonRenderer, SkeletonAnimation>
+        SkeletonAnimation skeletonAnimation = SkeletonAnimation.AddToGameObject(targetObj, skeletonDataAsset).skeletonAnimation;
         if (skinData != null)
         {
             ChangeSkeletonSkin(skeletonAnimation.skeleton, skinData);
@@ -130,7 +131,8 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     public SkeletonGraphic AddSkeletonGraphic(GameObject targetObj, string assetName, Dictionary<string, SpineSkinBean> skinData, Material material)
     {
         var skeletonDataAsset = GetSkeletonDataAssetWithMod(assetName);
-        SkeletonGraphic skeletonGraphic = SkeletonGraphic.AddSkeletonGraphicComponent(targetObj, skeletonDataAsset, material);
+        // 4.3: AddSkeletonGraphicComponent 已移除，改用 AddSkeletonGraphicAnimationComponents（同时创建 SkeletonGraphic + SkeletonAnimation）
+        SkeletonGraphic skeletonGraphic = SkeletonGraphic.AddSkeletonGraphicAnimationComponents(targetObj, skeletonDataAsset, material).skeletonRenderer;
         if (skinData != null)
         {
             ChangeSkeletonSkin(skeletonGraphic.Skeleton, skinData);
@@ -168,7 +170,7 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
             }
         }
         skeleton.SetSkin(newSkin);
-        skeleton.SetSlotsToSetupPose();
+        skeleton.SetupPoseSlots();
 
         //改变皮肤颜色
         if (dicSkin != null)
@@ -231,7 +233,7 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
         previousSkin.Clear();
 
         skeleton.Skin = repackedSkin;
-        skeleton.SetSlotsToSetupPose();
+        skeleton.SetupPoseSlots();
         skeletonAnimation.AnimationState.Apply(skeleton);
 
         AtlasUtilities.ClearCache();
@@ -320,7 +322,7 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
             LogUtil.LogError("播放动画失败 缺少SkeletonGraphic资源");
             return null;
         }
-        return PlayAnim(skeletonGraphic.skeletonDataAsset, skeletonGraphic.AnimationState, spineAnimationState, isLoop, animNameAppoint, animStartTime, animSpeed);
+        return PlayAnim(skeletonGraphic.skeletonDataAsset, ((SkeletonAnimation)skeletonGraphic.Animation).AnimationState, spineAnimationState, isLoop, animNameAppoint, animStartTime, animSpeed);
     }
 
     /// <summary>
@@ -389,7 +391,7 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
             LogUtil.LogError("播放动画失败 缺少SkeletonGraphic资源");
             return null;
         }
-        return AddAnimation(skeletonGraphic.skeletonDataAsset, skeletonGraphic.AnimationState, trackIndex, spineAnimationState, isLoop, delay, animNameAppoint, animStartTime, animSpeed);
+        return AddAnimation(skeletonGraphic.skeletonDataAsset, ((SkeletonAnimation)skeletonGraphic.Animation).AnimationState, trackIndex, spineAnimationState, isLoop, delay, animNameAppoint, animStartTime, animSpeed);
     }
 
     /// <summary>
