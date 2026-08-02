@@ -76,6 +76,12 @@ public enum LanguageEnum
 {
     cn = 0,
     en = 1,
+    jp = 2,
+    kr = 3,
+    tw = 4,
+    de = 5,
+    fr = 6,
+    ru = 7,
 }
 
 /// <summary>

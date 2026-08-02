@@ -54,7 +54,7 @@ public partial class LanguageCfg
     #region 默认语言判定
     /// <summary>
     /// 获取初始语言：连上 Steam 时根据 Steam 客户端语言初始化，未连上则默认 en
-    /// 仅区分中文/英文：含 chinese 的 Steam 语言归为 cn，其余归为 en
+    /// 映射：schinese→cn、tchinese→tw、japanese→jp、koreana→kr、german→de、french→fr、russian→ru，其余归为 en
     /// </summary>
     public static string GetInitialLanguage()
     {
@@ -65,8 +65,22 @@ public partial class LanguageCfg
                 string steamLanguage = SteamApps.GetCurrentGameLanguage();
                 if (!string.IsNullOrEmpty(steamLanguage))
                 {
+                    if (steamLanguage.Equals("schinese", StringComparison.OrdinalIgnoreCase))
+                        return LanguageEnum.cn.GetEnumName();
+                    if (steamLanguage.Equals("tchinese", StringComparison.OrdinalIgnoreCase))
+                        return LanguageEnum.tw.GetEnumName();
                     if (steamLanguage.IndexOf("chinese", StringComparison.OrdinalIgnoreCase) >= 0)
                         return LanguageEnum.cn.GetEnumName();
+                    if (steamLanguage.Equals("japanese", StringComparison.OrdinalIgnoreCase))
+                        return LanguageEnum.jp.GetEnumName();
+                    if (steamLanguage.Equals("koreana", StringComparison.OrdinalIgnoreCase))
+                        return LanguageEnum.kr.GetEnumName();
+                    if (steamLanguage.Equals("german", StringComparison.OrdinalIgnoreCase))
+                        return LanguageEnum.de.GetEnumName();
+                    if (steamLanguage.Equals("french", StringComparison.OrdinalIgnoreCase))
+                        return LanguageEnum.fr.GetEnumName();
+                    if (steamLanguage.Equals("russian", StringComparison.OrdinalIgnoreCase))
+                        return LanguageEnum.ru.GetEnumName();
                     return LanguageEnum.en.GetEnumName();
                 }
             }
