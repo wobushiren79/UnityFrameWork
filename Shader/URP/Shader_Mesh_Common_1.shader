@@ -45,6 +45,19 @@ Shader "FrameWork/URP/MeshCommon1"
 
         // 外部灌入的平坦环境光补偿(仅 Lit 生效)：供 GPU Instancing 批量绘制(DrawMeshInstanced)通过 MaterialPropertyBlock 补齐 SampleSH 读不到的环境光；默认0，普通渲染(预制/材质直用)不受影响
         [HideInInspector] _InstancedFlatGI ("Instanced Flat GI", Vector) = (0, 0, 0, 0)
+        // 外部灌入的 Instanced 环境光模式开关(0=普通渲染走全局 SH/1=均匀 _InstancedFlatGI/2=方向性 _InstancedSH0..6；仅 DrawMeshInstanced 经 MPB 灌入，材质默认 0 不影响普通渲染)
+        [HideInInspector] _InstancedGI ("Instanced GI Mode", Float) = 0
+        // 方向性球谐环境光 L2 系数(7 个 float4，URP SampleSH9 的 PackSH 布局；仅 _InstancedGI=2 时由 MPB 灌入)
+        [HideInInspector] _InstancedSH0 ("Instanced SH0", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _InstancedSH1 ("Instanced SH1", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _InstancedSH2 ("Instanced SH2", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _InstancedSH3 ("Instanced SH3", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _InstancedSH4 ("Instanced SH4", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _InstancedSH5 ("Instanced SH5", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _InstancedSH6 ("Instanced SH6", Vector) = (0, 0, 0, 0)
+        // 模拟主光(方向+颜色)：DrawMeshInstanced 下 URP 主光 uniform 缺失→方向光=0，SH 桶(3D 立体模型)由 C# 灌入补 NdotL 恢复明暗立体感
+        [HideInInspector] _InstancedLightDir ("Instanced Light Dir", Vector) = (0, 1, 0, 0)
+        [HideInInspector] _InstancedLightColor ("Instanced Light Color", Vector) = (1, 1, 1, 0)
     }
 
     SubShader
@@ -80,6 +93,16 @@ Shader "FrameWork/URP/MeshCommon1"
             float4 _RotateSpeed;         // 随时间旋转的每轴角速度(xyz, 度/秒)
             half   _RotateDirection;     // 旋转方向(0 正向 / 1 反向, 顶点着色器换算为 +1/-1)
             half4  _InstancedFlatGI;     // 外部灌入的平坦环境光补偿(rgb, 仅 Lit 生效; 默认0)
+            float  _InstancedGI;         // Instanced 环境光模式(0=普通渲染走全局SH/1=均匀补偿/2=方向性SH; 材质默认0, MPB 按桶覆盖)
+            float4 _InstancedSH0;        // 方向性 SH L2 系数(URP SampleSH9 的 PackSH 布局, 7 个 float4)
+            float4 _InstancedSH1;
+            float4 _InstancedSH2;
+            float4 _InstancedSH3;
+            float4 _InstancedSH4;
+            float4 _InstancedSH5;
+            float4 _InstancedSH6;
+            float4 _InstancedLightDir;    // 模拟主光方向(世界空间,从物体指向光源; 仅 SH 桶由 MPB 灌入)
+            float4 _InstancedLightColor;  // 模拟主光颜色(rgb 含强度; 仅 SH 桶由 MPB 灌入)
         CBUFFER_END
         ENDHLSL
 
@@ -99,10 +122,14 @@ Shader "FrameWork/URP/MeshCommon1"
             #pragma fragment frag
 
             #pragma multi_compile_instancing
-            #pragma shader_feature_local _LIT_ON
-            #pragma shader_feature_local _OUTLINE_ON
-            #pragma shader_feature_local _ALPHATEST_ON
-            #pragma shader_feature_local _ROTATE_TIME_ON
+            //⚠️_LIT_ON 用 shader_feature 而非 shader_feature_local：DrawMeshInstanced 下 local keyword 的变体选择不生效(走 Unlit 分支，弹道视觉像没受光)；
+            //改非 local 后按材质 keyword 数组选变体，正常受光且不影响其他未开 _LIT_ON 的材质(Building 等)
+            //⚠️四个开关全部用 shader_feature(非 local)：shader_feature_local 在 Graphics.DrawMeshInstanced 下变体选择不生效(实测走 Unlit/开关失效)，
+            //改非 local 后按材质 keyword 数组选变体正常生效；不影响未开该关键字的材质(Building 等 MeshRenderer 读材质 keyword，行为不变)
+            #pragma shader_feature _LIT_ON
+            #pragma shader_feature _OUTLINE_ON
+            #pragma shader_feature _ALPHATEST_ON
+            #pragma shader_feature _ROTATE_TIME_ON
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
             #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
@@ -110,9 +137,40 @@ Shader "FrameWork/URP/MeshCommon1"
             #pragma multi_compile_fragment _ _SCREEN_SPACE_OCCLUSION
             #pragma multi_compile_fog
 
+            // 覆盖环境光采样：DrawMeshInstanced 下 SampleSH 读不到环境探针(全局 SH uniform 未填充)，改走本文件按 _InstancedGI 分流的环境光补偿(见 InstancedGI)；普通渲染 _InstancedGI=0 仍走全局 SampleSH
+            #define COMMON_LIT_SAMPLE_GI(normalWS) SampleInstancedGI(normalWS)
+            // InstancedGI 前向声明：函数体在 include 之后(SampleSH9 经 Lighting.hlsl 引入后才可编译)，此处只让 CommonLit.hlsl 内调用合法
+            float3 SampleInstancedGI(float3 normalWS);
+
             // 光照库(SurfaceData/InputData/BlinnPhong) → 通用受光助手；描边助手
             #include "../Common/CommonLit.hlsl"
             #include "../Common/Outline.hlsl"
+
+            // Instanced 环境光补偿分流：_InstancedGI=1 用 6 轴平均均匀光(面片桶/默认)；=2 用方向性球谐(3D 立体模型桶，URP SampleSH9)；0(普通渲染)走全局 SampleSH
+            float3 SampleInstancedGI(float3 normalWS)
+            {
+                //显式取 uniform 到局部变量，规避某些变体下编译器对 uniform 的"potentially uninitialized"误报
+                float giMode = _InstancedGI;
+                if (giMode > 1.5)
+                {
+                    float4 SHCoefficients[7];
+                    SHCoefficients[0] = _InstancedSH0;
+                    SHCoefficients[1] = _InstancedSH1;
+                    SHCoefficients[2] = _InstancedSH2;
+                    SHCoefficients[3] = _InstancedSH3;
+                    SHCoefficients[4] = _InstancedSH4;
+                    SHCoefficients[5] = _InstancedSH5;
+                    SHCoefficients[6] = _InstancedSH6;
+                    float3 envColor = SampleSH9(SHCoefficients, normalize(normalWS));
+                    //模拟主光漫反射：DrawMeshInstanced 下 URP 主光 uniform 缺失→方向光=0，SH 桶(3D 立体模型)补 NdotL 恢复明暗立体感(面片桶/普通渲染不受影响)
+                    float3 lightDir = normalize(_InstancedLightDir.xyz);
+                    envColor += _InstancedLightColor.rgb * saturate(dot(normalWS, lightDir));
+                    return envColor;
+                }
+                if (giMode > 0.5)
+                    return _InstancedFlatGI.rgb;
+                return SampleSH(normalWS);
+            }
 
             struct Attributes
             {
@@ -175,9 +233,8 @@ Shader "FrameWork/URP/MeshCommon1"
                 #if defined(_LIT_ON)
                     // 双面渲染：背面法线翻转，保证两面都能正确受光；透明表面用 col.a 参与混合
                     half3 normalWS = normalize(IN.normalWS) * IS_FRONT_VFACE(cullFace, 1.0, -1.0);
+                    //环境光补偿已由 COMMON_LIT_SAMPLE_GI(InstancedGI) 灌进 bakedGI(见 CommonLit.hlsl)，此处不再另加
                     half4 litColor = ApplyCommonLit(col.rgb, col.a, IN.positionWS, normalWS, IN.positionHCS, IN.fogFactor);
-                    // 补 DrawMeshInstanced 缺失的环境光：SampleSH 对实例化绘制读不到环境探针→偏暗，用外部灌入的平坦 GI 补齐(rgb 加到反照率上)；普通渲染 _InstancedFlatGI=0 无影响
-                    litColor.rgb += col.rgb * _InstancedFlatGI.rgb;
                     return litColor;
                 #else
                     col.rgb = MixFog(col.rgb, IN.fogFactor);
@@ -204,8 +261,8 @@ Shader "FrameWork/URP/MeshCommon1"
 
             #pragma multi_compile_instancing
             #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
-            #pragma shader_feature_local _ALPHATEST_ON
-            #pragma shader_feature_local _ROTATE_TIME_ON
+            #pragma shader_feature _ALPHATEST_ON
+            #pragma shader_feature _ROTATE_TIME_ON
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
 
@@ -292,8 +349,8 @@ Shader "FrameWork/URP/MeshCommon1"
             #pragma vertex DepthOnlyVertex
             #pragma fragment DepthOnlyFragment
             #pragma multi_compile_instancing
-            #pragma shader_feature_local _ALPHATEST_ON
-            #pragma shader_feature_local _ROTATE_TIME_ON
+            #pragma shader_feature _ALPHATEST_ON
+            #pragma shader_feature _ROTATE_TIME_ON
 
             struct Attributes
             {

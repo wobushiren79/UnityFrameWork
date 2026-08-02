@@ -8,6 +8,12 @@
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
+// 环境光采样可覆盖宏：DrawMeshInstanced 下 SampleSH 读不到环境探针(全局 SH uniform 未填充)，bakedGI≈0 会偏暗，
+// Shader_Mesh_Common_1 在 include 本文件前覆盖该宏走它灌入的 _InstancedFlatGI/_InstancedSH；其余 shader 走默认全局 SampleSH。
+#ifndef COMMON_LIT_SAMPLE_GI
+#define COMMON_LIT_SAMPLE_GI(normalWS) SampleSH(normalWS)
+#endif
+
 // 计算受光颜色：albedo=已算好的反照率, alpha=最终不透明度, positionWS=世界坐标,
 // normalWS=已归一化世界法线, positionHCS=裁剪空间坐标(供屏幕空间遮蔽), fogFactor=雾因子。
 half4 ApplyCommonLit(half3 albedo, half alpha, float3 positionWS, half3 normalWS,
@@ -24,7 +30,7 @@ half4 ApplyCommonLit(half3 albedo, half alpha, float3 positionWS, half3 normalWS
     inputData.viewDirectionWS         = GetWorldSpaceNormalizeViewDir(positionWS);
     inputData.shadowCoord             = TransformWorldToShadowCoord(positionWS);
     inputData.fogCoord                = fogFactor;
-    inputData.bakedGI                 = SampleSH(normalWS);
+    inputData.bakedGI                 = COMMON_LIT_SAMPLE_GI(normalWS);
     inputData.normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(positionHCS);
     inputData.shadowMask              = half4(1, 1, 1, 1);
 
