@@ -55,7 +55,7 @@ Shader "FrameWork/URP/MeshCommon1"
         [HideInInspector] _InstancedSH4 ("Instanced SH4", Vector) = (0, 0, 0, 0)
         [HideInInspector] _InstancedSH5 ("Instanced SH5", Vector) = (0, 0, 0, 0)
         [HideInInspector] _InstancedSH6 ("Instanced SH6", Vector) = (0, 0, 0, 0)
-        // 模拟主光(方向+颜色)：DrawMeshInstanced 下 URP 主光 uniform 缺失→方向光=0，SH 桶(3D 立体模型)由 C# 灌入补 NdotL 恢复明暗立体感
+        // 模拟主光(方向+颜色)：DrawMeshInstanced 下 URP 主光 uniform 缺失→方向光=0，Flat/SH 桶统一由 C# 灌入补 NdotL(面片桶恒定提亮对齐预制受光，3D 立体模型桶恢复明暗立体感)
         [HideInInspector] _InstancedLightDir ("Instanced Light Dir", Vector) = (0, 1, 0, 0)
         [HideInInspector] _InstancedLightColor ("Instanced Light Color", Vector) = (1, 1, 1, 0)
     }
@@ -101,8 +101,8 @@ Shader "FrameWork/URP/MeshCommon1"
             float4 _InstancedSH4;
             float4 _InstancedSH5;
             float4 _InstancedSH6;
-            float4 _InstancedLightDir;    // 模拟主光方向(世界空间,从物体指向光源; 仅 SH 桶由 MPB 灌入)
-            float4 _InstancedLightColor;  // 模拟主光颜色(rgb 含强度; 仅 SH 桶由 MPB 灌入)
+            float4 _InstancedLightDir;    // 模拟主光方向(世界空间,从物体指向光源; Flat/SH 桶由 MPB 灌入)
+            float4 _InstancedLightColor;  // 模拟主光颜色(rgb 含强度; Flat/SH 桶由 MPB 灌入)
         CBUFFER_END
         ENDHLSL
 
@@ -151,6 +151,10 @@ Shader "FrameWork/URP/MeshCommon1"
             {
                 //显式取 uniform 到局部变量，规避某些变体下编译器对 uniform 的"potentially uninitialized"误报
                 float giMode = _InstancedGI;
+                //模拟主光漫反射(Flat/SH 桶共用)：DrawMeshInstanced 下 URP 主光 uniform 缺失(实测主光强度归零弹体毫无变化)，
+                //由 C# 灌入方向+颜色补 NdotL——对法线恒定的 Flat 面片桶是恒定提亮(对齐预制 MeshRenderer 受光)，对 3D 立体模型桶恢复明暗立体感
+                float3 lightDir = normalize(_InstancedLightDir.xyz);
+                float3 instancedMainLight = _InstancedLightColor.rgb * saturate(dot(normalize(normalWS), lightDir));
                 if (giMode > 1.5)
                 {
                     float4 SHCoefficients[7];
@@ -162,13 +166,10 @@ Shader "FrameWork/URP/MeshCommon1"
                     SHCoefficients[5] = _InstancedSH5;
                     SHCoefficients[6] = _InstancedSH6;
                     float3 envColor = SampleSH9(SHCoefficients, normalize(normalWS));
-                    //模拟主光漫反射：DrawMeshInstanced 下 URP 主光 uniform 缺失→方向光=0，SH 桶(3D 立体模型)补 NdotL 恢复明暗立体感(面片桶/普通渲染不受影响)
-                    float3 lightDir = normalize(_InstancedLightDir.xyz);
-                    envColor += _InstancedLightColor.rgb * saturate(dot(normalWS, lightDir));
-                    return envColor;
+                    return envColor + instancedMainLight;
                 }
                 if (giMode > 0.5)
-                    return _InstancedFlatGI.rgb;
+                    return _InstancedFlatGI.rgb + instancedMainLight;
                 return SampleSH(normalWS);
             }
 
