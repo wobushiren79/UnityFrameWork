@@ -196,4 +196,5 @@ public enum TextReplaceEnum
     RegainHPReceived,//累计被治疗HP
     RegainHPCast,//累计施放治疗HP
     OnFieldTime,//在场存活时间(秒)
+    Value,//触发值(trigger_value,通用数值占位,如无敌秒数)
 }
