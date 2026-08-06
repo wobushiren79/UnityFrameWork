@@ -98,6 +98,34 @@ public partial class LanguageCfg
         ChangeLanguageData(languageType.GetEnumName());
     }
 
+    #region 语言展示名
+    /// <summary>
+    /// 各语言的展示名（下标与 LanguageEnum 值一一对应），格式：英文简称/该语言自称，方便各语言玩家一眼认出自己的语言
+    /// </summary>
+    protected static readonly string[] languageShowNames = new string[]
+    {
+        "cn/中文",
+        "en/English",
+        "jp/日本語",
+        "kr/한국어",
+        "tw/繁體中文",
+        "de/Deutsch",
+        "fr/Français",
+        "ru/Русский",
+    };
+
+    /// <summary>
+    /// 获取语言展示名（如 cn/中文），用于语言选择列表
+    /// </summary>
+    public static string GetLanguageShowName(LanguageEnum language)
+    {
+        int index = (int)language;
+        if (index < 0 || index >= languageShowNames.Length)
+            return language.GetEnumName();
+        return languageShowNames[index];
+    }
+    #endregion
+
     public static void ChangeLanguageData(string languageType)
     {
         if (currentLanguage != languageType)
