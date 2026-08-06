@@ -10,6 +10,112 @@ using System.Threading.Tasks;
 
 public class BaseManager : BaseMonoBehaviour
 {
+    #region 延迟回收基础设施
+    /// <summary>
+    /// 待执行的延迟回收项 (按需懒初始化)
+    /// </summary>
+    private List<PendingRecycleItem> _listPendingRecycle;
+
+    /// <summary>
+    /// 延迟回收项；用 <see cref="Action"/> 表达"到期做什么"，让基类完全不依赖业务类型
+    /// </summary>
+    private struct PendingRecycleItem
+    {
+        public Action action;
+        /// <summary>true=按帧延迟，false=按秒延迟</summary>
+        public bool useFrame;
+        /// <summary>到期帧号 (Time.frameCount)，仅在 useFrame=true 时有效</summary>
+        public int dueFrame;
+        /// <summary>到期时间 (Time.time)，仅在 useFrame=false 时有效</summary>
+        public float dueTime;
+    }
+
+    /// <summary>
+    /// 调度一个延迟回收动作：到期时调用 <paramref name="recycleAction"/>。
+    /// <para>子类可用此方法把"到期做什么"（如 SetActive(false)、Enqueue 入池等）封装成闭包传入。</para>
+    /// </summary>
+    /// <param name="recycleAction">到期时执行的动作；不能为 null</param>
+    /// <param name="delay">回收时机；Immediate 模式将同步执行，不入队</param>
+    protected void ScheduleRecycle(Action recycleAction, RecycleDelay delay)
+    {
+        if (recycleAction == null)
+            return;
+
+        switch (delay.mode)
+        {
+            case RecycleDelay.DelayMode.Immediate:
+                //本帧同步执行，不入队
+                recycleAction();
+                return;
+            case RecycleDelay.DelayMode.NextFrame:
+                {
+                    if (_listPendingRecycle == null)
+                        _listPendingRecycle = new List<PendingRecycleItem>();
+                    _listPendingRecycle.Add(new PendingRecycleItem
+                    {
+                        action = recycleAction,
+                        useFrame = true,
+                        dueFrame = Time.frameCount + 1,
+                    });
+                    break;
+                }
+            case RecycleDelay.DelayMode.Seconds:
+                {
+                    if (_listPendingRecycle == null)
+                        _listPendingRecycle = new List<PendingRecycleItem>();
+                    _listPendingRecycle.Add(new PendingRecycleItem
+                    {
+                        action = recycleAction,
+                        useFrame = false,
+                        dueTime = Time.time + delay.seconds,
+                    });
+                    break;
+                }
+        }
+    }
+
+    /// <summary>
+    /// 丢弃所有未执行的延迟回收项。
+    /// <para>子类在 Clear() 时如果会清空底层池，应当调用本方法，否则 stale Action 会污染下一轮状态。</para>
+    /// </summary>
+    protected void ClearPendingRecycles()
+    {
+        _listPendingRecycle?.Clear();
+    }
+
+    /// <summary>
+    /// 每帧扫描待回收列表，把到期项真正执行。
+    /// <para>子类如需自定义 Update，请记得调用 <c>base.Update()</c>，否则延迟回收会停摆。</para>
+    /// </summary>
+    protected virtual void Update()
+    {
+        if (_listPendingRecycle == null || _listPendingRecycle.Count == 0)
+            return;
+        int currentFrame = Time.frameCount;
+        float currentTime = Time.time;
+        //倒序遍历，方便就地 RemoveAt(i) 而不影响未访问索引
+        for (int i = _listPendingRecycle.Count - 1; i >= 0; i--)
+        {
+            var item = _listPendingRecycle[i];
+            bool ready = item.useFrame
+                ? currentFrame >= item.dueFrame
+                : currentTime >= item.dueTime;
+            if (!ready)
+                continue;
+            _listPendingRecycle.RemoveAt(i);
+            try
+            {
+                item.action?.Invoke();
+            }
+            catch (Exception e)
+            {
+                //不让一个回收动作的异常打断其他回收
+                LogUtil.LogError($"[BaseManager.ScheduleRecycle] action 执行异常: {e}");
+            }
+        }
+    }
+    #endregion
+
     public List<T> GetAllModel<T>(string assetBundlePath) where T : UnityEngine.Object
     {
         return GetAllModel<T>(assetBundlePath, null);

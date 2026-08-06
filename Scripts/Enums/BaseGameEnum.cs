@@ -76,6 +76,12 @@ public enum LanguageEnum
 {
     cn = 0,
     en = 1,
+    jp = 2,
+    kr = 3,
+    tw = 4,
+    de = 5,
+    fr = 6,
+    ru = 7,
 }
 
 /// <summary>
@@ -108,8 +114,18 @@ public enum InputActionUIEnum
     F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
     N1, N2, N3, N4, N5, N6, N7, N8, N9, N0, NAdd, NSub,//1234567890+-
     Shift, Ctrl,
-    ESC, B, N, M, T, H, P, I
+    ESC, B, N, M, T, H, P, I, C
 
+}
+
+/// <summary>
+/// 玩家(Player)输入映射动作枚举。
+/// 名称必须与 GameInputActions.inputactions 中 Player 映射的 action 名一一对应，
+/// 用作 InputManager.dicInputPlayer 的键，并供 GetInputPlayerData 取值。
+/// </summary>
+public enum InputActionPlayerEnum
+{
+    Move, MoveMouse, Look, UseL, UseR, E, Jump, B, Q, C, Shift, Ctrl, ShortcutsSelect, CameraDistance
 }
 
 /// <summary>
@@ -166,14 +182,6 @@ public enum JsonTypeEnum
     Net,
 }
 
-public enum SpriteAtlasTypeEnum
-{
-    UI,//ui
-    Items,//道具
-    Sky,//天空
-    Skins,//皮肤
-}
-
 public enum TextReplaceEnum
 {
     Name,//名字
@@ -185,4 +193,8 @@ public enum TextReplaceEnum
     UnderAttackDamage,//承受伤害
     AttackDamage,//造成伤害
     HPRateLess,//生命值少于百分比
+    RegainHPReceived,//累计被治疗HP
+    RegainHPCast,//累计施放治疗HP
+    OnFieldTime,//在场存活时间(秒)
+    Value,//触发值(trigger_value,通用数值占位,如无敌秒数)
 }

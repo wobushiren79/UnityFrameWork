@@ -284,18 +284,28 @@ public class InspectorBaseUIComponent : Editor
         //------------------------------------
 
         //添加属性---------------------------
+        //已生成的字段名，用于去重，避免同一控件被重复声明导致编译不过
+        HashSet<string> generatedFieldNames = new HashSet<string>();
         foreach (var itemSelect in dicSelect)
         {
             List<Component> listSelectItem = itemSelect.Value;
             if (listSelectItem == null || listSelectItem.Count == 0)
                 continue;
+            //先按类型去重，剔除指向同一控件的重复组件，避免误判为"多个组件"而加类型后缀并重复输出
+            List<Component> distinctComponents = new List<Component>();
+            HashSet<Type> seenTypes = new HashSet<Type>();
             foreach (var itemComponent in listSelectItem)
+            {
+                if (seenTypes.Add(itemComponent.GetType()))
+                    distinctComponents.Add(itemComponent);
+            }
+            foreach (var itemComponent in distinctComponents)
             {
                 Type type = itemComponent.GetType();
 
                 //如果基类里面已经有了这个属性，则不再添加
                 string uiViewName = "";
-                if (listSelectItem.Count == 1)
+                if (distinctComponents.Count == 1)
                 {
                     //如果只有一个 不需要加类型后缀
                     uiViewName = $"ui_{itemSelect.Key}";
@@ -305,6 +315,9 @@ public class InspectorBaseUIComponent : Editor
                     uiViewName = $"ui_{itemSelect.Key}_{type.Name}";
                 }
                 if (dicBaseTypes.ContainsKey(uiViewName))
+                    continue;
+                //字段名去重，防止重复声明
+                if (!generatedFieldNames.Add(uiViewName))
                     continue;
                 content.Append($"    public {type.Name} {uiViewName};\r\n\r\n");
             }

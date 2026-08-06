@@ -11,4 +11,12 @@ public class ScrollGridHorizontal : ScrollGridBaseContent
         SetCellCount(horizontalScrollbar,count, 0);
     }
 
+    /// <summary>
+    /// 编辑器预览复用：用水平Scrollbar与横向(contentType=0)生成cell。
+    /// </summary>
+    protected override void SetCellCountInternal(int count)
+    {
+        SetCellCount(horizontalScrollbar, count, 0);
+    }
+
 }

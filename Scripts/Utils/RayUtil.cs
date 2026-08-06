@@ -115,16 +115,19 @@ public class RayUtil
     }
 
     /// <summary>
-    /// 射线
+    /// 射线检测多命中的共享缓冲，避免 RaycastAll 每次分配数组造成 GC（仅主线程使用）
     /// </summary>
-    /// <param name="origin"></param>
-    /// <param name="direction"></param>
-    /// <param name="maxDistance"></param>
-    /// <param name="layerMask"></param>
-    /// <returns></returns>
-    public static RaycastHit[] RayToCastAll(Vector3 origin, Vector3 direction, float maxDistance, int layerMask)
+    private static readonly RaycastHit[] rayCastAllBuffer = new RaycastHit[32];
+
+    /// <summary>
+    /// 射线多命中检测（NonAlloc，零 GC）：写入共享缓冲并返回命中数，命中结果经 out hitBuffer 取用
+    /// <para>缓冲上限 32；单条射线命中数超过时超出部分被丢弃（沿单方向/单路径极难触及）。仅主线程调用。</para>
+    /// </summary>
+    /// <param name="hitBuffer">命中结果缓冲（返回值为有效命中数，仅前 N 个有效）</param>
+    public static int RayToCastAllNonAlloc(Vector3 origin, Vector3 direction, float maxDistance, int layerMask, out RaycastHit[] hitBuffer)
     {
-        return Physics.RaycastAll(origin, direction, maxDistance, layerMask);
+        hitBuffer = rayCastAllBuffer;
+        return Physics.RaycastNonAlloc(origin, direction, rayCastAllBuffer, maxDistance, layerMask);
     }
 
     /// <summary>

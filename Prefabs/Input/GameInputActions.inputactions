@@ -52,10 +52,10 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "UseE",
+                    "name": "E",
                     "type": "Button",
                     "id": "2198c02c-14be-4198-a9df-85a424fcbe3a",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
@@ -64,25 +64,34 @@
                     "name": "Jump",
                     "type": "Button",
                     "id": "b600098a-4e06-4d35-ae95-358442be91b0",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
                 },
                 {
-                    "name": "UserDetails",
+                    "name": "B",
                     "type": "Button",
                     "id": "b3e0f2ef-4b70-463b-95e8-a6f00c39d08e",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
                 },
                 {
-                    "name": "Drop",
+                    "name": "Q",
                     "type": "Button",
                     "id": "4792ad03-ce54-4ac9-83e6-c70b7a67f58f",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "C",
+                    "type": "Button",
+                    "id": "4f74baee-a4eb-4f91-850b-050a2c25dacf",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
@@ -341,7 +350,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Gamepad",
-                    "action": "UserDetails",
+                    "action": "B",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -352,7 +361,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "UserDetails",
+                    "action": "B",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -385,7 +394,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "Drop",
+                    "action": "Q",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -396,7 +405,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "UseE",
+                    "action": "E",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -520,6 +529,17 @@
                     "action": "MoveMouse",
                     "isComposite": false,
                     "isPartOfComposite": true
+                },
+                {
+                    "name": "",
+                    "id": "ec2bd574-d1f2-4187-b28d-bb72729365f2",
+                    "path": "<Keyboard>/c",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "C",
+                    "isComposite": false,
+                    "isPartOfComposite": false
                 }
             ]
         },
@@ -837,7 +857,7 @@
                     "name": "T",
                     "type": "Button",
                     "id": "50025688-0fc4-4465-9b66-e2d7ae41e083",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
@@ -864,7 +884,16 @@
                     "name": "I",
                     "type": "Button",
                     "id": "ed0ad51c-3c5b-41f0-a8c5-09fdd37c3dae",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "C",
+                    "type": "Button",
+                    "id": "e628fc6b-bdb6-4a27-8ab1-fb72077b0116",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
@@ -1495,6 +1524,17 @@
                     "processors": "",
                     "groups": "Keyboard&Mouse",
                     "action": "F12",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "af663742-43c9-427b-88e3-7d1fc580aa93",
+                    "path": "<Keyboard>/c",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "C",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

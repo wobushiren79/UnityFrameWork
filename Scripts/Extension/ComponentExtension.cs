@@ -88,13 +88,19 @@ public static class ComponentExtension
         return listData;
     }
 
+    /// <summary>
+    /// 获取指定名字、指定类型的子控件（含自身）
+    /// 注意：通过 Instantiate 实例化的根物体名字会被自动追加 "(Clone)" 后缀，
+    /// 这里在比较前先剥掉该后缀，避免运行时 AutoLinkUI 因根物体改名而匹配失败。
+    /// </summary>
     public static Component GetComponentInChildren<T>(this T selfComponent, string name, Type type, bool includeInactive = false) where T : Component
     {
         Component[] cptList = selfComponent.GetComponentsInChildren(type, includeInactive);
         for (int i = 0; i < cptList.Length; i++)
         {
             Component item = cptList[i];
-            if (item.name.Equals(name))
+            //剥掉实例化产生的 "(Clone)" 后缀后再精确匹配
+            if (item.name.Replace("(Clone)", "").Equals(name))
             {
                 return item;
             }

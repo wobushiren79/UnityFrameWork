@@ -9,7 +9,7 @@ public partial class InputManager : BaseManager
     public GameInputActions inputActions;
 
     public Dictionary<InputActionUIEnum, InputAction> dicInputUI = new Dictionary<InputActionUIEnum, InputAction>();
-    public Dictionary<string, InputAction> dicInputPlayer = new Dictionary<string, InputAction>();
+    public Dictionary<InputActionPlayerEnum, InputAction> dicInputPlayer = new Dictionary<InputActionPlayerEnum, InputAction>();
 
     public virtual void Awake()
     {
@@ -33,7 +33,7 @@ public partial class InputManager : BaseManager
         foreach (var itemData in listPlayerData)
         {
             itemData.Enable();
-            dicInputPlayer.Add(itemData.name, itemData);
+            dicInputPlayer.Add(itemData.name.GetEnum<InputActionPlayerEnum>(), itemData);
         }
     }
 
@@ -54,9 +54,9 @@ public partial class InputManager : BaseManager
     /// <summary>
     /// 获取Player数据
     /// </summary>
-    /// <param name="name"></param>
+    /// <param name="name">Player 输入动作枚举</param>
     /// <returns></returns>
-    public InputAction GetInputPlayerData(string name)
+    public InputAction GetInputPlayerData(InputActionPlayerEnum name)
     {
         if (dicInputPlayer.TryGetValue(name, out InputAction value))
         {

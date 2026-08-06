@@ -9,8 +9,8 @@ public partial class GameConfigBean
     public int window = 0;
     //屏幕分辨率
     public string screenResolution = "1920x1080";
-    //语言
-    public string language = "cn";
+    //语言（留空时由 LanguageCfg.GetInitialLanguage 判定：连上 Steam 则按 Steam 客户端语言，否则默认 en）
+    public string language = "";
     //音效大小
     public float soundVolume = 0.5f;
     //音乐大小
@@ -31,6 +31,8 @@ public partial class GameConfigBean
 
     //是否展示帧数
     public bool framesShow = false;
+    //是否显示按键提示(UIViewPressCommon 等快捷按键提示)，默认开启
+    public bool pressKeyTipShow = true;
     //阴影距离
     public float shadowDis = 50;
     //阴影质量等级
@@ -62,11 +64,13 @@ public partial class GameConfigBean
 
     /// <summary>
     /// 获取当前语言
+    /// 未设置（空串）时按 LanguageCfg.GetInitialLanguage 推断：连上 Steam 用 Steam 客户端语言，否则 en
     /// </summary>
     /// <returns></returns>
     public LanguageEnum GetLanguage()
     {
-        return EnumExtension.GetEnum<LanguageEnum>(language);
+        string lang = string.IsNullOrEmpty(language) ? LanguageCfg.GetInitialLanguage() : language;
+        return EnumExtension.GetEnum<LanguageEnum>(lang);
     }
 
     /// <summary>

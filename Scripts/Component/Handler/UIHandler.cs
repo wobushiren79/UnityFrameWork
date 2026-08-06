@@ -8,8 +8,22 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
 {
     public Action<GameObject> actionForUIOnClick;
 
+    #region 生命周期
+    /// <summary>
+    /// 初始化
+    /// </summary>
+    public override void Awake()
+    {
+        base.Awake();
+        AwakeCursor();
+    }
+
+    /// <summary>
+    /// 每帧更新
+    /// </summary>
     public void Update()
     {
+        UpdateCursor();
         if (actionForUIOnClick != null)
         {
             // 检测鼠标点击
@@ -24,6 +38,7 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
             }
         }
     }
+    #endregion
 
     private void HandleForClick(Vector2 screenPosition)
     {

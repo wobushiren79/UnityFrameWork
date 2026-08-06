@@ -88,6 +88,58 @@ public class AddressableUtil
 
 
     /// <summary>
+    /// 判断某资源(guid)是否已经是Addressable资源
+    /// </summary>
+    /// <param name="guid">资源GUID</param>
+    /// <returns>已加入返回true</returns>
+    public static bool HasAssetEntry(string guid)
+    {
+        AddressableAssetSettings Settings = AddressableAssetSettingsDefaultObject.Settings;
+        return Settings.FindAssetEntry(guid) != null;
+    }
+
+    /// <summary>
+    /// 在指定分组下创建/移动资源(地址保持默认资源路径,不额外设置分组名label)
+    /// </summary>
+    /// <param name="group">目标分组</param>
+    /// <param name="assetPath">资源路径</param>
+    /// <returns>创建或移动后的资源条目;guid无效返回null</returns>
+    public static AddressableAssetEntry CreateAssetEntry(AddressableAssetGroup group, string assetPath)
+    {
+        string guid = AssetDatabase.AssetPathToGUID(assetPath);
+        if (guid.IsNull())
+            return null;
+        AddressableAssetSettings Settings = AddressableAssetSettingsDefaultObject.Settings;
+        return Settings.CreateOrMoveEntry(guid, group);
+    }
+
+    /// <summary>
+    /// 移除某分组下资源文件已被删除(GUID映射不到资源路径)的条目
+    /// </summary>
+    /// <param name="group">目标分组</param>
+    /// <returns>本次清理掉的条目数量</returns>
+    public static int RemoveMissingAssetEntries(AddressableAssetGroup group)
+    {
+        if (group == null)
+            return 0;
+
+        AddressableAssetSettings Settings = AddressableAssetSettingsDefaultObject.Settings;
+        List<AddressableAssetEntry> listEntry = new List<AddressableAssetEntry>(group.entries);
+        int removeCount = 0;
+        for (int i = 0; i < listEntry.Count; i++)
+        {
+            AddressableAssetEntry entry = listEntry[i];
+            // 资源已删除时,GUID映射到的资源路径为空
+            if (entry.AssetPath.IsNull())
+            {
+                Settings.RemoveAssetEntry(entry.guid);
+                removeCount++;
+            }
+        }
+        return removeCount;
+    }
+
+    /// <summary>
     /// 移动资源
     /// </summary>
     public static void MoveAssetEntry(AddressableAssetEntry entry, AddressableAssetGroup targetParent, bool readOnly = false, bool postEvent = true)

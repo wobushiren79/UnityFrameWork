@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using UnityEditor;
 using UnityEngine;
 
 public abstract class AIBaseEntity : BaseEvent
@@ -14,6 +13,29 @@ public abstract class AIBaseEntity : BaseEvent
 
     //意图池
     public Dictionary<AIIntentEnum, AIBaseIntent> dicIntentPool = new Dictionary<AIIntentEnum, AIBaseIntent>();
+
+    //意图工厂注册表（避免反射 + 字符串拼接类名导致的运行时静默失败）
+    private static readonly Dictionary<AIIntentEnum, Func<AIBaseIntent>> dicIntentFactory = new Dictionary<AIIntentEnum, Func<AIBaseIntent>>();
+
+    /// <summary>
+    /// 注册意图工厂
+    /// </summary>
+    public static void RegisterIntentFactory(AIIntentEnum intentEnum, Func<AIBaseIntent> factory)
+    {
+        dicIntentFactory[intentEnum] = factory;
+    }
+
+    /// <summary>
+    /// 通过工厂创建意图实例（找不到时返回 null）
+    /// </summary>
+    private static AIBaseIntent CreateIntentByFactory(AIIntentEnum intentEnum)
+    {
+        if (dicIntentFactory.TryGetValue(intentEnum, out var factory))
+        {
+            return factory();
+        }
+        return null;
+    }
 
     /// <summary>
     /// 初始化数据
@@ -113,19 +135,26 @@ public abstract class AIBaseEntity : BaseEvent
         for (int i = 0; i < listIntentEnum.Count; i++)
         {
             AIIntentEnum itemIntent = listIntentEnum[i];
-            string intentName = itemIntent.GetEnumName();
-            string className = $"AIIntent{intentName}";
             //首先获取类池里面是否有这个意图
-
             if (!dicIntentPool.TryGetValue(itemIntent, out AIBaseIntent intentClass))
             {
-                intentClass = ReflexUtil.CreateInstance<AIBaseIntent>(className);
+                //优先使用工厂注册表创建（编译期保证类型存在，避免反射 + 字符串拼接类名导致的运行时静默失败）
+                intentClass = CreateIntentByFactory(itemIntent);
+                //兜底反射，保留旧的行为以兼容未注册的扩展意图
+                if (intentClass == null)
+                {
+                    string intentName = itemIntent.GetEnumName();
+                    string className = $"AIIntent{intentName}";
+                    intentClass = ReflexUtil.CreateInstance<AIBaseIntent>(className);
+                    if (intentClass == null)
+                    {
+                        LogUtil.LogError($"创建AI意图失败：未在工厂中注册且反射也未找到类 {className}（枚举 {itemIntent}）");
+                        continue;
+                    }
+                }
             }
-            if (intentClass != null)
-            {
-                intentClass.InitData(itemIntent, this);
-                AddIntent(intentClass);
-            }
+            intentClass.InitData(itemIntent, this);
+            AddIntent(intentClass);
         }
     }
 

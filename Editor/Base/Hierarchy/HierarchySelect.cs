@@ -61,7 +61,9 @@ public class HierarchySelect
                             {
                                 dicSelectObj.Add(componentName, new List<Component>() { itemRootComponent });
                             }
-                            else
+                            //去重：同名控件可能因为同时存在 ui_xxx 与 ui_xxx_类型 两种字段而被反查多次，
+                            //若不判重会把同一个组件塞进列表多次，导致后续生成出重复字段
+                            else if (!dicSelectObj[componentName].Contains(itemRootComponent))
                             {
                                 dicSelectObj[componentName].Add(itemRootComponent);
                             }
