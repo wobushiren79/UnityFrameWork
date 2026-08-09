@@ -70,7 +70,7 @@ public enum DirectionEnum
 }
 
 /// <summary>
-/// 语言
+/// 语言（br=巴西葡萄牙语，新增语言只能往末尾追加，不能改动已有值）
 /// </summary>
 public enum LanguageEnum
 {
@@ -82,6 +82,10 @@ public enum LanguageEnum
     de = 5,
     fr = 6,
     ru = 7,
+    es = 8,
+    br = 9,
+    pl = 10,
+    tr = 11,
 }
 
 /// <summary>

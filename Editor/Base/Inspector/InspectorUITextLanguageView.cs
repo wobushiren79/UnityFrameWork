@@ -13,7 +13,7 @@ public class InspectorUITextLanguageView : Editor
     private string previewText = "";
     private bool isPreviewError = false;
     private int selectedLanguageIndex = 0;
-    private readonly string[] languageOptions = new string[] { "cn", "en" };
+    private readonly string[] languageOptions = EnumExtension.GetEnumNames<LanguageEnum>();
     private GUIStyle previewTextStyle;
     private GUIStyle previewErrorStyle;
     private GUIStyle previewBoxStyle;

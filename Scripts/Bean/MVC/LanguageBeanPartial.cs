@@ -54,7 +54,8 @@ public partial class LanguageCfg
     #region 默认语言判定
     /// <summary>
     /// 获取初始语言：连上 Steam 时根据 Steam 客户端语言初始化，未连上则默认 en
-    /// 映射：schinese→cn、tchinese→tw、japanese→jp、koreana→kr、german→de、french→fr、russian→ru，其余归为 en
+    /// 映射：schinese→cn、tchinese→tw、japanese→jp、koreana→kr、german→de、french→fr、russian→ru、
+    /// spanish/latam→es、brazilian/portuguese→br、polish→pl、turkish→tr，其余归为 en
     /// </summary>
     public static string GetInitialLanguage()
     {
@@ -81,6 +82,18 @@ public partial class LanguageCfg
                         return LanguageEnum.fr.GetEnumName();
                     if (steamLanguage.Equals("russian", StringComparison.OrdinalIgnoreCase))
                         return LanguageEnum.ru.GetEnumName();
+                    if (steamLanguage.Equals("spanish", StringComparison.OrdinalIgnoreCase))
+                        return LanguageEnum.es.GetEnumName();
+                    if (steamLanguage.Equals("latam", StringComparison.OrdinalIgnoreCase))
+                        return LanguageEnum.es.GetEnumName();
+                    if (steamLanguage.Equals("brazilian", StringComparison.OrdinalIgnoreCase))
+                        return LanguageEnum.br.GetEnumName();
+                    if (steamLanguage.Equals("portuguese", StringComparison.OrdinalIgnoreCase))
+                        return LanguageEnum.br.GetEnumName();
+                    if (steamLanguage.Equals("polish", StringComparison.OrdinalIgnoreCase))
+                        return LanguageEnum.pl.GetEnumName();
+                    if (steamLanguage.Equals("turkish", StringComparison.OrdinalIgnoreCase))
+                        return LanguageEnum.tr.GetEnumName();
                     return LanguageEnum.en.GetEnumName();
                 }
             }
@@ -112,6 +125,10 @@ public partial class LanguageCfg
         "de/Deutsch",
         "fr/Français",
         "ru/Русский",
+        "es/Español",
+        "br/Português (Brasil)",
+        "pl/Polski",
+        "tr/Türkçe",
     };
 
     /// <summary>
