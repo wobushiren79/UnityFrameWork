@@ -196,7 +196,7 @@ public class InspectorUITextLanguageView : Editor
             ExportExcelFile(window, UI_TEXT_EXCEL_PATH);
 
             AssetDatabase.Refresh();
-            EditorUtility.DisplayDialog("完成", "多语言表和UIText表已成功导出为 Json", "确定");
+            Debug.Log("[InspectorUITextLanguageView] 多语言表和UIText表已成功导出为 Json");
         }
         catch (System.Exception e)
         {
