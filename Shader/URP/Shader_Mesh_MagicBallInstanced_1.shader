@@ -1,6 +1,6 @@
-Shader "FrameWork/URP/MeshFireBallInstanced1"
+Shader "FrameWork/URP/MeshMagicBallInstanced1"
 {
-    // 火球(中心火焰核心 + 四散火星)专用 shader：核心与火星在**同一个 shader、同一次 draw** 内画完。
+    // 魔法弹(火球/冰球通用：中心核心 + 四散火星)专用 shader：核心与火星在**同一个 shader、同一次 draw** 内画完。
     // 两者都在 vertex shader 里跑完整模拟，无 CPU 开销、无 GC、不挂 ParticleSystem。
     //
     // 【一个网格里混着两种 quad，靠顶点色 alpha 区分】
@@ -105,17 +105,21 @@ Shader "FrameWork/URP/MeshFireBallInstanced1"
         _VertexScale ("大小 (整体缩放倍数 / 物体空间)", Float) = 1
 
         [Header(Instanced)]
-        // ——以下两项均为**逐实例属性**, 由 AttackModeInstanceRenderer 经 MaterialPropertyBlock 按实例灌入,
+        // ——以下三项均为**逐实例属性**, 由 AttackModeInstanceRenderer 经 MaterialPropertyBlock 按实例灌入,
         //   材质面板上填的值对 DrawMeshInstanced 路径无效(会被 MPB 数组覆盖), 故一律 HideInInspector;
         //   仅"挂 MeshRenderer 单发预览"时材质值才生效(逐实例属性无 MPB 数组时回退读材质值)——
-        //   预览想看甩尾就临时给 _VelocityWS 填个速度, 想看错峰就给 _SeedOffset 填个 0~1 随机值——
-        //   本 shader 的其余属性都是逐材质的, 别把这两个跟它们混为一谈。
+        //   预览想看甩尾就临时给 _VelocityWS 填个速度, 想看错峰就给 _SeedOffset 填个 0~1 随机值, 想缩放就给 _InstanceScale 填倍率——
+        //   本 shader 的其余属性都是逐材质的, 别把这三个跟它们混为一谈。
         // 逐实例种子偏移：不灌则同屏所有火球的火星同一帧同时爆同时灭(详见文件头⚠️)
         [HideInInspector] _SeedOffset ("种子偏移 (逐实例 / 由代码灌入)", Float) = 0
         // 逐实例世界速度矢量(xyz=方向×速率, 单位/秒; w=速度朝向开关)：本物体当前的世界飞行速度, 火星靠它反推出生点脱离火球(详见文件头⚠️与 vert 内⚠️)。
         // 通用属性(非火星专用)：任何需要"物体世界速度"的 shader(拉伸粒子/运动模糊/速度着色)都可复用此名与渲染器的这条灌入链路。
         // w>0.5 时 vert 把 billboard 角点绕视轴按速度屏幕角旋转(速度朝向：贴图头对准飞行方向——本项目子弹贴图约定默认朝右(+X=头)，拖尾画在贴图左侧故自动朝飞行反方向)；默认0=贴图保持默认朝右(历史行为)。
         [HideInInspector] _VelocityWS ("世界速度矢量 (逐实例 / 由代码灌入)", Vector) = (0, 0, 0, 0)
+        // 逐实例缩放(武器 StartSize)：billboard 角点在世界空间展开(见 vert)，实例矩阵的缩放碰不到角点尺寸，
+        // 故核心/火星大小与下坠距离必须靠本属性逐实例乘进 shader；火星散布半径走实例矩阵(物体空间)已随 StartSize 缩放，不重复乘。
+        // 未配 StartSize 的武器由渲染器灌 1(材质默认值也是 1)，行为与旧版完全一致
+        [HideInInspector] _InstanceScale ("逐实例缩放 (逐实例 / 由代码灌入)", Float) = 1
 
         [Header(Surface Options)]
         // 默认即"透明 + 加法叠加"：火焰是自发光体，加法混合天然免排序(叠得越多越亮)，这正是火球要的
@@ -203,10 +207,11 @@ Shader "FrameWork/URP/MeshFireBallInstanced1"
             #pragma shader_feature_local _CORE_ON
             #pragma multi_compile_fog
 
-            // 逐实例属性：种子偏移(相位错开, 详见文件头⚠️) + 世界速度矢量(火星世界化, 详见 vert 内⚠️)
+            // 逐实例属性：种子偏移(相位错开, 详见文件头⚠️) + 世界速度矢量(火星世界化, 详见 vert 内⚠️) + 逐实例缩放(billboard 尺寸, StartSize)
             UNITY_INSTANCING_BUFFER_START(SparkProps)
                 UNITY_DEFINE_INSTANCED_PROP(float, _SeedOffset)
                 UNITY_DEFINE_INSTANCED_PROP(float4, _VelocityWS)
+                UNITY_DEFINE_INSTANCED_PROP(float, _InstanceScale)
             UNITY_INSTANCING_BUFFER_END(SparkProps)
 
             struct Attributes
@@ -237,6 +242,8 @@ Shader "FrameWork/URP/MeshFireBallInstanced1"
 
                 half isCore = IN.color.a;
                 float seedOffset = UNITY_ACCESS_INSTANCED_PROP(SparkProps, _SeedOffset);
+                //逐实例缩放(武器 StartSize)：只乘 billboard 角点尺寸与下坠距离(世界空间项)；散布半径走实例矩阵已缩放，不重复乘
+                float instanceScale = UNITY_ACCESS_INSTANCED_PROP(SparkProps, _InstanceScale);
 
                 float3 posOS;
                 float  size;
@@ -250,7 +257,7 @@ Shader "FrameWork/URP/MeshFireBallInstanced1"
                     posOS = float3(0.0, 0.0, 0.0);
                     // 呼吸相位也叠 seedOffset，使每发弹道的火球胀缩不同步
                     float pulse = 1.0 + _CorePulseAmount * sin((_Time.y * _CorePulseSpeed + seedOffset) * 6.2831853);
-                    size = _CoreSize * pulse * _VertexScale;
+                    size = _CoreSize * pulse * _VertexScale * instanceScale;
                     #if !defined(_CORE_ON)
                         size = 0.0;   // 关闭核心：塌缩成零尺寸, 该 quad 不产生任何像素
                     #endif
@@ -266,7 +273,7 @@ Shader "FrameWork/URP/MeshFireBallInstanced1"
                     // pow 缓动使火星先快后慢(_SparkEase<1)，像被空气拖住
                     float travel = _SparkDistance * IN.sparkData.y * pow(t, _SparkEase);
                     posOS = IN.dirOS * (_SparkOriginRadius + travel) * _VertexScale;
-                    size = lerp(_SparkSizeStart, _SparkSizeEnd, t) * IN.sparkData.z * _VertexScale;
+                    size = lerp(_SparkSizeStart, _SparkSizeEnd, t) * IN.sparkData.z * _VertexScale * instanceScale;
                     // 生灭渐隐：开头 _SparkFadeIn 段渐显、结尾 _SparkFadeOut 段渐隐(否则火星凭空生灭很假)
                     half fade = saturate(t / max(_SparkFadeIn, 1e-4)) * saturate((1.0 - t) / max(_SparkFadeOut, 1e-4));
                     tint = half4(lerp(_SparkColorStart.rgb, _SparkColorEnd.rgb, t), fade);
@@ -288,7 +295,7 @@ Shader "FrameWork/URP/MeshFireBallInstanced1"
 
                 // ⚠️重力/上浮必须在世界空间加：物体空间加的话，弹道一转向"下"火焰就横着飘了。
                 // 核心 t 恒为0 → 该项自动归零(核心钉在原点不受重力)
-                posWS.y -= _SparkGravity * t * t * _VertexScale;
+                posWS.y -= _SparkGravity * t * t * _VertexScale * instanceScale;
 
                 // —— billboard：取相机右/上轴，把 quad 角点在世界空间展开，使核心与火星恒正对相机 ——
                 float3 camRightWS = UNITY_MATRIX_I_V._m00_m10_m20;
