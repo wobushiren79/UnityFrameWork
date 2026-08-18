@@ -112,8 +112,9 @@ Shader "FrameWork/URP/MeshFireBallInstanced1"
         //   本 shader 的其余属性都是逐材质的, 别把这两个跟它们混为一谈。
         // 逐实例种子偏移：不灌则同屏所有火球的火星同一帧同时爆同时灭(详见文件头⚠️)
         [HideInInspector] _SeedOffset ("种子偏移 (逐实例 / 由代码灌入)", Float) = 0
-        // 逐实例世界速度矢量(xyz=方向×速率, 单位/秒; w 未用)：本物体当前的世界飞行速度, 火星靠它反推出生点脱离火球(详见文件头⚠️与 vert 内⚠️)。
-        // 通用属性(非火星专用)：任何需要"物体世界速度"的 shader(拉伸粒子/运动模糊/速度着色)都可复用此名与渲染器的这条灌入链路
+        // 逐实例世界速度矢量(xyz=方向×速率, 单位/秒; w=速度朝向开关)：本物体当前的世界飞行速度, 火星靠它反推出生点脱离火球(详见文件头⚠️与 vert 内⚠️)。
+        // 通用属性(非火星专用)：任何需要"物体世界速度"的 shader(拉伸粒子/运动模糊/速度着色)都可复用此名与渲染器的这条灌入链路。
+        // w>0.5 时 vert 把 billboard 角点绕视轴按速度屏幕角旋转(速度朝向：贴图头对准飞行方向——本项目子弹贴图约定默认朝右(+X=头)，拖尾画在贴图左侧故自动朝飞行反方向)；默认0=贴图保持默认朝右(历史行为)。
         [HideInInspector] _VelocityWS ("世界速度矢量 (逐实例 / 由代码灌入)", Vector) = (0, 0, 0, 0)
 
         [Header(Surface Options)]
@@ -281,7 +282,8 @@ Shader "FrameWork/URP/MeshFireBallInstanced1"
                 // _VelocityWS 为逐实例世界速度矢量(方向×速率, 单位/秒), 由 C# 灌入(灌法同 _SeedOffset)。
                 // **默认 0 → 该项归零 → 行为与"绑在火球上"完全一致**, 故不灌也不会坏, 是平滑降级。
                 // 核心 age 恒为 0 → 不受影响(核心本就该钉在火球中心)。
-                float3 velocityWS = UNITY_ACCESS_INSTANCED_PROP(SparkProps, _VelocityWS).xyz;
+                float4 velocityWS4 = UNITY_ACCESS_INSTANCED_PROP(SparkProps, _VelocityWS);
+                float3 velocityWS = velocityWS4.xyz;
                 posWS -= velocityWS * age;
 
                 // ⚠️重力/上浮必须在世界空间加：物体空间加的话，弹道一转向"下"火焰就横着飘了。
@@ -292,6 +294,24 @@ Shader "FrameWork/URP/MeshFireBallInstanced1"
                 float3 camRightWS = UNITY_MATRIX_I_V._m00_m10_m20;
                 float3 camUpWS    = UNITY_MATRIX_I_V._m01_m11_m21;
                 float2 corner = (IN.uv - 0.5) * size;
+
+                // 【速度朝向(_VelocityWS.w>0.5 启用, 默认关)】把 billboard 角点绕视轴旋转, 使贴图头(quad 局部 +X, 本项目子弹贴图约定默认朝右)
+                // 对准飞行方向——拖尾画在贴图左侧故自动朝飞行反方向, 斜射弹亦"低头"对准速度矢量。核心与火星统一旋转(火星是软圆点, 转了不可见, 无害)。
+                // 旋转后 UV 随角点走, frag 里的噪声上滚方向自动跟随贴图姿态, 无需另改。
+                // 速度在屏幕上≈0(暂停帧/原地弹/正对相机飞)时保持默认朝右姿态, 不旋转。
+                if (velocityWS4.w > 0.5)
+                {
+                    float2 velScreen = float2(dot(velocityWS, camRightWS), dot(velocityWS, camUpWS));
+                    if (dot(velScreen, velScreen) > 1e-4)
+                    {
+                        //贴图头=局部 +X(默认朝右)：旋转量 = 速度的屏幕角
+                        float orientAngle = atan2(velScreen.y, velScreen.x);
+                        float orientCos = cos(orientAngle);
+                        float orientSin = sin(orientAngle);
+                        corner = float2(corner.x * orientCos - corner.y * orientSin,
+                                        corner.x * orientSin + corner.y * orientCos);
+                    }
+                }
                 posWS += camRightWS * corner.x + camUpWS * corner.y;
 
                 OUT.positionHCS = TransformWorldToHClip(posWS);
