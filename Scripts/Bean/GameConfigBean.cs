@@ -98,7 +98,7 @@ public partial class GameConfigBean
         {
             int[] data = screenResolution.SplitForArrayInt('x');
             w = data[0];
-            h = data[0];
+            h = data[1];
         }
     }
 }

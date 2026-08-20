@@ -2,8 +2,8 @@ using UnityEngine;
 using UnityEditor;
 
 /// <summary>
-/// 火球网格生成器：一键生成"火星汤(+中心火球核心)"Mesh 资源，供火球 shader
-/// (FrameWork/URP/MeshFireBallInstanced1) 在 vertex shader 内跑 GPU 粒子模拟用。
+/// 火球网格生成器：一键生成"火星汤(+中心火球核心)"Mesh 资源，供魔法弹 shader
+/// (FrameWork/URP/MeshMagicBallInstanced1) 在 vertex shader 内跑 GPU 粒子模拟用。
 /// 网格约定与该 shader 完全对齐(改任一方必须同步改另一方)：
 /// 每个火星/核心 = 1 个独立 quad(4 顶点/6 索引, 顶点不焊接)，顶点属性含义见 <see cref="GenerateMesh"/>。
 /// </summary>
@@ -58,7 +58,7 @@ public class FireBallMeshGeneratorWindow : EditorWindow
         scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
 
         EditorGUILayout.HelpBox(
-            "生成配合 FrameWork/URP/MeshFireBallInstanced1 使用的火球网格。\n" +
+            "生成配合 FrameWork/URP/MeshMagicBallInstanced1 使用的火球网格。\n" +
             "火星数量 = quad 数，改数量 = 重新生成网格(shader 不用动)。",
             MessageType.Info);
 
@@ -132,7 +132,7 @@ public class FireBallMeshGeneratorWindow : EditorWindow
     #region 私有方法(网格生成)
     /// <summary>
     /// 生成火球网格：N 个火星 quad(+可选 1 个中心核心 quad)，彼此互不相连，每 quad 的 4 顶点共享一份随机数据。
-    /// 顶点属性含义(与 MeshFireBallInstanced1 严格对齐, 改任一方必须同步改另一方)：
+    /// 顶点属性含义(与 MeshMagicBallInstanced1 严格对齐, 改任一方必须同步改另一方)：
     /// position=恒原点(真实位置由 shader 算) / normal=发散方向(核心用不到) / color.a=quad 类型(0=火星 1=核心) /
     /// uv0=角点UV(兼作贴图UV) / uv1=(种子,速度倍率,大小倍率,生命倍率)。
     /// </summary>

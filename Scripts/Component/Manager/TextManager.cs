@@ -10,6 +10,9 @@ public partial class TextManager : BaseManager
     /// <returns></returns>
     public string GetTextById(string cfgName, long id, int contentIndex = 0)
     {
+        // 约定: textId=0 表示无文本(如随机议员不配名字), 静默返回空串
+        if (id == 0)
+            return "";
         LanguageBean languageCfg = LanguageCfg.GetItemData(cfgName, id);
         // 行本身缺失 → 真错误（配置漏配/ID 写错）
         if (languageCfg == null)

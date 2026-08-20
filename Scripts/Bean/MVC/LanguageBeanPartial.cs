@@ -54,7 +54,8 @@ public partial class LanguageCfg
     #region 默认语言判定
     /// <summary>
     /// 获取初始语言：连上 Steam 时根据 Steam 客户端语言初始化，未连上则默认 en
-    /// 映射：schinese→cn、tchinese→tw、japanese→jp、koreana→kr、german→de、french→fr、russian→ru，其余归为 en
+    /// 映射：schinese→cn、tchinese→tw、japanese→jp、koreana→kr、german→de、french→fr、russian→ru、
+    /// spanish/latam→es、brazilian/portuguese→br、polish→pl、turkish→tr，其余归为 en
     /// </summary>
     public static string GetInitialLanguage()
     {
@@ -81,6 +82,18 @@ public partial class LanguageCfg
                         return LanguageEnum.fr.GetEnumName();
                     if (steamLanguage.Equals("russian", StringComparison.OrdinalIgnoreCase))
                         return LanguageEnum.ru.GetEnumName();
+                    if (steamLanguage.Equals("spanish", StringComparison.OrdinalIgnoreCase))
+                        return LanguageEnum.es.GetEnumName();
+                    if (steamLanguage.Equals("latam", StringComparison.OrdinalIgnoreCase))
+                        return LanguageEnum.es.GetEnumName();
+                    if (steamLanguage.Equals("brazilian", StringComparison.OrdinalIgnoreCase))
+                        return LanguageEnum.br.GetEnumName();
+                    if (steamLanguage.Equals("portuguese", StringComparison.OrdinalIgnoreCase))
+                        return LanguageEnum.br.GetEnumName();
+                    if (steamLanguage.Equals("polish", StringComparison.OrdinalIgnoreCase))
+                        return LanguageEnum.pl.GetEnumName();
+                    if (steamLanguage.Equals("turkish", StringComparison.OrdinalIgnoreCase))
+                        return LanguageEnum.tr.GetEnumName();
                     return LanguageEnum.en.GetEnumName();
                 }
             }
@@ -97,6 +110,38 @@ public partial class LanguageCfg
     {
         ChangeLanguageData(languageType.GetEnumName());
     }
+
+    #region 语言展示名
+    /// <summary>
+    /// 各语言的展示名（下标与 LanguageEnum 值一一对应），格式：英文简称/该语言自称，方便各语言玩家一眼认出自己的语言
+    /// </summary>
+    protected static readonly string[] languageShowNames = new string[]
+    {
+        "cn/中文",
+        "en/English",
+        "jp/日本語",
+        "kr/한국어",
+        "tw/繁體中文",
+        "de/Deutsch",
+        "fr/Français",
+        "ru/Русский",
+        "es/Español",
+        "br/Português (Brasil)",
+        "pl/Polski",
+        "tr/Türkçe",
+    };
+
+    /// <summary>
+    /// 获取语言展示名（如 cn/中文），用于语言选择列表
+    /// </summary>
+    public static string GetLanguageShowName(LanguageEnum language)
+    {
+        int index = (int)language;
+        if (index < 0 || index >= languageShowNames.Length)
+            return language.GetEnumName();
+        return languageShowNames[index];
+    }
+    #endregion
 
     public static void ChangeLanguageData(string languageType)
     {

@@ -6,8 +6,12 @@ using System.Collections.Generic;
 using System.IO;
 using static Spine.Skin;
 
-public class SpineWindow : EditorWindow
+public partial class SpineWindow : EditorWindow
 {
+    // 页签
+    private int selectedTab = 0;
+    private static readonly string[] TabNames = { "皮肤提取", "动画预览" };
+
     // 配置参数
     private SkeletonDataAsset skeletonDataAsset;
     private string targetSkinName = "default";
@@ -74,7 +78,33 @@ public class SpineWindow : EditorWindow
     void OnGUI()
     {
         InitStyles();
+        DrawTabToolbar();
+        if (selectedTab == 0)
+            DrawExtractTab();
+        else
+            DrawPreviewTab();
+    }
 
+    /// <summary>
+    /// 绘制页签栏
+    /// </summary>
+    void DrawTabToolbar()
+    {
+        EditorGUILayout.Space(4);
+        int newTab = GUILayout.Toolbar(selectedTab, TabNames, GUILayout.Height(24));
+        if (newTab != selectedTab)
+        {
+            selectedTab = newTab;
+            // 动画预览页内容多，切页签时同步调整最小尺寸
+            minSize = selectedTab == 0 ? new Vector2(420, 380) : new Vector2(760, 520);
+        }
+    }
+
+    /// <summary>
+    /// 绘制皮肤提取页签
+    /// </summary>
+    void DrawExtractTab()
+    {
         // 标题
         EditorGUILayout.Space(6);
         GUILayout.Label("Spine 皮肤图片提取工具", headerStyle);
