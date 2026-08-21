@@ -28,6 +28,26 @@ public class PopupShowView : BaseUIView
     protected bool hasTargetPosition;
     #endregion
 
+    #region 出现/消失动画参数
+    [Header("是否播放出现动画")]
+    public bool isAnimForShow = true;
+    [Header("是否播放消失动画")]
+    public bool isAnimForHide = true;
+    [Header("动画是否包含淡入淡出(代码自动补CanvasGroup, 无需prefab配置)")]
+    public bool isAnimWithFade = true;
+    [Header("出现动画时长")]
+    public float animForShowDuration = 0.18f;
+    [Header("消失动画时长")]
+    public float animForHideDuration = 0.12f;
+
+    //缩放动画Tween句柄
+    protected Tween popupAnimTween;
+    //淡入淡出用CanvasGroup(代码GetOrAdd)
+    protected CanvasGroup canvasGroupForAnim;
+    //消失动画播放中标记：抑制重复隐藏，并供ShowWithAnim判定中断恢复
+    protected bool isHidingForAnim;
+    #endregion
+
     protected Direction2DEnum mouseAreaLeftRight =  Direction2DEnum.Left;
     protected Direction2DEnum mouseAreaUpDown = Direction2DEnum.Down;
 
@@ -60,10 +80,18 @@ public class PopupShowView : BaseUIView
     {
         base.OnEnable();
         InitPosition();
+        //重新激活时清除隐藏标记并播出现动画(首次创建与缓存复用走同一路径)
+        isHidingForAnim = false;
+        if (isAnimForShow)
+            AnimForShow();
     }
 
     public override void OnDisable()
     {
+        //先停动画并复位缩放/透明度，保证下次启用从干净状态开始
+        KillPopupAnim();
+        ResetPopupAnimState();
+        isHidingForAnim = false;
         base.OnDisable();
         //清空触发器引用，避免下次启用时执行旧回调导致误关闭
         triggerObj = null;
@@ -188,6 +216,122 @@ public class PopupShowView : BaseUIView
         pos.z = targetPosition.z;
         transform.localPosition = pos;
     }
+
+    #region 出现/消失动画
+    /// <summary>
+    /// 出现动画：缩放0→1(OutBack绕pivot角弹出, pivot恒在靠鼠标一角=从指针弹出)+可选淡入；播前强制复位保证From终点正确
+    /// </summary>
+    public virtual void AnimForShow()
+    {
+        KillPopupAnim();
+        ResetPopupAnimState();
+        isHidingForAnim = false;
+        popupAnimTween = transform.DOScale(Vector3.zero, animForShowDuration)
+            .From().SetEase(Ease.OutBack).SetUpdate(UpdateType.Normal, true);
+        if (isAnimWithFade)
+        {
+            GetOrAddCanvasGroupForAnim().DOFade(0f, animForShowDuration * 0.7f)
+                .From().SetUpdate(UpdateType.Normal, true);
+        }
+    }
+
+    /// <summary>
+    /// 消失动画：缩放→0(InBack蓄力回缩)+可选淡出，播完回调真正隐藏
+    /// </summary>
+    /// <param name="onComplete">动画播完回调(真正执行隐藏)</param>
+    public virtual void AnimForHide(Action onComplete)
+    {
+        KillPopupAnim();
+        popupAnimTween = transform.DOScale(Vector3.zero, animForHideDuration)
+            .SetEase(Ease.InBack).SetUpdate(UpdateType.Normal, true)
+            .OnComplete(() => onComplete?.Invoke());
+        if (isAnimWithFade)
+        {
+            GetOrAddCanvasGroupForAnim().DOFade(0f, animForHideDuration)
+                .SetUpdate(UpdateType.Normal, true);
+        }
+    }
+
+    /// <summary>
+    /// 带动画展示：供UIHandler.ShowPopup调用，替代原ShowObj(true)；消失动画中复开走中断恢复
+    /// </summary>
+    public virtual void ShowWithAnim()
+    {
+        if (gameObject.activeInHierarchy)
+        {
+            //已激活且不在消失动画中=重复展示请求，直接忽略避免重播出现动画
+            if (!isHidingForAnim)
+                return;
+            //消失动画被打断：Kill隐藏Tween(不触发其OnComplete，不会误隐藏)后重播出现动画
+            AnimForShow();
+            return;
+        }
+        //未激活：SetActive触发OnEnable，由OnEnable播出现动画
+        this.ShowObj(true);
+    }
+
+    /// <summary>
+    /// 带动画隐藏：供UIHandler.HidePopup调用，替代原ShowObj(false)；播完消失动画才真正失活
+    /// </summary>
+    public virtual void HideWithAnim()
+    {
+        //消失动画播放中重复调用直接忽略(防CheckTriggerValid→ClearData→HidePopup重入)
+        if (isHidingForAnim)
+            return;
+        //开关关闭或对象已失活时保持原立即隐藏行为
+        if (!isAnimForHide || !gameObject.activeInHierarchy)
+        {
+            this.ShowObj(false);
+            return;
+        }
+        isHidingForAnim = true;
+        AnimForHide(() =>
+        {
+            //播完真正隐藏；若期间被ShowWithAnim打断标记已清，不会误隐藏
+            if (isHidingForAnim)
+                this.ShowObj(false);
+        });
+    }
+
+    /// <summary>
+    /// 清理动画Tween(按句柄与CanvasGroup杀，不用transform.DOKill避免误杀其他动画)
+    /// </summary>
+    protected virtual void KillPopupAnim()
+    {
+        popupAnimTween?.Kill();
+        popupAnimTween = null;
+        if (canvasGroupForAnim != null)
+            canvasGroupForAnim.DOKill();
+    }
+
+    /// <summary>
+    /// 复位动画状态：缩放与透明度回满
+    /// </summary>
+    protected virtual void ResetPopupAnimState()
+    {
+        transform.localScale = Vector3.one;
+        if (canvasGroupForAnim != null)
+            canvasGroupForAnim.alpha = 1f;
+    }
+
+    /// <summary>
+    /// 代码GetOrAdd CanvasGroup(仅alpha动画使用; 新添加时关闭blocksRaycasts防气泡边缘抢射线)
+    /// </summary>
+    protected virtual CanvasGroup GetOrAddCanvasGroupForAnim()
+    {
+        if (canvasGroupForAnim == null)
+        {
+            canvasGroupForAnim = GetComponent<CanvasGroup>();
+            if (canvasGroupForAnim == null)
+            {
+                canvasGroupForAnim = gameObject.AddComponent<CanvasGroup>();
+                //tooltip本不该拦截射线，关闭后根除动画期间气泡边缘扫过光标导致的闪烁
+                canvasGroupForAnim.blocksRaycasts = false;
+            }
+        }
+        return canvasGroupForAnim;
+    }
+    #endregion
 
     /// <summary>
     /// 刷新控件大小

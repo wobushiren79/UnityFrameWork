@@ -469,6 +469,115 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     }
     #endregion
 
+    #region 单次音效（独立音源播放一次，可中途 StopSoundOnce 截断停止）
+    /// <summary>
+    /// 单次音效通道：记录活跃单次音效的音源、回收协程与异步竞态令牌
+    /// </summary>
+    protected class OnceSoundEntry
+    {
+        //播放音源（clip 加载完成后才赋值）
+        public AudioSource source;
+        //版本令牌，用于加载/停止竞态判定
+        public int token;
+        //加载回调到达前若被停止则置 true，回调据此丢弃
+        public bool canceled;
+        //自然播完的回收协程（截断/重播硬停时会被终止）
+        public Coroutine coroutineForRecycle;
+    }
+    //活跃单次音效：key=音频id（含加载中）
+    protected Dictionary<long, OnceSoundEntry> dicOnceActive = new Dictionary<long, OnceSoundEntry>();
+    //单次音效竞态令牌自增种子
+    protected int onceTokenSeed = 0;
+
+    /// <summary>
+    /// 播放单次音效（借连续音效池的独立音源，loop=false 播完自动回收）。同一 id 已在播（含加载中）先停掉旧的起播新的。
+    /// 与 PlaySoundTimedFade 的区别：不限定时长、播完整段 clip；可随时 StopSoundOnce 中途截断。
+    /// 最终音量 = volumeScale × 配置 volume_scale。
+    /// </summary>
+    /// <param name="soundId">音频 id（复用普通音频配置，按其 audio_type 定位资源）</param>
+    /// <param name="volumeScale">基础音量；&lt;0 时取音效音量 soundVolume（默认行为）</param>
+    public void PlaySoundOnce(long soundId, float volumeScale = -1f)
+    {
+        if (soundId == 0)
+            return;
+        //音量缺省(<0)时取音效音量 soundVolume
+        if (volumeScale < 0f)
+            volumeScale = GameDataHandler.Instance.manager.GetGameConfig().soundVolume;
+        //音量为0直接不播
+        if (volumeScale <= 0f)
+            return;
+        //同 id 已在播：截断回收旧的，保证重新起播语义
+        StopSoundOnce(soundId);
+        AudioInfoBean audioInfo = AudioInfoCfg.GetItemData(soundId);
+        if (audioInfo == null)
+        {
+            LogUtil.LogError($"播放单次音效失败 没有找到ID {soundId} 的音频配置");
+            return;
+        }
+        //配置 volume_scale：0 或空视为 1（不缩放）
+        float configScale = audioInfo.volume_scale > 0 ? audioInfo.volume_scale : 1f;
+        int token = ++onceTokenSeed;
+        OnceSoundEntry entry = new OnceSoundEntry { source = null, token = token, canceled = false };
+        dicOnceActive[soundId] = entry;
+        //按 audio_type 复用现有加载路由取 clip
+        manager.LoadClipDataByAddressbles((AuidoTypeEnum)audioInfo.audio_type, audioInfo.name_res, (audioClip) =>
+        {
+            //竞态防护：回调到达时若该 id 已被停止/替换/令牌失效则丢弃，防"停不掉的孤儿音源"
+            if (!dicOnceActive.TryGetValue(soundId, out OnceSoundEntry curEntry) || curEntry != entry || curEntry.canceled || curEntry.token != token)
+                return;
+            if (audioClip == null)
+            {
+                dicOnceActive.Remove(soundId);
+                LogUtil.LogError($"播放单次音效失败 没有名字为:{audioInfo.name_res} 的音频资源");
+                return;
+            }
+            AudioSource source = manager.DequeueLoopSource();
+            if (source == null)
+            {
+                //音源池已满，放弃本次播放并清理登记
+                dicOnceActive.Remove(soundId);
+                return;
+            }
+            source.clip = audioClip;
+            source.loop = false;
+            source.volume = volumeScale * configScale;
+            source.Play();
+            entry.source = source;
+            //登记自然播完的回收协程（截断/重播时会先终止它）
+            entry.coroutineForRecycle = StartCoroutine(CoroutineForOnceSoundRecycle(soundId, entry, audioClip.length));
+        });
+    }
+
+    /// <summary>
+    /// 停止指定单次音效（立即截断并回收音源；加载中的直接取消）；未在播（含已自然结束）时为空操作。
+    /// </summary>
+    /// <param name="soundId">音频 id</param>
+    public void StopSoundOnce(long soundId)
+    {
+        if (!dicOnceActive.TryGetValue(soundId, out OnceSoundEntry entry))
+            return;
+        entry.canceled = true;
+        if (entry.coroutineForRecycle != null)
+            StopCoroutine(entry.coroutineForRecycle);
+        if (entry.source != null)
+            manager.RecycleLoopSource(entry.source);
+        dicOnceActive.Remove(soundId);
+    }
+
+    /// <summary>
+    /// 协程-单次音效自然播完回收：等待 clip 时长后，若登记仍为本次则回收音源并移除登记
+    /// </summary>
+    IEnumerator CoroutineForOnceSoundRecycle(long soundId, OnceSoundEntry entry, float clipLength)
+    {
+        yield return new WaitForSeconds(clipLength);
+        if (!dicOnceActive.TryGetValue(soundId, out OnceSoundEntry curEntry) || curEntry != entry)
+            yield break;
+        if (entry.source != null)
+            manager.RecycleLoopSource(entry.source);
+        dicOnceActive.Remove(soundId);
+    }
+    #endregion
+
     #region 停止相关
     /// <summary>
     /// 停止播放

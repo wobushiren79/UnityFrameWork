@@ -433,7 +433,7 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
     {
         if (manager.popupList.TryGetValue(popupData.PopupType, out PopupShowView popup))
         {
-            popup.ShowObj(true);
+            popup.ShowWithAnim();
             return popup as T;
         }
         else
@@ -447,7 +447,7 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
     {
         if (manager.popupList.TryGetValue(popupData.PopupType, out PopupShowView popup))
         {
-            popup.ShowObj(true);
+            popup.ShowWithAnim();
             return popup;
         }
         else
@@ -464,7 +464,7 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
     {
         if (manager.popupList.TryGetValue(popupType, out PopupShowView popup))
         {
-            popup.ShowObj(false);
+            popup.HideWithAnim();
         }
     }
 
