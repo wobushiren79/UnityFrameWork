@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEditor;
+using UnityEditor.Build;
 
 namespace RotaryHeart.Lib.SerializableDictionary
 {
@@ -20,7 +21,7 @@ namespace RotaryHeart.Lib.SerializableDictionary
             if (defines == null || defines.Count == 0)
                 return;
 
-            string availableDefines = PlayerSettings.GetScriptingDefineSymbolsForGroup(EditorUserBuildSettings.selectedBuildTargetGroup);
+            string availableDefines = PlayerSettings.GetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(EditorUserBuildSettings.selectedBuildTargetGroup));
             List<string> definesSplit = new List<string>(availableDefines.Split(';'));
 
             foreach (var define in defines)
@@ -35,7 +36,7 @@ namespace RotaryHeart.Lib.SerializableDictionary
             if (defines == null || defines.Count == 0)
                 return;
 
-            string availableDefines = PlayerSettings.GetScriptingDefineSymbolsForGroup(EditorUserBuildSettings.selectedBuildTargetGroup);
+            string availableDefines = PlayerSettings.GetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(EditorUserBuildSettings.selectedBuildTargetGroup));
             List<string> definesSplit = new List<string>(availableDefines.Split(';'));
 
             foreach (var define in defines)
@@ -49,7 +50,7 @@ namespace RotaryHeart.Lib.SerializableDictionary
             if (string.IsNullOrEmpty(define))
                 return;
 
-            PlayerSettings.SetScriptingDefineSymbolsForGroup(EditorUserBuildSettings.selectedBuildTargetGroup, define);
+            PlayerSettings.SetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(EditorUserBuildSettings.selectedBuildTargetGroup), define);
         }
     }
 }

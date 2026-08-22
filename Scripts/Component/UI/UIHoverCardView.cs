@@ -8,6 +8,7 @@ using UnityEngine.EventSystems;
 /// 悬停静止期间叠加双轴错相持续摆动(悬空摇晃感, 渐入渐出)，移出后弹回原位。
 /// 自身实现IPointerEnter/Exit/Move(事件沿射线接收层向上冒泡，可挂在item根节点或独立子节点)；
 /// 其他动画需要独占目标变换时用SetHoverSuppressed抑制；maxTiltAngle=0且hoverLiftOffset=zero时退化为纯缩放悬停。
+/// 大列表性能设计：不注册UI输入/不注册按钮/不反射链接(刻意跳过基类Awake)，父Canvas缓存。
 /// </summary>
 public class UIHoverCardView : BaseUIView, IPointerEnterHandler, IPointerExitHandler, IPointerMoveHandler
 {
@@ -55,20 +56,31 @@ public class UIHoverCardView : BaseUIView, IPointerEnterHandler, IPointerExitHan
     protected Vector3 rotationOriginal;
     //目标的RectTransform(上抬与倾斜结算用，target非UI时为空)
     protected RectTransform targetRectTransform;
+    //父Canvas缓存(指针移动事件高频触发, 避免每次沿层级向上查找)
+    protected Canvas parentCanvas;
     #endregion
 
     #region 生命周期
     /// <summary>
-    /// 初始化动画目标并缓存初始变换
+    /// 初始化动画目标并缓存初始变换；刻意不调base.Awake——本组件无ui_字段(无需反射链接)、不拥有按钮(避免与宿主View重复注册点击)
     /// </summary>
     public override void Awake()
     {
-        base.Awake();
         if (targetTransform == null)
             targetTransform = transform;
         targetRectTransform = targetTransform as RectTransform;
         RefreshOriginalTransform();
     }
+
+    /// <summary>
+    /// 重写为空：纯悬停动画组件不响应UI快捷键，避免每个实例订阅全部输入动作(大列表时每次按键会向所有实例扇出协程)
+    /// </summary>
+    public override void RegisterInputAction() { }
+
+    /// <summary>
+    /// 重写为空：与RegisterInputAction对应，未订阅即无需注销
+    /// </summary>
+    public override void UnRegisterInputAction() { }
 
     /// <summary>
     /// 首帧重新缓存初始变换(SetData/布局通常在Awake后才设置, Start时才是真实静止态, 避免还原到prefab默认值)
@@ -225,9 +237,11 @@ public class UIHoverCardView : BaseUIView, IPointerEnterHandler, IPointerExitHan
     /// </summary>
     protected virtual Camera GetPointerCamera()
     {
-        Canvas canvas = GetComponentInParent<Canvas>();
-        if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay)
-            return canvas.worldCamera;
+        //父Canvas缓存一次：指针移动事件高频触发，避免每次沿层级向上查找
+        if (parentCanvas == null)
+            parentCanvas = GetComponentInParent<Canvas>();
+        if (parentCanvas != null && parentCanvas.renderMode != RenderMode.ScreenSpaceOverlay)
+            return parentCanvas.worldCamera;
         return null;
     }
     #endregion

@@ -12,8 +12,11 @@ using UnityEditor;
 /// 消散走独立的每实例 float 动态 buffer（dissolveStartTime，哨兵 -1），仅踩踏发生帧整份重传（10k 实例=40KB，微秒级），
 /// shader 内 progress=saturate((_Time.y-start)/duration) 驱动噪声抖动裁剪（像素 dither 消散）。</para>
 /// <para>【零物理】踩踏检测不走 Collider：TrampleAt(worldPos, radius) 走 XZ 空间哈希网格查花；消散花在 shader 里 clip 消失，不删实例、不改 instanceCount，零回读零 CPU 压缩。</para>
-/// <para>【贴图】图集模式（自动均分 cols×rows 或手动 Rect 列表覆盖）/ 单图列表模式（运行时 PackTextures 打包，要求贴图开 Read/Write），归一到「图集 + Rect[] + 每实例变体下标」。</para>
+/// <para>【贴图】图集模式（自动均分 cols×rows 全用 / atlasSelectedCells 勾选行列子集 / 手动 Rect 列表覆盖）/ 单图列表模式（运行时 PackTextures 打包，要求贴图开 Read/Write），归一到「图集 + Rect[] + 每实例变体下标」。</para>
 /// <para>【形态】竖直立牌（yaw 广告牌，可叠风摆）/ 贴地平铺，由 shader keyword _FLATMODE 切换，两形态共用同一底部中心 pivot quad。</para>
+/// <para>【阴影】castShadows 开启后走 shader 内置 ShadowCaster Pass 投射 AlphaTest 镂空阴影（随消散同步消失；竖直立牌在阴影 Pass 中面向光源，投影厚实）；
+/// shadowRadius>0 时以渲染相机为圆心按 XZ 距离裁剪投影花朵（半径外顶点退化为零面积三角形，光栅零开销，仍单次 draw call）。
+/// 两参数绘制调用逐帧读取，Inspector 改动即时生效（不重建不刷材质）。花海 Unlit 不接收阴影。</para>
 /// <para>【地形】高度三模式：固定高度（平地默认）/ 射线采样（有碰撞体的网格地形）/ 高度图地形（FrameWork MeshTerrain 等 GPU 顶点位移地形——射线只能打到位移前的平面，必须改为 CPU 采样高度图复现 shader 位移公式；可自动识别地形材质的 _HeightMap/_HeightScale/_HeightInvert）。</para>
 /// <para>【编辑模式预览】ExecuteAlways + SRP beginContextRendering 回调提交绘制，非 Play 状态直接可见；
 /// 编辑模式时钟用 EditorApplication.timeSinceStartup（与编辑器下 shader _Time 同源），消散/风摆动画由 editModeLivePreview 强制 SceneView 重绘驱动。</para>
@@ -90,7 +93,11 @@ public class FlowerSeaInstanceRenderer : BaseMonoBehaviour
     public Texture2D atlasTexture;
     /// <summary>图集模式：自动均分列×行</summary>
     public Vector2Int atlasGrid = new Vector2Int(4, 4);
-    /// <summary>图集模式：手动 UV Rect 列表（非空时覆盖自动均分）</summary>
+    /// <summary>图集模式：开=使用均分网格全部格子；关=只使用 atlasSelectedCells 选中的行列格子</summary>
+    public bool atlasUseAllCells = true;
+    /// <summary>图集模式：选中的格子行列（x=列 y=行，0 起，行 0=贴图最下行；仅 atlasUseAllCells 关闭时生效）</summary>
+    public List<Vector2Int> atlasSelectedCells;
+    /// <summary>图集模式：手动 UV Rect 列表（非空时覆盖均分与选中格子）</summary>
     public List<Rect> manualRects;
     /// <summary>单图模式：独立贴图列表（要求每张开 Read/Write）</summary>
     public List<Texture2D> textureList;
@@ -169,6 +176,16 @@ public class FlowerSeaInstanceRenderer : BaseMonoBehaviour
 
     #endregion
 
+    #region 可调参数：阴影
+
+    [Header("阴影")]
+    /// <summary>开启阴影投射（逐帧绘制时直接读取，改动即时生效、不触发重建；阴影随消散同步消失。Unlit 花海不接收阴影）</summary>
+    public bool castShadows = false;
+    /// <summary>阴影显示半径(世界单位)：以渲染相机为圆心的 XZ 平面距离，半径外的花不投影（阴影 Pass 顶点退化为零面积三角形，光栅零开销，仍是单次 draw call）；0=不限制全图投影</summary>
+    [Min(0f)] public float shadowRadius = 0f;
+
+    #endregion
+
     #region 可调参数：自动踩踏轮询
 
     [Header("自动踩踏轮询（可选，默认关；关闭时由调用方手动 TrampleAt）")]
@@ -219,6 +236,8 @@ public class FlowerSeaInstanceRenderer : BaseMonoBehaviour
     private static readonly int ID_VariantRects = Shader.PropertyToID("_VariantRects");
     private static readonly int ID_DissolveStart = Shader.PropertyToID("_DissolveStart");
     private static readonly int ID_FlowerSeaTime = Shader.PropertyToID("_FlowerSeaTime");
+    private static readonly int ID_ShadowCenter = Shader.PropertyToID("_ShadowCenter");
+    private static readonly int ID_ShadowRadius = Shader.PropertyToID("_ShadowRadius");
     //高度图地形材质属性（FrameWork MeshTerrain shader 约定名，见 Shader_Mesh_Terrain.shader / TerrainHeight.hlsl）
     private static readonly int ID_TerrainHeightMap = Shader.PropertyToID("_HeightMap");
     private static readonly int ID_TerrainHeightScale = Shader.PropertyToID("_HeightScale");
@@ -340,6 +359,14 @@ public class FlowerSeaInstanceRenderer : BaseMonoBehaviour
         gridCells.y = Mathf.Max(1, gridCells.y);
         atlasGrid.x = Mathf.Max(1, atlasGrid.x);
         atlasGrid.y = Mathf.Max(1, atlasGrid.y);
+        if (atlasSelectedCells != null)
+            for (int i = 0; i < atlasSelectedCells.Count; i++)
+            {
+                Vector2Int cell = atlasSelectedCells[i];
+                cell.x = Mathf.Clamp(cell.x, 0, atlasGrid.x - 1);
+                cell.y = Mathf.Clamp(cell.y, 0, atlasGrid.y - 1);
+                atlasSelectedCells[i] = cell;
+            }
         packAtlasSize = Mathf.Max(64, packAtlasSize);
         if (scaleRange.x > scaleRange.y) scaleRange = new Vector2(scaleRange.y, scaleRange.x);
         pollInterval = Mathf.Max(0.02f, pollInterval);
@@ -444,24 +471,36 @@ public class FlowerSeaInstanceRenderer : BaseMonoBehaviour
     private void OnBeginContextRendering(ScriptableRenderContext context, List<Camera> cameras)
     {
         if (!isReady) return;
-        bool hasValidCamera = false;
+        Camera renderCamera = null;
         for (int i = 0; i < cameras.Count; i++)
         {
             if (cameras[i] != null && cameras[i].cameraType != CameraType.Preview)
             {
-                hasValidCamera = true;
+                renderCamera = cameras[i];
                 break;
             }
         }
-        if (!hasValidCamera) return; // 跳过材质预览等预览相机
+        if (renderCamera == null) return; // 跳过材质预览等预览相机
         // 每渲染帧推送统一时钟：与 TrampleAt 盖章同源（编辑模式=编辑器时钟，Play=Time.time），shader 不依赖内置 _Time
         materialInstance.SetFloat(ID_FlowerSeaTime, GetShaderTime());
+        // 阴影半径裁剪参数逐帧推送：圆心=渲染相机位置（XZ 平面距离），castShadows/shadowRadius 改动即时生效
+        if (castShadows && shadowRadius > 0f)
+        {
+            materialInstance.SetFloat(ID_ShadowRadius, shadowRadius);
+            materialInstance.SetVector(ID_ShadowCenter, renderCamera.transform.position);
+        }
+        else
+        {
+            materialInstance.SetFloat(ID_ShadowRadius, 0f);
+        }
         if (dissolveDirty)
         {
             dissolveBuffer.SetData(dissolveStartTimes);
             dissolveDirty = false;
         }
-        Graphics.DrawMeshInstancedIndirect(sharedQuadMesh, 0, materialInstance, cachedBounds, argsBuffer);
+        // castShadows 逐帧直接读取（改动即时生效，无需重建/刷材质）；Unlit 不接收阴影，receiveShadows 恒 false
+        Graphics.DrawMeshInstancedIndirect(sharedQuadMesh, 0, materialInstance, cachedBounds, argsBuffer, 0, null,
+            castShadows ? ShadowCastingMode.On : ShadowCastingMode.Off, false);
     }
 
     /// <summary>确保材质存在：优先克隆 Resources 预设材质模板，失败退化 Shader.Find 新建</summary>
@@ -594,9 +633,20 @@ public class FlowerSeaInstanceRenderer : BaseMonoBehaviour
         {
             if (atlasTexture == null) { LogErrorOnce("图集模式未赋 atlasTexture"); return false; }
             finalTexture = atlasTexture;
-            variantRects = (manualRects != null && manualRects.Count > 0)
-                ? manualRects.ToArray()
-                : BuildAutoSliceRects(atlasGrid.x, atlasGrid.y);
+            if (manualRects != null && manualRects.Count > 0)
+            {
+                variantRects = manualRects.ToArray();
+            }
+            else if (!atlasUseAllCells)
+            {
+                // 行列子集模式：只取选中格子的切片；一个都没选视为配置错误（悄悄回退全量会让用户误以为筛选生效）
+                variantRects = BuildSelectedCellsRects(atlasGrid.x, atlasGrid.y, atlasSelectedCells);
+                if (variantRects.Length == 0) { LogErrorOnce("图集未选中任何格子：请在 Inspector 网格中勾选行列，或打开「使用图集全部格子」"); return false; }
+            }
+            else
+            {
+                variantRects = BuildAutoSliceRects(atlasGrid.x, atlasGrid.y);
+            }
             return variantRects.Length > 0;
         }
         // 单图列表模式：预检可读性后运行时打包
@@ -636,6 +686,24 @@ public class FlowerSeaInstanceRenderer : BaseMonoBehaviour
             for (int c = 0; c < cols; c++)
                 rects[r * cols + c] = new Rect(c * w, r * h, w, h);
         return rects;
+    }
+
+    /// <summary>图集行列子集切片：只取选中格子的均分 Rect（越界忽略、重复去重；UV 行列约定与全量均分一致）</summary>
+    private Rect[] BuildSelectedCellsRects(int cols, int rows, List<Vector2Int> cells)
+    {
+        if (cells == null || cells.Count == 0) return new Rect[0];
+        HashSet<int> seen = new HashSet<int>();
+        List<Rect> rects = new List<Rect>(cells.Count);
+        float w = 1f / cols;
+        float h = 1f / rows;
+        for (int i = 0; i < cells.Count; i++)
+        {
+            int c = cells[i].x, r = cells[i].y;
+            if (c < 0 || c >= cols || r < 0 || r >= rows) continue;
+            if (!seen.Add(r * cols + c)) continue;
+            rects.Add(new Rect(c * w, r * h, w, h));
+        }
+        return rects.ToArray();
     }
 
     /// <summary>采样布点：抖动网格（格子下标洗牌后按序取格，花朵数超过格子数时多轮复用、每朵仍独立随机抖动）+ 地形射线高度 + 随机缩放/相位/yaw/变体</summary>
@@ -875,6 +943,9 @@ public class FlowerSeaInstanceRenderer : BaseMonoBehaviour
     {
         System.Text.StringBuilder sb = new System.Text.StringBuilder(256);
         sb.Append(textureMode).Append(atlasTexture != null ? atlasTexture.GetInstanceID() : 0).Append(atlasGrid);
+        sb.Append(atlasUseAllCells);
+        if (atlasSelectedCells != null)
+            for (int i = 0; i < atlasSelectedCells.Count; i++) sb.Append(atlasSelectedCells[i]);
         if (manualRects != null)
             for (int i = 0; i < manualRects.Count; i++) sb.Append(manualRects[i]);
         if (textureList != null)

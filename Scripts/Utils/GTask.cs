@@ -16,7 +16,7 @@ public static class GTask
 
     #region 等待
     /// <summary>
-    /// 等待指定秒数（受 timeScale 影响，同 WaitForSeconds 语义；负数按 0 处理）
+    /// 等待指定秒数（受 timeScale 影响，同 WaitForSeconds 语义；负数按 0 处理，但秒数≤0 时仍跨一帧完成，并非同步返回）
     /// </summary>
     /// <param name="seconds">等待秒数</param>
     /// <param name="cancel">取消源（可空，空=不可取消）</param>
@@ -26,7 +26,7 @@ public static class GTask
     }
 
     /// <summary>
-    /// 等待指定秒数（实时计时，不受 timeScale 影响，同 WaitForSecondsRealtime 语义；负数按 0 处理）
+    /// 等待指定秒数（实时计时，不受 timeScale 影响，同 WaitForSecondsRealtime 语义；负数按 0 处理，但秒数≤0 时仍跨一帧完成，并非同步返回）
     /// </summary>
     /// <param name="seconds">等待秒数</param>
     /// <param name="cancel">取消源（可空，空=不可取消）</param>
@@ -55,6 +55,15 @@ public static class GTask
     }
 
     /// <summary>
+    /// 等到本帧 LateUpdate 之后（布局/画布已刷新，适合"等 UI 重建完再读尺寸"的场景）
+    /// </summary>
+    /// <param name="cancel">取消源（可空，空=不可取消）</param>
+    public static UniTask WaitFrameEnd(GTaskCancel cancel = null)
+    {
+        return UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate, GetToken(cancel));
+    }
+
+    /// <summary>
     /// 等待条件成立（每帧检查）
     /// </summary>
     /// <param name="condition">条件函数</param>
@@ -79,7 +88,33 @@ public static class GTask
     }
 
     /// <summary>
-    /// 等待 Tween 播完（每帧检查；tween 被 Kill 或销毁同样视为结束，防止永久挂起）
+    /// 等待条件成立（带超时看门狗，防止条件永不成立导致永久挂起；取消时抛 OperationCanceledException）
+    /// </summary>
+    /// <param name="condition">条件函数</param>
+    /// <param name="timeoutSeconds">超时秒数（默认按 scaled 时间累计，暂停时不计时；≤0 时仅当条件未立即成立即视为超时）</param>
+    /// <param name="cancel">取消源（可空，空=不可取消）</param>
+    /// <param name="ignoreTimeScale">true=超时按实时计时（timeScale=0 的暂停界面等场景必须开，否则暂停时看门狗同步冻结=退化为永久挂起）</param>
+    /// <returns>true=条件已达成，false=超时</returns>
+    public static async UniTask<bool> WaitUntilTimeout(Func<bool> condition, float timeoutSeconds, GTaskCancel cancel = null, bool ignoreTimeScale = false)
+    {
+        if (condition == null)
+            throw new ArgumentNullException(nameof(condition));
+        var token = GetToken(cancel);
+        var elapsed = 0f;
+        //逐帧轮询+手动计时：不用 WhenAny(Delay)，避免超时后输掉的 WaitUntil 残留永久轮询
+        while (!condition())
+        {
+            if (elapsed >= timeoutSeconds)
+                return false;
+            await UniTask.Yield(PlayerLoopTiming.Update, token);
+            elapsed += ignoreTimeScale ? Time.unscaledDeltaTime : Time.deltaTime;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// 等待 Tween 播完（每帧检查 IsActive；tween 被 Kill 或销毁同样视为结束，防止永久挂起）。
+    /// <para>注意：DOTween 默认回收 tween 实例，Kill 后同一帧内若该实例被新 tween 复用，等待会挂到新 tween 上——Kill 后不要再持有/复用同一引用变量。不用 OnComplete/OnKill 回调是因其为赋值语义，会覆盖调用方已有回调。</para>
     /// </summary>
     /// <param name="tween">目标 Tween</param>
     /// <param name="cancel">取消源（可空，空=不可取消）</param>
@@ -101,7 +136,7 @@ public static class GTask
 
     #region 发射
     /// <summary>
-    /// 发射并遗忘（取消抛的 OperationCanceledException 静默忽略；其余异常由 UniTaskScheduler 记录到 Console）。
+    /// 发射并遗忘（等效 UniTask.Forget：任务仍在主线程 PlayerLoop 上推进，不涉及线程切换；取消抛的 OperationCanceledException 静默忽略，其余异常由 UniTaskScheduler 记录到 Console）。
     /// 仅用于「方法返回 UniTask 供他处 await，本调用点又要发射即忘」的场景；专用的发射即忘方法应声明为 async UniTaskVoid 直接调用，不要写 async void。
     /// </summary>
     /// <param name="task">异步任务</param>
@@ -120,6 +155,37 @@ public static class GTask
     }
     #endregion
 
+    #region 组合
+    /// <summary>
+    /// 等待全部任务完成（等效 UniTask.WhenAll 的直通封装，如"等一组 Tween 都播完"）。
+    /// 组合本身不接管取消：各任务须各自携带取消源（如 GTask.Wait(..., cancel) 生成），任一任务取消/失败即整体以该异常结束。
+    /// </summary>
+    /// <param name="tasks">任务组</param>
+    public static UniTask WhenAll(params UniTask[] tasks)
+    {
+        return UniTask.WhenAll(tasks);
+    }
+
+    /// <summary>
+    /// 等待全部任务完成并聚齐返回值（等效 UniTask.WhenAll 的直通封装；组合本身不接管取消，各任务须各自携带取消源）
+    /// </summary>
+    /// <param name="tasks">任务组</param>
+    public static UniTask<T[]> WhenAll<T>(params UniTask<T>[] tasks)
+    {
+        return UniTask.WhenAll(tasks);
+    }
+
+    /// <summary>
+    /// 等待任一任务完成，返回先完成的任务索引（等效 UniTask.WhenAny 的直通封装）。
+    /// 组合本身不接管取消：注意输掉竞速的任务仍在后台继续跑，不再需要时应确保各自带取消源以便收口。
+    /// </summary>
+    /// <param name="tasks">任务组</param>
+    public static UniTask<int> WhenAny(params UniTask[] tasks)
+    {
+        return UniTask.WhenAny(tasks);
+    }
+    #endregion
+
     #region 取消源
     /// <summary>
     /// 新建取消源（同一处任务建议只建一次复用，每次重新开始调 Reset 重建令牌即可）
@@ -129,6 +195,17 @@ public static class GTask
     public static GTaskCancel NewCancel(GameObject linkObj = null)
     {
         return new GTaskCancel(linkObj);
+    }
+
+    /// <summary>
+    /// 新建取消源（Component 便捷版，链接其 gameObject；组件销毁时自动取消）。
+    /// 独立命名而非 NewCancel 重载：GameObject 与 Component 无继承关系，重载会导致 NewCancel(null) 字面量调用编译歧义（CS0121）。
+    /// </summary>
+    /// <param name="link">链接组件（可空，空=无链接）</param>
+    /// <returns>取消源</returns>
+    public static GTaskCancel NewCancelFor(Component link)
+    {
+        return NewCancel(link == null ? null : link.gameObject);
     }
     #endregion
 }
@@ -171,11 +248,14 @@ public class GTaskCancel : IDisposable
     /// </summary>
     public void Cancel()
     {
-        if (cts == null)
+        //先取出本地引用并置空字段：Cancel 会同步执行回调，回调重入本方法时内层调用直接短路，避免重复 Dispose/NRE
+        var source = cts;
+        if (source == null)
             return;
-        cts.Cancel();
-        cts.Dispose();
         cts = null;
+        //回调抛异常会包成 AggregateException 继续上抛，finally 兜底保证销毁不残留脏状态
+        try { source.Cancel(); }
+        finally { source.Dispose(); }
     }
 
     /// <summary>

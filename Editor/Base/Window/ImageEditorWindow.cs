@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
+using UnityEditor.U2D.Sprites;
 using UnityEngine;
 
 /// <summary>
@@ -226,7 +227,7 @@ internal static class SpriteSlice
                 rItemSize = (float)itemTexture.height / rNumber;
             }
 
-            List<SpriteMetaData> newData = new List<SpriteMetaData>();
+            List<SpriteRect> newData = new List<SpriteRect>();
             int position = 0;
             for (int r = rNumber; r > 0; r--)
             {
@@ -244,19 +245,41 @@ internal static class SpriteSlice
                         y = (r - 1) * rItemSize;
                     }
 
-                    SpriteMetaData smd = new SpriteMetaData();
-                    smd.alignment = 9;
+                    SpriteRect smd = new SpriteRect();
+                    smd.alignment = SpriteAlignment.Custom;
                     smd.pivot = new Vector2(pivotX, pivotY);
                     smd.name = itemTexture.name + "_" + position;
                     smd.rect = new Rect(x, y, cItemSize, rItemSize);
+                    //spriteID 由路径+名字确定性生成，重复切片时同名 sprite 的引用不断链
+                    smd.spriteID = new GUID(GetDeterministicGuidHex(path + "/" + smd.name));
                     newData.Add(smd);
                     position++;
                 }
             }
 
             ti.spritePivot = new Vector2(pivotX, pivotY);
-            ti.spritesheet = newData.ToArray();
+            //spritesheet 接口已移除，改用 SpriteDataProviderFactories 取 ISpriteEditorDataProvider 写入切片数据
+            var spriteDataFactory = new SpriteDataProviderFactories();
+            spriteDataFactory.Init();
+            var spriteDataProvider = spriteDataFactory.GetSpriteEditorDataProviderFromObject(ti);
+            if (spriteDataProvider != null)
+            {
+                spriteDataProvider.InitSpriteEditorDataProvider();
+                spriteDataProvider.SetSpriteRects(newData.ToArray());
+                spriteDataProvider.Apply();
+            }
             AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+        }
+    }
+
+    /// <summary>
+    /// 由指定字符串生成确定性的 32 位十六进制 GUID 串（同一输入恒得同一结果）
+    /// </summary>
+    private static string GetDeterministicGuidHex(string key)
+    {
+        using (var md5 = System.Security.Cryptography.MD5.Create())
+        {
+            return System.BitConverter.ToString(md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(key))).Replace("-", "").ToLowerInvariant();
         }
     }
 }

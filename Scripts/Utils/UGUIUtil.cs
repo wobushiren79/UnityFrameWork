@@ -86,7 +86,7 @@ public class UGUIUtil
     {
         GameObject obj = null;
 
-        GraphicRaycaster[] graphicRaycasters = GameObject.FindObjectsOfType<GraphicRaycaster>();
+        GraphicRaycaster[] graphicRaycasters = Object.FindObjectsByType<GraphicRaycaster>(FindObjectsSortMode.None);
 
         PointerEventData eventData = new PointerEventData(EventSystem.current);
         eventData.pressPosition = Input.mousePosition;

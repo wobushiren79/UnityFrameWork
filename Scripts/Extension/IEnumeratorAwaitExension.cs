@@ -21,7 +21,7 @@ public static class Awaiters
 
 
     /// <summary>
-    /// 这里改成不缓存，因为增加了取消逻辑，如果操作同一个对象取消，会导致同时使用的地方也返回异常
+    /// 锟斤拷锟斤拷某刹锟斤拷锟斤拷妫拷锟轿拷锟斤拷锟斤拷锟饺★拷锟斤拷呒锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷同一锟斤拷锟斤拷锟斤拷取锟斤拷锟斤拷锟结导锟斤拷同时使锟矫的地凤拷也锟斤拷锟斤拷锟届常
     /// </summary>
     public static WaitNextFrame NextFrame { get { return new WaitNextFrame(); } }
     public static WaitForFixedUpdate FixedUpdate { get { return new WaitForFixedUpdate(); } }
@@ -266,12 +266,6 @@ public static class IEnumeratorAwaitExtension
         );
 
         return awaiter;
-    }
-
-    // Return itself so you can do things like (await new WWW(url)).bytes
-    public static SimpleCoroutineAwaiter<WWW> GetAwaiter(this WWW instruction)
-    {
-        return GetAwaiterReturnSelf(instruction);
     }
 
     public static SimpleCoroutineAwaiter<AssetBundle> GetAwaiter(this AssetBundleCreateRequest instruction)

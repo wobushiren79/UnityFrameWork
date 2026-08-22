@@ -94,7 +94,7 @@ public class HierarchySelect
         }
 
         //获取当前obj
-        var go = EditorUtility.InstanceIDToObject(instanceid) as GameObject;
+        var go = EditorUtility.EntityIdToObject(instanceid) as GameObject;
         if (go == null)
             return;
         if (baseUIComponent == null)

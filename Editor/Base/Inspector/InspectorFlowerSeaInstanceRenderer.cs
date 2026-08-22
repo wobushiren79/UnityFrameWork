@@ -6,7 +6,7 @@ using UnityEngine;
 /// <summary>
 /// FlowerSeaInstanceRenderer 的自定义 Inspector：
 /// <para>① 全部参数中文化标注（字段名→中文 GUIContent 映射 + 悬停中文提示；枚举弹窗同步中文化）；</para>
-/// <para>② 贴图区按 textureMode 条件显示——图集模式只显示图集字段，单图模式只显示单图字段；</para>
+/// <para>② 贴图区按 textureMode 条件显示——图集模式只显示图集字段（关闭「使用图集全部格子」时展开行列 toggle 网格，点选要用的格子），单图模式只显示单图字段；</para>
 /// <para>③ 底部提供「重新生成花海 / 重置全部消散 / 测试踩踏」手动按钮（组件本身已对 Inspector 改动做自动实时刷新，按钮作兜底）；</para>
 /// <para>④ 状态行实时显示花朵总数/已消散数。</para>
 /// </summary>
@@ -18,7 +18,7 @@ public class InspectorFlowerSeaInstanceRenderer : Editor
     //贴图区字段名（主循环跳过，改由 DrawTextureModeFields 按模式条件绘制）
     private static readonly string[] textureFieldNames =
     {
-        "atlasTexture", "atlasGrid", "manualRects", "textureList", "packAtlasSize", "packPadding",
+        "atlasTexture", "atlasGrid", "atlasUseAllCells", "atlasSelectedCells", "manualRects", "textureList", "packAtlasSize", "packPadding",
     };
 
     //地形区字段名（主循环跳过，改由 DrawHeightModeFields 按高度模式条件绘制）
@@ -41,9 +41,11 @@ public class InspectorFlowerSeaInstanceRenderer : Editor
         { "generateOnEnable", new GUIContent("激活时自动生成", "关闭则需调用方手动 Generate()") },
         //贴图
         { "textureMode", new GUIContent("贴图来源模式", "图集：一张贴图均分/手动Rect；单图列表：运行时打包(需开Read/Write)") },
-        { "atlasTexture", new GUIContent("花图集贴图", "图集模式：整张贴图，按均分或手动Rect切片") },
+        { "atlasTexture", new GUIContent("花图集贴图", "图集模式：整张贴图，按均分/行列子集/手动Rect切片") },
         { "atlasGrid", new GUIContent("图集均分(列×行)", "自动均分的列数×行数") },
-        { "manualRects", new GUIContent("手动UV Rect列表", "非空时覆盖自动均分（UV 空间 0~1）") },
+        { "atlasUseAllCells", new GUIContent("使用图集全部格子", "开=均分网格全部格子都参与随机；关=只用下方网格中选中的行列格子") },
+        { "atlasSelectedCells", new GUIContent("选中格子(列,行)", "仅「使用图集全部格子」关闭时生效；x=列 y=行，0 起，行 0=贴图最下行") },
+        { "manualRects", new GUIContent("手动UV Rect列表", "非空时覆盖均分与选中格子（UV 空间 0~1）") },
         { "textureList", new GUIContent("单图列表", "独立贴图列表，运行时 PackTextures 打包（要求每张开 Read/Write）") },
         { "packAtlasSize", new GUIContent("打包图集边长", "单图模式打包图集的边长上限(像素)") },
         { "packPadding", new GUIContent("打包间距(像素)", "单图模式打包时各贴图间距") },
@@ -72,6 +74,9 @@ public class InspectorFlowerSeaInstanceRenderer : Editor
         { "swayStrength", new GUIContent("摆动幅度", "花头左右摇摆大小") },
         { "swayFrequency", new GUIContent("摆动频率", "摇摆频率") },
         { "stiffness", new GUIContent("茎硬度", "越大根部越不弯、越像硬茎") },
+        //阴影
+        { "castShadows", new GUIContent("开启阴影投射", "走 shader 内置 ShadowCaster Pass 投射镂空阴影（随消散同步消失）；改动即时生效不重建。Unlit 花海不接收阴影") },
+        { "shadowRadius", new GUIContent("阴影显示半径", "以渲染相机为圆心的 XZ 平面距离，半径外的花不投影（顶点退化零开销，仍单次 draw call）；0=不限制全图投影") },
         //自动踩踏轮询
         { "pollTargetsEnable", new GUIContent("开启自动轮询", "开启后按间隔轮询目标位置自动踩踏；关闭时由调用方手动 TrampleAt") },
         { "pollTargets", new GUIContent("轮询目标列表", "把生物/角色的 Transform 拖进来即可") },
@@ -161,7 +166,7 @@ public class InspectorFlowerSeaInstanceRenderer : Editor
         }
     }
 
-    /// <summary>贴图模式条件字段：Atlas 画图集三件套，SingleList 画单图三件套（同样中文化）</summary>
+    /// <summary>贴图模式条件字段：Atlas 画图集字段（含行列子集网格），SingleList 画单图三件套（同样中文化）</summary>
     private void DrawTextureModeFields()
     {
         SerializedProperty modeProp = serializedObject.FindProperty("textureMode");
@@ -170,7 +175,12 @@ public class InspectorFlowerSeaInstanceRenderer : Editor
         if (isAtlas)
         {
             EditorGUILayout.PropertyField(serializedObject.FindProperty("atlasTexture"), GetFieldContent("atlasTexture"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("atlasGrid"), GetFieldContent("atlasGrid"));
+            SerializedProperty gridProp = serializedObject.FindProperty("atlasGrid");
+            EditorGUILayout.PropertyField(gridProp, GetFieldContent("atlasGrid"));
+            SerializedProperty useAllProp = serializedObject.FindProperty("atlasUseAllCells");
+            EditorGUILayout.PropertyField(useAllProp, GetFieldContent("atlasUseAllCells"));
+            if (!useAllProp.boolValue)
+                DrawAtlasCellGrid(serializedObject.FindProperty("atlasSelectedCells"), Mathf.Max(1, gridProp.vector2IntValue.x), Mathf.Max(1, gridProp.vector2IntValue.y));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("manualRects"), GetFieldContent("manualRects"), true);
         }
         else
@@ -180,6 +190,67 @@ public class InspectorFlowerSeaInstanceRenderer : Editor
             EditorGUILayout.PropertyField(serializedObject.FindProperty("packPadding"), GetFieldContent("packPadding"));
         }
         EditorGUI.indentLevel--;
+    }
+
+    /// <summary>图集行列选择网格：按均分列×行画 toggle 阵列（顶行=贴图最上行，与看图习惯一致），点击即选中/取消该格子</summary>
+    private void DrawAtlasCellGrid(SerializedProperty cellsProp, int cols, int rows)
+    {
+        // 格子总数过大时 toggle 阵列会卡 Inspector，退化为直接画列表
+        if (cols * rows > 256)
+        {
+            EditorGUILayout.PropertyField(cellsProp, GetFieldContent("atlasSelectedCells"), true);
+            return;
+        }
+        // 当前选中集合（下标 = 行*列数+列；越界格子忽略，由组件 OnValidate 统一夹取）
+        HashSet<int> selected = new HashSet<int>();
+        for (int i = 0; i < cellsProp.arraySize; i++)
+        {
+            Vector2Int cell = cellsProp.GetArrayElementAtIndex(i).vector2IntValue;
+            if (cell.x >= 0 && cell.x < cols && cell.y >= 0 && cell.y < rows)
+                selected.Add(cell.y * cols + cell.x);
+        }
+
+        EditorGUILayout.LabelField($"点击选择使用的格子（共 {cols}列×{rows}行，顶行=贴图最上行）：", EditorStyles.miniBoldLabel);
+        bool dirty = false;
+        for (int r = rows - 1; r >= 0; r--)
+        {
+            EditorGUILayout.BeginHorizontal();
+            for (int c = 0; c < cols; c++)
+            {
+                int index = r * cols + c;
+                // 列数较少时 toggle 上直接标注行列，列数多挤不下则只留 tooltip
+                GUIContent label = cols <= 8 ? new GUIContent($"{c},{r}") : new GUIContent("", $"列 {c} 行 {r}");
+                bool newValue = GUILayout.Toggle(selected.Contains(index), label, EditorStyles.miniButton);
+                if (newValue) dirty |= selected.Add(index);
+                else dirty |= selected.Remove(index);
+            }
+            EditorGUILayout.EndHorizontal();
+        }
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("全选", EditorStyles.miniButtonLeft, GUILayout.Width(40)))
+        {
+            for (int i = 0; i < cols * rows; i++) selected.Add(i);
+            dirty = true;
+        }
+        if (GUILayout.Button("清空", EditorStyles.miniButtonRight, GUILayout.Width(40)))
+        {
+            selected.Clear();
+            dirty = true;
+        }
+        GUILayout.FlexibleSpace();
+        EditorGUILayout.LabelField($"已选 {selected.Count}/{cols * rows}", EditorStyles.miniLabel, GUILayout.Width(70));
+        EditorGUILayout.EndHorizontal();
+        if (dirty)
+        {
+            // 排序写回保证序列化列表稳定（便于版本对比），行列由下标还原
+            List<int> sorted = new List<int>(selected);
+            sorted.Sort();
+            cellsProp.arraySize = sorted.Count;
+            for (int i = 0; i < sorted.Count; i++)
+                cellsProp.GetArrayElementAtIndex(i).vector2IntValue = new Vector2Int(sorted[i] % cols, sorted[i] / cols);
+        }
+        if (selected.Count == 0)
+            EditorGUILayout.HelpBox("未选中任何格子：生成时会报错，请至少勾选一个格子或打开「使用图集全部格子」。", MessageType.Warning);
     }
 
     /// <summary>高度模式条件字段：射线采样画射线三件套，高度图地形画地形四件套（中文化）</summary>

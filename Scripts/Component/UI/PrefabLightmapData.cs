@@ -111,7 +111,7 @@ public class PrefabLightmapData : MonoBehaviour
     [MenuItem("Custom/Light/更新场景中的光照贴图")]
     static void UpdateLightmaps()
     {
-        PrefabLightmapData[] prefabs = FindObjectsOfType<PrefabLightmapData>();
+        PrefabLightmapData[] prefabs = FindObjectsByType<PrefabLightmapData>(FindObjectsSortMode.None);
 
         foreach (var instance in prefabs)
         {
@@ -126,12 +126,7 @@ public class PrefabLightmapData : MonoBehaviour
     {
         Debug.ClearDeveloperConsole();
 
-        if (Lightmapping.giWorkflowMode != Lightmapping.GIWorkflowMode.OnDemand)
-        {
-            Debug.LogError("ExtractLightmapData requires that you have baked you lightmaps and Auto mode is disabled.");
-            return;
-        }
-
+        //Unity6 已移除 Auto 烘焙模式(giWorkflowMode 废弃)，烘焙恒为手动触发，直接 Bake
         Lightmapping.Bake();
 
         string lightMapPath = System.IO.Path.Combine(Directory.GetCurrentDirectory(), LIGHTMAP_RESOURCE_PATH);
@@ -146,7 +141,7 @@ public class PrefabLightmapData : MonoBehaviour
         var resourcePath = LIGHTMAP_RESOURCE_PATH + sceneName;
         var scenePath = System.IO.Path.GetDirectoryName(EditorSceneManager.GetActiveScene().path) + "/" + sceneName + "/";
 
-        PrefabLightmapData[] prefabs = FindObjectsOfType<PrefabLightmapData>();
+        PrefabLightmapData[] prefabs = FindObjectsByType<PrefabLightmapData>(FindObjectsSortMode.None);
 
         foreach (var instance in prefabs)
         {
