@@ -3,8 +3,8 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class PopupButtonCommonView : BaseUIView, IPointerEnterHandler, IPointerExitHandler
-{    
+public class PopupButtonCommonView : BaseUIView, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
+{
     //延迟展示
     public float timeDelayShow = 0;
     protected float timeDelayShowUpdate = 0;
@@ -23,6 +23,8 @@ public class PopupButtonCommonView : BaseUIView, IPointerEnterHandler, IPointerE
     protected Action<PopupButtonCommonView> actionForEnter;
     //回调离开
     protected Action<PopupButtonCommonView> actionForExit;
+    //回调右键点击
+    protected Action<PopupButtonCommonView> actionForRightClick;
 
     public void Start()
     {
@@ -83,7 +85,26 @@ public class PopupButtonCommonView : BaseUIView, IPointerEnterHandler, IPointerE
     {
         this.actionForExit -= actionForExit;
     }
+
+    public void AddListenerForRightClick(Action<PopupButtonCommonView> actionForRightClick)
+    {
+        this.actionForRightClick += actionForRightClick;
+    }
+
+    public void ClearListenerForRightClick(Action<PopupButtonCommonView> actionForRightClick)
+    {
+        this.actionForRightClick -= actionForRightClick;
+    }
     #endregion
+
+    /// <summary>
+    /// 指针点击：右键时转发给右键回调（Button 只响应左键，且点击事件冒泡到 Button 所在物体即被吞掉，右键必须与 Button 同物体接收）
+    /// </summary>
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (eventData.button == PointerEventData.InputButton.Right)
+            actionForRightClick?.Invoke(this);
+    }
 
     public void OnPointerEnter(PointerEventData eventData)
     {
