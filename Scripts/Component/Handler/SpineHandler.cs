@@ -51,6 +51,9 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     {
         if (skeletonAnimation != null && skeletonDataAsset != null)
         {
+            //换骨前先清空旧动画队列：spine-unity 4.3 的 OnAnimationDisposed 在非 FullUpdate 模式(UpdateWhenInvisible=None 时不可见即触发)下会把旧动画重新 Apply 到骨架；
+            //而换骨时 Initialize(true) 会把骨架懒重建为新资源, 旧动画的骨骼索引超出新骨架骨骼数 → IndexOutOfRangeException
+            skeletonAnimation.AnimationState?.ClearTracks();
             skeletonAnimation.skeletonDataAsset = skeletonDataAsset;
             skeletonAnimation.Initialize(true);
         }
@@ -60,6 +63,8 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     {
         if (skeletonGraphic != null && skeletonDataAsset != null)
         {
+            //同 SkeletonAnimation 重载：换骨前先清空旧动画队列, 避免旧动画在 dispose 时被 Apply 到(懒重建的)新骨架导致骨骼索引越界
+            (skeletonGraphic.Animation as SkeletonAnimation)?.AnimationState?.ClearTracks();
             skeletonGraphic.skeletonDataAsset = skeletonDataAsset;
             skeletonGraphic.Initialize(true);
 
