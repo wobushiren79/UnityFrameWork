@@ -298,6 +298,8 @@ public class ScrollGridBaseContent : BaseMonoBehaviour
             this.scrollRect.content.offsetMin = new Vector2(0, newMinY);
         }
         this.CreateCells();
+        //保持滚动位置重建后content位置未变, ScrollRect不会再派发onValueChanged, 需主动做一次cell复用校正, 否则新cell全停在content顶部导致视野处列表空白
+        this.OnValueChange(this.scrollRect.normalizedPosition);
         viewport.transform.rotation = new Quaternion();
     }
 
