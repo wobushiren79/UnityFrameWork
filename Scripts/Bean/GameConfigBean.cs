@@ -26,6 +26,8 @@ public partial class GameConfigBean
     //帧数限制开启 1开启 0关闭
     public int stateForFrames = 1;
     public int frames = 120;
+    //垂直同步（默认开启；开启时 QualitySettings.vSyncCount=1，会忽略 targetFrameRate）
+    public bool vsync = true;
     //视野
     public int cameraFOV = 60;
 
