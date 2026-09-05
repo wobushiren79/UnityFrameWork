@@ -52,6 +52,19 @@ public class ExcelEditorWindow : EditorWindow
     /// <summary>Json 输出文件存储目录路径</summary>
     public string jsonFolderPath = "";
 
+    // ==================== 默认路径（工具栏快捷操作与窗口初始化共用） ====================
+    /// <summary>默认 Excel 文件存储目录路径</summary>
+    public static string DefaultExcelFolderPath => Application.dataPath + "/Data/Excel";
+
+    /// <summary>默认 Entity 脚本生成目录路径（游戏逻辑层）</summary>
+    public static string DefaultEntityFolderPath => Application.dataPath + "/Scripts/Bean/MVC/Game";
+
+    /// <summary>默认 Entity 脚本生成目录路径（框架层）</summary>
+    public static string DefaultEntityFolderPathForFrameWork => Application.dataPath + "/FrameWork/Scripts/Bean/MVC";
+
+    /// <summary>默认 Json 输出文件存储目录路径</summary>
+    public static string DefaultJsonFolderPath => Application.dataPath + "/Resources/JsonText";
+
     // ==================== 文件列表数据 ====================
     /// <summary>查询到的 Excel 文件信息数组</summary>
     public FileInfo[] queryFileInfos;
@@ -108,26 +121,73 @@ public class ExcelEditorWindow : EditorWindow
 
     #if UNITY_6000_3_OR_NEWER
     /// <summary>
-    /// Unity 6000.3+ 主工具栏元素
-    /// defaultDockPosition: 工具栏停靠位置 (Left/Middle/Right)
+    /// Unity 6000.3+ 主工具栏下拉：Excel 处理入口（打开窗口 / 导出所有 Json / 生成所有 Entity）
+    /// 注意：元素 ID 保持不变——主工具栏按 ID 持久化 displayed 状态，改 ID 会被当新元素默认隐藏
     /// </summary>
-    [MainToolbarElement("自定义标题/处理 Excel", defaultDockPosition = MainToolbarDockPosition.Left)]
-    public static MainToolbarElement CreateSettingsButton()
+    [MainToolbarElement("自定义标题/处理 Excel 快捷操作", defaultDockPosition = MainToolbarDockPosition.Left)]
+    public static MainToolbarElement CreateQuickActionDropdown()
     {
-        var content = new MainToolbarContent("处理 Excel");
-        return new MainToolbarButton(content, () => CreateWindow());
+        var content = new MainToolbarContent("Excel处理", null, "Excel 处理：打开窗口 / 导出所有 Json / 生成所有 Entity");
+        return new MainToolbarDropdown(content, (rect) => ShowQuickActionMenu(rect));
     }
     #endif
 
     /// <summary>
-    /// 旧版工具栏 UI 渲染（Unity 6000.3 以下）
+    /// 旧版工具栏 UI 渲染（Unity 6000.3 以下）：点击弹出快捷操作菜单
     /// </summary>
     static void OnToolbarGUI(VisualElement rootVisualElement)
     {
         var refresh = new EditorToolbarDropdown();
-        refresh.text = "处理 Excel";
-        refresh.clicked += () => CreateWindow();
+        refresh.text = "Excel处理";
+        refresh.clicked += () => ShowQuickActionMenuAsContext();
         rootVisualElement.Add(refresh);
+    }
+
+    /// <summary>
+    /// 弹出 Excel 快捷操作菜单（新版工具栏，按元素位置下拉）
+    /// </summary>
+    static void ShowQuickActionMenu(Rect rect)
+    {
+        var menu = BuildQuickActionMenu();
+        menu.DropDown(rect);
+    }
+
+    /// <summary>
+    /// 弹出 Excel 快捷操作菜单（旧版工具栏，按鼠标位置上下文弹出）
+    /// </summary>
+    static void ShowQuickActionMenuAsContext()
+    {
+        var menu = BuildQuickActionMenu();
+        menu.ShowAsContext();
+    }
+
+    /// <summary>
+    /// 构建 Excel 快捷操作菜单内容
+    /// </summary>
+    static GenericMenu BuildQuickActionMenu()
+    {
+        var menu = new GenericMenu();
+        menu.AddItem(new GUIContent("打开 Excel 处理窗口"), false, () => CreateWindow());
+        menu.AddSeparator("");
+        menu.AddItem(new GUIContent("导出所有 Json"), false, () => QuickExcelToJson());
+        menu.AddItem(new GUIContent("生成所有 Entity"), false, () => QuickCreateEntities());
+        return menu;
+    }
+
+    /// <summary>
+    /// 工具栏快捷操作：所有 Excel 转 Json（默认路径，不打开窗口）
+    /// </summary>
+    static void QuickExcelToJson()
+    {
+        ExcelToJsonAll(DefaultExcelFolderPath, DefaultJsonFolderPath);
+    }
+
+    /// <summary>
+    /// 工具栏快捷操作：生成所有 Entity（默认路径，不打开窗口）
+    /// </summary>
+    static void QuickCreateEntities()
+    {
+        CreateEntitiesAll(DefaultExcelFolderPath, DefaultEntityFolderPath, DefaultEntityFolderPathForFrameWork);
     }
 
     #endregion
@@ -140,10 +200,10 @@ public class ExcelEditorWindow : EditorWindow
     private void OnEnable()
     {
         // 初始化默认路径
-        excelFolderPath = Application.dataPath + "/Data/Excel";
-        entityFolderPath = Application.dataPath + "/Scripts/Bean/MVC/Game";
-        entityFolderPathForFrameWork = Application.dataPath + "/FrameWork/Scripts/Bean/MVC";
-        jsonFolderPath = Application.dataPath + "/Resources/JsonText";
+        excelFolderPath = DefaultExcelFolderPath;
+        entityFolderPath = DefaultEntityFolderPath;
+        entityFolderPathForFrameWork = DefaultEntityFolderPathForFrameWork;
+        jsonFolderPath = DefaultJsonFolderPath;
 
         InitializeStyles();
         RefreshFileList();
@@ -809,12 +869,22 @@ public class ExcelEditorWindow : EditorWindow
             return;
         }
 
+        ExcelToJsonAll(excelFolderPath, jsonFolderPath);
+    }
+
+    /// <summary>
+    /// 批量转换静态实现：将指定目录下所有 Excel 文件转换为 Json（窗口批量按钮与工具栏快捷操作共用）
+    /// </summary>
+    /// <param name="excelFolder">Excel 文件目录</param>
+    /// <param name="jsonFolder">Json 输出目录</param>
+    static void ExcelToJsonAll(string excelFolder, string jsonFolder)
+    {
         // 遍历所有 Excel 文件
-        FileInfo[] fileInfos = FileUtil.GetFilesByPath(excelFolderPath);
+        FileInfo[] fileInfos = FileUtil.GetFilesByPath(excelFolder);
         for (int i = 0; i < fileInfos.Length; i++)
         {
             FileInfo fileInfo = fileInfos[i];
-            ExcelToJsonItem(fileInfo);
+            ExcelUtil.ExcelToJsonItem(fileInfo, jsonFolder);
         }
 
         // 刷新资源数据库并在 Console 输出完成日志
@@ -859,12 +929,23 @@ public class ExcelEditorWindow : EditorWindow
             return;
         }
 
+        CreateEntitiesAll(excelFolderPath, entityFolderPath, entityFolderPathForFrameWork);
+    }
+
+    /// <summary>
+    /// 批量生成静态实现：为指定目录下所有 Excel 文件生成对应的 Entity 类（窗口批量按钮与工具栏快捷操作共用）
+    /// </summary>
+    /// <param name="excelFolder">Excel 文件目录</param>
+    /// <param name="entityDir">Entity 输出目录（游戏逻辑层）</param>
+    /// <param name="entityDirFramework">Entity 输出目录（框架层）</param>
+    static void CreateEntitiesAll(string excelFolder, string entityDir, string entityDirFramework)
+    {
         // 遍历所有 Excel 文件
-        FileInfo[] fileInfos = FileUtil.GetFilesByPath(excelFolderPath);
+        FileInfo[] fileInfos = FileUtil.GetFilesByPath(excelFolder);
         for (int i = 0; i < fileInfos.Length; i++)
         {
             FileInfo fileInfo = fileInfos[i];
-            CreateEntitiesItem(fileInfo);
+            CreateEntitiesItem(fileInfo, entityDir, entityDirFramework);
         }
 
         // 刷新资源数据库并在 Console 输出完成日志
@@ -879,6 +960,17 @@ public class ExcelEditorWindow : EditorWindow
     /// <param name="fileInfo">Excel 文件信息</param>
     public void CreateEntitiesItem(FileInfo fileInfo)
     {
+        CreateEntitiesItem(fileInfo, entityFolderPath, entityFolderPathForFrameWork);
+    }
+
+    /// <summary>
+    /// 为单个 Excel 文件生成 Entity 类的静态实现（指定输出目录）
+    /// </summary>
+    /// <param name="fileInfo">Excel 文件信息</param>
+    /// <param name="entityDir">Entity 输出目录（游戏逻辑层）</param>
+    /// <param name="entityDirFramework">Entity 输出目录（框架层）</param>
+    static void CreateEntitiesItem(FileInfo fileInfo, string entityDir, string entityDirFramework)
+    {
         ExcelUtil.GetExcelPackage(fileInfo, (ep) =>
         {
             bool isFrameWork = fileInfo.Name.Contains("_FrameWork");
@@ -891,9 +983,9 @@ public class ExcelEditorWindow : EditorWindow
             for (int w = 1; w <= workSheets.Count; w++)
             {
                 // 生成空的部分类（用于扩展）
-                CreateEntityPartial(workSheets[w], isFrameWork, isLanguage);
+                CreateEntityPartial(workSheets[w], isFrameWork, isLanguage, entityDir, entityDirFramework);
                 // 生成完整的 Bean 和 Cfg 类
-                CreateEntity(workSheets[w], isFrameWork, isLanguage);
+                CreateEntity(workSheets[w], isFrameWork, isLanguage, entityDir, entityDirFramework);
             }
 
             AssetDatabase.Refresh();
@@ -908,10 +1000,12 @@ public class ExcelEditorWindow : EditorWindow
     /// <param name="sheet">Excel 工作表</param>
     /// <param name="isFrameWork">是否 Framework 层</param>
     /// <param name="isLanguage">是否多语言表</param>
-    void CreateEntityPartial(ExcelWorksheet sheet, bool isFrameWork, bool isLanguage)
+    /// <param name="entityDir">Entity 输出目录（游戏逻辑层）</param>
+    /// <param name="entityDirFramework">Entity 输出目录（框架层）</param>
+    static void CreateEntityPartial(ExcelWorksheet sheet, bool isFrameWork, bool isLanguage, string entityDir, string entityDirFramework)
     {
         // 确定输出目录
-        string dir = isFrameWork ? entityFolderPathForFrameWork : entityFolderPath;
+        string dir = isFrameWork ? entityDirFramework : entityDir;
 
         // 确定输出路径
         string path = isLanguage
@@ -962,16 +1056,18 @@ public class ExcelEditorWindow : EditorWindow
     /// <param name="sheet">Excel 工作表</param>
     /// <param name="isFrameWork">是否 Framework 层</param>
     /// <param name="isLanguage">是否多语言表</param>
-    void CreateEntity(ExcelWorksheet sheet, bool isFrameWork, bool isLanguage)
+    /// <param name="entityDir">Entity 输出目录（游戏逻辑层）</param>
+    /// <param name="entityDirFramework">Entity 输出目录（框架层）</param>
+    static void CreateEntity(ExcelWorksheet sheet, bool isFrameWork, bool isLanguage, string entityDir, string entityDirFramework)
     {
         string dir;
         if (isFrameWork)
         {
-            dir = entityFolderPathForFrameWork;
+            dir = entityDirFramework;
         }
         else
         {
-            dir = entityFolderPath;
+            dir = entityDir;
         }
 
         StringBuilder sb = new StringBuilder();

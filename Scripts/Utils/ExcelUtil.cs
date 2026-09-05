@@ -131,7 +131,7 @@ public static class ExcelUtil
 
     /// <summary>
     /// 单个 Excel 文件转 Json（使用默认输出目录 Assets/Resources/JsonText，并刷新 AssetDatabase）
-    /// 供编辑器内的工具（如 TestNpcCreateGUI 保存配置后）同步重新生成运行时 JSON
+    /// 供编辑器内的工具（如 NpcCreateEditorWindow/StoryEditorWindow 保存配置后）同步重新生成运行时 JSON
     /// </summary>
     /// <param name="excelPath">Excel 文件路径</param>
     public static void ExcelToJsonItem(string excelPath)
