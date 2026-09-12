@@ -25,8 +25,6 @@ Material:
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
-  - _FADING_ON
-  - _SOFTPARTICLES_ON
   - _SURFACE_TYPE_TRANSPARENT
   m_InvalidKeywords:
   - _FLIPBOOKBLENDING_OFF
@@ -87,7 +85,7 @@ Material:
     - _Mode: 4
     - _QueueOffset: 0
     - _SampleGI: 0
-    - _SoftParticlesEnabled: 1
+    - _SoftParticlesEnabled: 0
     - _SoftParticlesFarFadeDistance: 0.2
     - _SoftParticlesNearFadeDistance: 0
     - _SrcBlend: 5
