@@ -349,8 +349,8 @@ public static class ExcelUtil
                 // 读取单元格数据
                 string textData = sheet.Cells[row, column].Text;
 
-                // 空值处理：数值类型默认为 0
-                if (textData.IsNull())
+                // 空值处理：纯空白（空格/制表符）也视为空，数值类型默认为 0
+                if (string.IsNullOrWhiteSpace(textData))
                 {
                     if (fieldInfo.FieldType == typeof(int)
                         || fieldInfo.FieldType == typeof(float)
@@ -361,9 +361,17 @@ public static class ExcelUtil
                     }
                 }
 
-                // 类型转换并赋值
-                object value = Convert.ChangeType(textData, fieldInfo.FieldType);
-                type.GetField(sheetCellName).SetValue(o, value);
+                // 类型转换并赋值（失败时打印表名/行/列/字段/原始值，方便定位问题数据）
+                try
+                {
+                    object value = Convert.ChangeType(textData, fieldInfo.FieldType);
+                    type.GetField(sheetCellName).SetValue(o, value);
+                }
+                catch (Exception ex)
+                {
+                    LogUtil.LogError($"Excel数据转换失败：表[{sheet.Name}] 第{row}行 第{column}列 字段[{sheetCellName}] 类型[{fieldInfo.FieldType.Name}] 原始值[\"{textData}\"] 异常[{ex.GetType().Name}: {ex.Message}]");
+                    throw;
+                }
             }
 
             listData.Add(o);
