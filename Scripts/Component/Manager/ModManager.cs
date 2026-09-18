@@ -761,6 +761,12 @@ public partial class ModManager : BaseManager
     }
 
     /// <summary>
+    /// modId上限（含）。约束来自BaseCfg.CombineModId：组合id = modId*10^14 + selfId（selfId最大14位），
+    /// 92232是保证任意14位selfId都不溢出long的最大值（92232*10^14+99999999999999 = 9223299999999999999 &lt; long.MaxValue = 9223372036854775807）
+    /// </summary>
+    public const int MaxModId = 92232;
+
+    /// <summary>
     /// Mod名称到已分配modId的映射（运行时内存缓存）
     /// </summary>
     private Dictionary<string, int> modIdMap = new Dictionary<string, int>();
@@ -807,6 +813,13 @@ public partial class ModManager : BaseManager
             while (occupiedModIds.Contains(finalId))
                 finalId++;
 
+            // 超过上限拒绝分配：该Mod不进入映射，其JsonText配置不合并（资源仍可按modName加载），避免CombineModId溢出long
+            if (finalId > MaxModId)
+            {
+                LogUtil.LogError($"[Mod] modId已达上限({MaxModId})，新Mod不分配ID、配置不生效: {modName}");
+                continue;
+            }
+
             modIdMap[modName] = finalId;
             occupiedModIds.Add(finalId);
             changed = true;
@@ -826,7 +839,7 @@ public partial class ModManager : BaseManager
     /// 获取指定Mod的modId
     /// </summary>
     /// <param name="modName">Mod名称</param>
-    /// <returns>modId（1~9999），若未分配则返回1</returns>
+    /// <returns>modId（1~MaxModId），若未分配（或超限被拒）则返回1</returns>
     public int GetModId(string modName)
     {
         if (modIdMap.TryGetValue(modName, out int modId))
@@ -849,6 +862,7 @@ public partial class ModManager : BaseManager
 
     /// <summary>
     /// 获取包含指定fileName的所有Mod的JsonText文件路径和mod信息
+    /// 未分配modId的Mod（如超过MaxModId被拒）直接跳过——不能用GetModId的默认回退1，否则会污染modId=1的号段
     /// </summary>
     public List<(int modId, string modName, string filePath)> GetModJsonTextFileInfos(string fileName)
     {
@@ -858,7 +872,8 @@ public partial class ModManager : BaseManager
             if (kvp.Value.Contains(fileName))
             {
                 string modName = kvp.Key;
-                int modId = GetModId(modName);
+                if (!modIdMap.TryGetValue(modName, out int modId))
+                    continue;
                 string filePath = Path.Combine(GetModPath(modName), "JsonText", $"{fileName}.txt").Replace("\\", "/");
                 if (File.Exists(filePath))
                     result.Add((modId, modName, filePath));
