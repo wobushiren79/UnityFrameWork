@@ -1102,6 +1102,8 @@ public class ExcelEditorWindow : EditorWindow
             string keyName = "id";
             //是否存在 valid 有效性列：存在时生成"valid==0 过滤"逻辑（仅含该列的表启用，其它表不受影响）
             bool hasValid = false;
+            //收集带 [language]/[language_1]/[language_2]/[mode_id] 标记的字段（剥离标记后的字段名 → 类型），Bean 末尾自动生成 CombineModReferenceIds 拼接
+            Dictionary<string, string> dicModCombineRefFields = new Dictionary<string, string>();
             //遍历sheet首行每个字段描述的值
             for (int i = 1; i <= sheet.Dimension.End.Column; i++)
             {
@@ -1131,6 +1133,7 @@ public class ExcelEditorWindow : EditorWindow
                     sb.AppendLine($"\t[JsonIgnore]");
                     sb.AppendLine($"\tpublic string {originCellName}_language {{ get => _{originCellName}_language.Get(() => TextHandler.Instance.GetTextById({sheet.Name}Cfg.fileName, {originCellName})); set => _{originCellName}_language.Set(value); }}");
                     sb.AppendLine($"\tprivate LanguageCache _{originCellName}_language;");
+                    CollectModCombineRefField(dicModCombineRefFields, originCellName, typeName);
                 }
                 //如果是多语言指向
                 else if (cellName.Contains("[language_1]"))
@@ -1140,6 +1143,7 @@ public class ExcelEditorWindow : EditorWindow
                     sb.AppendLine($"\t[JsonIgnore]");
                     sb.AppendLine($"\tpublic string {originCellName}_language {{ get => _{originCellName}_language.Get(() => TextHandler.Instance.GetTextById({sheet.Name}Cfg.fileName, {originCellName}, 1)); set => _{originCellName}_language.Set(value); }}");
                     sb.AppendLine($"\tprivate LanguageCache _{originCellName}_language;");
+                    CollectModCombineRefField(dicModCombineRefFields, originCellName, typeName);
                 }
                 //如果是多语言指向
                 else if (cellName.Contains("[language_2]"))
@@ -1149,11 +1153,48 @@ public class ExcelEditorWindow : EditorWindow
                     sb.AppendLine($"\t[JsonIgnore]");
                     sb.AppendLine($"\tpublic string {originCellName}_language {{ get => _{originCellName}_language.Get(() => TextHandler.Instance.GetTextById({sheet.Name}Cfg.fileName, {originCellName}, 2)); set => _{originCellName}_language.Set(value); }}");
                     sb.AppendLine($"\tprivate LanguageCache _{originCellName}_language;");
+                    CollectModCombineRefField(dicModCombineRefFields, originCellName, typeName);
+                }
+                //如果是Mod配置ID指向（Mod行合并时该字段按同一 modId 拼接，指向 Mod 自带配置表的同自ID行）
+                else if (cellName.Contains("[mode_id]"))
+                {
+                    string originCellName = cellName.Replace("[mode_id]", "");
+                    sb.AppendLine($"\tpublic {typeName} {originCellName};");
+                    CollectModCombineRefField(dicModCombineRefFields, originCellName, typeName);
                 }
                 else
                 {
                     sb.AppendLine($"\tpublic {typeName} {cellName};");
                 }
+            }
+
+            //带 [language]/[mode_id] 标记的字段：生成 Mod 合并引用拼接（重写 BaseBean.CombineModReferenceIds，GetInitDataForMods 拼接 id 后调用）
+            if (dicModCombineRefFields.Count > 0)
+            {
+                sb.AppendLine("\t/// <summary>");
+                sb.AppendLine("\t/// Mod合并引用字段拼接（由Excel列头 [language]/[mode_id] 标记自动生成，请勿手改）：该行来自 Mod JsonText 时，下列字段按同一 modId 拼接，指向 Mod 自带配置/语言表的同自ID行；0=无引用不拼接");
+                sb.AppendLine("\t/// </summary>");
+                sb.AppendLine("\tpublic override void CombineModReferenceIds(int modId)");
+                sb.AppendLine("\t{");
+                foreach (var kvp in dicModCombineRefFields)
+                {
+                    if (kvp.Value == "long")
+                    {
+                        sb.AppendLine($"\t\tif ({kvp.Key} > 0) {kvp.Key} = {sheet.Name}Cfg.CombineModId(modId, {kvp.Key});");
+                    }
+                    else if (kvp.Value == "int")
+                    {
+                        //int 字段拼接结果是 long 量级（modId*10^14+自ID），强转必溢出——生成时告警提示改 long
+                        LogUtil.LogWarning($"[{sheet.Name}] 字段 {kvp.Key} 带拼接标记但类型为 int，CombineModId 后会溢出，建议该列改为 long");
+                        sb.AppendLine($"\t\tif ({kvp.Key} > 0) {kvp.Key} = (int){sheet.Name}Cfg.CombineModId(modId, {kvp.Key});");
+                    }
+                    else
+                    {
+                        LogUtil.LogWarning($"[{sheet.Name}] 字段 {kvp.Key} 带拼接标记但类型为 {kvp.Value}，仅支持 long/int，已跳过拼接");
+                        sb.AppendLine($"\t\t// [生成警告] 字段 {kvp.Key} 类型 {kvp.Value} 非数值ID，无法拼接 modId");
+                    }
+                }
+                sb.AppendLine("\t}");
             }
             sb.AppendLine("}");
 
@@ -1235,6 +1276,16 @@ public class ExcelEditorWindow : EditorWindow
             }
         }
         AssetDatabase.Refresh();
+    }
+
+    /// <summary>
+    /// 收集带拼接标记（[language]/[language_1]/[language_2]/[mode_id]）的字段（同名字段只收一次），
+    /// 供 CreateEntity 在 Bean 末尾生成 CombineModReferenceIds 重写
+    /// </summary>
+    static void CollectModCombineRefField(Dictionary<string, string> dicModCombineRefFields, string fieldName, string typeName)
+    {
+        if (!dicModCombineRefFields.ContainsKey(fieldName))
+            dicModCombineRefFields.Add(fieldName, typeName);
     }
     #endregion
 }

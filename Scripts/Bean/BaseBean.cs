@@ -8,6 +8,15 @@ using System.IO;
 public class BaseBean
 {
     public long id;
+
+    /// <summary>
+    /// Mod数据合并钩子：BaseCfg.GetInitDataForMods 合并 Mod JsonText 行时，在 id 拼接 modId 后调用。
+    /// 用于把「指向 Mod 自带配置的引用字段」按同一 modId 拼接（如 ItemsInfoBean.name 指向 Mod 自带语言表 Language_ItemsInfo_* 的行 id）。
+    /// **通常无需手工重写**：由 ExcelEditorWindow.CreateEntity 按 Excel 列头标记（[language]/[language_1]/[language_2]/[mode_id]）在 *Bean.cs 中自动生成重写；
+    /// 仅特殊手写 Bean（无 Excel 表）需要拼接时才手工重写。默认无操作。
+    /// </summary>
+    /// <param name="modId">该行所属 Mod 的 modId</param>
+    public virtual void CombineModReferenceIds(int modId) { }
 }
 
 public class BaseCfg<E, T> where T : BaseBean
@@ -70,6 +79,8 @@ public class BaseCfg<E, T> where T : BaseBean
                 {
                     T bean = modArray[i];
                     bean.id = CombineModId(info.modId, bean.id);
+                    //拼接引用字段（如 Mod 道具的 name 指向 Mod 自带语言表行 id）
+                    bean.CombineModReferenceIds(info.modId);
                     listModsData.Add(bean);
                 }
             }
@@ -77,7 +88,10 @@ public class BaseCfg<E, T> where T : BaseBean
         return listModsData;
     }
 
-    private static long CombineModId(int modId, long selfId)
+    /// <summary>
+    /// 组合Mod ID：modId(5位) + selfId(14位)。Mod JsonText 行及其引用字段统一用本方法拼接
+    /// </summary>
+    public static long CombineModId(int modId, long selfId)
     {
         string idStr = $"{modId:D5}{selfId:D14}";
         if (long.TryParse(idStr, out long result))

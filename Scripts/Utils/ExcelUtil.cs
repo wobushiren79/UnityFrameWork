@@ -337,6 +337,10 @@ public static class ExcelUtil
                 {
                     sheetCellName = sheetCellName.Replace("[language_2]", "");
                 }
+                else if (sheetCellName.Contains("[mode_id]"))
+                {
+                    sheetCellName = sheetCellName.Replace("[mode_id]", "");
+                }
 
                 // 获取字段信息
                 FieldInfo fieldInfo = type.GetField(sheetCellName);
