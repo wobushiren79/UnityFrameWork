@@ -8,7 +8,9 @@ public partial class LanguageBean
 
 /// <summary>
 /// 多语言缓存结构体，支持语言切换时自动失效
+/// 需支持 BinaryFormatter 深拷贝（如 ClassUtil.DeepCopyBinary），故标记 [Serializable]
 /// </summary>
+[Serializable]
 public struct LanguageCache
 {
     private string _value;
