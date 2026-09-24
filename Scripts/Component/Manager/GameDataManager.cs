@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 
-public partial class GameDataManager
+public partial class GameDataManager : BaseManager
 {
     public GameConfigBean gameConfig;
     private BaseDataService<GameConfigBean> gameConfigService;
