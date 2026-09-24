@@ -710,6 +710,15 @@
                     "initialStateCheck": false
                 },
                 {
+                    "name": "F11",
+                    "type": "Button",
+                    "id": "0b7ec543-a84b-4357-adf6-2e3f0034bb91",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
                     "name": "ESC",
                     "type": "Button",
                     "id": "f8150ac6-ace1-4352-bf56-3e03bbfac3df",
@@ -1524,6 +1533,17 @@
                     "processors": "",
                     "groups": "Keyboard&Mouse",
                     "action": "F12",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "ff500589-88a6-4222-b831-2f5bd220fa46",
+                    "path": "<Keyboard>/f11",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "F11",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
