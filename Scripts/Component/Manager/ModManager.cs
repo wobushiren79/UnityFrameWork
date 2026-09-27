@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.AddressableAssets.ResourceLocators;
 using UnityEngine.ResourceManagement.AsyncOperations;
+using UnityEngine.ResourceManagement.ResourceLocations;
 
 /// <summary>
 /// Mod 管理器 - 负责 Mod 资源的加载、缓存和卸载
@@ -180,6 +181,71 @@ public partial class ModManager : BaseManager
 
     #endregion
 
+    #region monoscripts Bundle 去重
+
+    /// <summary>monoscripts Bundle 去重表：Bundle文件名（含内容哈希，同名即同内容）→ 首个加载的完整InternalId</summary>
+    private static readonly Dictionary<string, string> s_MonoScriptBundleCanonicalIds = new Dictionary<string, string>();
+
+    /// <summary>已打印过共享日志的monoscripts Bundle文件名（避免重复刷日志）</summary>
+    private static readonly HashSet<string> s_MonoScriptBundleSharedLogged = new HashSet<string>();
+
+    /// <summary>monoscripts Bundle 去重钩子是否已安装</summary>
+    private static bool s_IsMonoScriptDedupInstalled;
+
+    /// <summary>InternalId路径分隔符（可能是URL或含两种分隔符的相对/绝对路径）</summary>
+    private static readonly char[] s_PathSeparators = { '/', '\\' };
+
+    /// <summary>
+    /// 安装monoscripts Bundle去重钩子（幂等，在每次加载Mod Catalog前调用）。
+    /// 多个Mod用同一构建环境（如同一Spine版本）构建时会产出内容完全相同的monoscripts Bundle，
+    /// 而Unity禁止两个不同Bundle包含相同资产文件（MonoScript的GUID相同），后加载者报
+    /// "another AssetBundle with the same files is already loaded"并导致该Mod资源加载失败。
+    /// 这里通过InternalIdTransformFunc把同名Bundle重定向到首个已加载实例的InternalId，
+    /// Addressables的AssetBundleProvider按转换后ID作缓存键，直接复用已加载Bundle，规避冲突。
+    /// </summary>
+    private static void EnsureMonoScriptDedupInstalled()
+    {
+        if (s_IsMonoScriptDedupInstalled)
+            return;
+        s_IsMonoScriptDedupInstalled = true;
+
+        // InternalIdTransformFunc为全局单点，链式保留已有转换（当前工程无其他设置者，防御性处理）
+        var existing = Addressables.InternalIdTransformFunc;
+        Addressables.InternalIdTransformFunc = (location) =>
+        {
+            string id = existing != null ? existing(location) : location?.InternalId;
+            return DedupMonoScriptBundleId(id);
+        };
+    }
+
+    /// <summary>
+    /// monoscripts Bundle去重：同名Bundle重定向到首个已加载实例的InternalId，首次出现则登记为规范来源
+    /// </summary>
+    private static string DedupMonoScriptBundleId(string internalId)
+    {
+        if (string.IsNullOrEmpty(internalId) || !internalId.EndsWith(".bundle", StringComparison.OrdinalIgnoreCase))
+            return internalId;
+
+        int sepIndex = internalId.LastIndexOfAny(s_PathSeparators);
+        string fileName = sepIndex >= 0 ? internalId.Substring(sepIndex + 1) : internalId;
+        if (!fileName.Contains("_monoscripts_"))
+            return internalId;
+
+        if (s_MonoScriptBundleCanonicalIds.TryGetValue(fileName, out string canonicalId))
+        {
+            if (string.Equals(canonicalId, internalId, StringComparison.Ordinal))
+                return internalId;
+            if (s_MonoScriptBundleSharedLogged.Add(fileName))
+                LogUtil.Log($"[Mod] monoscripts Bundle内容相同，共享已加载实例: {fileName}");
+            return canonicalId;
+        }
+
+        s_MonoScriptBundleCanonicalIds[fileName] = internalId;
+        return internalId;
+    }
+
+    #endregion
+
     /// <summary>
     /// 获取Mods根目录
     /// 编辑器模式与打包项目路径相同：与 Assets / GameName_Data 同级的 Mods 目录
@@ -227,6 +293,7 @@ public partial class ModManager : BaseManager
     /// </summary>
     public void LoadModCatalog(string modName, Action<bool> callBack)
     {
+        EnsureMonoScriptDedupInstalled();
         if (IsModLoaded(modName))
         {
             LogUtil.Log($"[Mod] Mod已加载: {modName}");
@@ -289,6 +356,7 @@ public partial class ModManager : BaseManager
     /// </summary>
     public async Task<bool> LoadModCatalogAsync(string modName)
     {
+        EnsureMonoScriptDedupInstalled();
         if (IsModLoaded(modName))
         {
             LogUtil.Log($"[Mod] Mod已加载: {modName}");
@@ -351,6 +419,7 @@ public partial class ModManager : BaseManager
     /// </summary>
     public bool LoadModCatalogSync(string modName)
     {
+        EnsureMonoScriptDedupInstalled();
         if (IsModLoaded(modName))
         {
             LogUtil.Log($"[Mod] Mod已加载: {modName}");

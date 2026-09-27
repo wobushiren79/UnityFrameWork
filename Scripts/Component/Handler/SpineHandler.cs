@@ -136,8 +136,23 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     public SkeletonGraphic AddSkeletonGraphic(GameObject targetObj, string assetName, Dictionary<string, SpineSkinBean> skinData, Material material)
     {
         var skeletonDataAsset = GetSkeletonDataAssetWithMod(assetName);
-        // 4.3: AddSkeletonGraphicComponent 已移除，改用 AddSkeletonGraphicAnimationComponents（同时创建 SkeletonGraphic + SkeletonAnimation）
-        SkeletonGraphic skeletonGraphic = SkeletonGraphic.AddSkeletonGraphicAnimationComponents(targetObj, skeletonDataAsset, material).skeletonRenderer;
+        //创建扩展版 SkeletonGraphic（修复 RectMask2D 按 rect 整体误剔除：非居中骨架 pos 偏移出 mask 时内容仍正常显示）
+        //逻辑参照 SkeletonGraphic.AddSkeletonGraphicAnimationComponents，仅把渲染组件换成 SkeletonGraphicExtend
+        SkeletonGraphicExtend skeletonGraphic = targetObj.AddComponent<SkeletonGraphicExtend>();
+        if (skeletonDataAsset != null)
+        {
+            skeletonGraphic.material = material;
+            skeletonGraphic.skeletonDataAsset = skeletonDataAsset;
+            skeletonGraphic.Initialize(false);
+        }
+        SkeletonAnimation skeletonAnimation = targetObj.AddComponent<SkeletonAnimation>();
+        if (skeletonDataAsset != null)
+        {
+            skeletonAnimation.Initialize(false);
+        }
+        skeletonGraphic.Animation = skeletonAnimation;
+        CanvasRenderer canvasRenderer = targetObj.GetComponent<CanvasRenderer>();
+        if (canvasRenderer) canvasRenderer.cullTransparentMesh = false;
         if (skinData != null)
         {
             ChangeSkeletonSkin(skeletonGraphic.Skeleton, skinData);
@@ -197,6 +212,25 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// 按单个皮肤名整皮替换（幻化药 ui_show_skin 等指定骨架内皮肤的场景；皮肤名不存在时 GetSkeletonDataSkin 内部报错并保持原皮肤）
+    /// </summary>
+    public void ChangeSkeletonSkin(Skeleton skeleton, string skinName)
+    {
+        if (skeleton == null || skeleton.Data == null)
+        {
+            LogUtil.LogError("ChangeSkeletonSkin失败 缺少Skeleton资源");
+            return;
+        }
+        if (skinName.IsNull())
+            return;
+        Skin targetSkin = manager.GetSkeletonDataSkin(skeleton, skinName);
+        if (targetSkin == null)
+            return;
+        skeleton.SetSkin(targetSkin);
+        skeleton.SetupPoseSlots();
     }
 
     /// <summary>
