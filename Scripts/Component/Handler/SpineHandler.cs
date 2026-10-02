@@ -234,6 +234,36 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     }
 
     /// <summary>
+    /// 按多个皮肤名叠加换肤（幻化药 ui_show_skin「|」分隔组合皮肤场景，如 CherryTaleSpine 的 Eye_01|Mouth_01；
+    /// 未在组合内的部件自动回落骨架默认皮肤；等价 Dictionary 重载但不带染色）
+    /// </summary>
+    public void ChangeSkeletonSkin(Skeleton skeleton, params string[] skinNames)
+    {
+        if (skeleton == null || skeleton.Data == null)
+        {
+            LogUtil.LogError("ChangeSkeletonSkin失败 缺少Skeleton资源");
+            return;
+        }
+        if (skinNames == null || skinNames.Length == 0)
+            return;
+        Skin newSkin = new Skin($"skin_combo_{skeleton.Data.Hash}");
+        foreach (var skinName in skinNames)
+        {
+            if (skinName.IsNull())
+                continue;
+            var itemSkin = manager.GetSkeletonDataSkin(skeleton, skinName);
+            if (itemSkin == null)
+            {
+                continue;
+            }
+            //添加皮肤
+            newSkin.AddSkin(itemSkin);
+        }
+        skeleton.SetSkin(newSkin);
+        skeleton.SetupPoseSlots();
+    }
+
+    /// <summary>
     /// 设置部件颜色
     /// </summary>
     public void ChangeSlotColor(Skeleton skeleton, string slotName, Color color)

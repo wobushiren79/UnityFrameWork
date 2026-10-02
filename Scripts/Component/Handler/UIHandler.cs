@@ -243,6 +243,37 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
     }
 
     /// <summary>
+    /// 通过UI的名字开启UI（名字=类名=Resources/UI/预制体名；已有缓存实例直接打开，没有则按名字加载创建——基类组件即可取到，无需泛型）
+    /// </summary>
+    /// <param name="uiName"></param>
+    public BaseUIComponent OpenUI(string uiName, int layer = -1)
+    {
+        if (manager.uiList == null || uiName.IsNull())
+            return null;
+        for (int i = 0; i < manager.uiList.Count; i++)
+        {
+            BaseUIComponent itemUI = manager.uiList[i];
+            if (itemUI.name.Equals(uiName))
+            {
+                //设置层级
+                if (layer >= 0)
+                {
+                    itemUI.transform.SetSiblingIndex(layer);
+                }
+                itemUI.OpenUI();
+                return itemUI;
+            }
+        }
+        BaseUIComponent uiComponent = manager.CreateUI<BaseUIComponent>(uiName, layer);
+        if (uiComponent)
+        {
+            uiComponent.OpenUI();
+            return uiComponent;
+        }
+        return null;
+    }
+
+    /// <summary>
     /// 关闭UI
     /// </summary>
     public void CloseUI<T>(int layer = -1) where T : BaseUIComponent

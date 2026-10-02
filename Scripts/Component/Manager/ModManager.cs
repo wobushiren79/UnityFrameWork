@@ -57,6 +57,12 @@ public partial class ModManager : BaseManager
     private Dictionary<string, HashSet<string>> dicModJsonTextFiles = new Dictionary<string, HashSet<string>>();
 
     /// <summary>
+    /// 强制全部Mod视为开启（测试模式用：LauncherTest 启动时置 true，FilterEnabledMods 跳过 GameConfig.listModEnable 过滤；
+    /// 仅内存标记不持久化，正式游戏 LauncherGame 不置位、不受影响的设置项与存档不变）
+    /// </summary>
+    public bool isForceAllModsEnabled = false;
+
+    /// <summary>
     /// 记录Mod的所有资源Key（string类型），加载Catalog成功后调用
     /// </summary>
     private void RecordModAssetKeys(string modName, IResourceLocator locator)
@@ -99,11 +105,37 @@ public partial class ModManager : BaseManager
     #region 初始化
 
     /// <summary>
-    /// 初始化所有Mod：扫描ModRoot目录，加载所有可用Mod的Catalog并记录资源Key（异步回调）
+    /// 过滤出已开启的Mod：以 GameConfig.listModEnable 为准，未记录的Mod（含新Mod）默认关闭不加载；
+    /// isForceAllModsEnabled=true（测试模式）时跳过过滤全量加载
+    /// </summary>
+    protected List<string> FilterEnabledMods(List<string> modNames)
+    {
+        if (modNames.Count == 0)
+            return modNames;
+        //测试模式强制全开（LauncherTest 启动时置位，仅内存不持久化）：卡片/幻化药等测试直接用全部Mod，免逐一手动开启+重启
+        if (isForceAllModsEnabled)
+        {
+            LogUtil.Log($"[Mod] 测试模式强制全开，跳过开启过滤，共 {modNames.Count} 个Mod");
+            return modNames;
+        }
+        GameConfigBean gameConfig = GameDataHandler.Instance.manager.GetGameConfig();
+        var enabledMods = new List<string>();
+        foreach (var modName in modNames)
+        {
+            if (gameConfig.IsModEnable(modName))
+                enabledMods.Add(modName);
+            else
+                LogUtil.Log($"[Mod] Mod未开启，跳过加载: {modName}");
+        }
+        return enabledMods;
+    }
+
+    /// <summary>
+    /// 初始化所有已开启的Mod：扫描ModRoot目录，加载开启状态Mod的Catalog并记录资源Key（异步回调）
     /// </summary>
     public void InitializeAllMods(Action<bool> callBack)
     {
-        var availableMods = GetAvailableModNames();
+        var availableMods = FilterEnabledMods(GetAvailableModNames());
         if (availableMods.Count == 0)
         {
             LogUtil.Log("[Mod] 未发现可用Mod");
@@ -132,11 +164,11 @@ public partial class ModManager : BaseManager
     }
 
     /// <summary>
-    /// 初始化所有Mod：扫描ModRoot目录，加载所有可用Mod的Catalog并记录资源Key（异步await）
+    /// 初始化所有已开启的Mod：扫描ModRoot目录，加载开启状态Mod的Catalog并记录资源Key（异步await）
     /// </summary>
     public async Task<bool> InitializeAllModsAsync()
     {
-        var availableMods = GetAvailableModNames();
+        var availableMods = FilterEnabledMods(GetAvailableModNames());
         if (availableMods.Count == 0)
         {
             LogUtil.Log("[Mod] 未发现可用Mod");
@@ -156,11 +188,11 @@ public partial class ModManager : BaseManager
     }
 
     /// <summary>
-    /// 初始化所有Mod：扫描ModRoot目录，加载所有可用Mod的Catalog并记录资源Key（同步）
+    /// 初始化所有已开启的Mod：扫描ModRoot目录，加载开启状态Mod的Catalog并记录资源Key（同步）
     /// </summary>
     public bool InitializeAllModsSync()
     {
-        var availableMods = GetAvailableModNames();
+        var availableMods = FilterEnabledMods(GetAvailableModNames());
         if (availableMods.Count == 0)
         {
             LogUtil.Log("[Mod] 未发现可用Mod");
@@ -181,7 +213,7 @@ public partial class ModManager : BaseManager
 
     #endregion
 
-    #region monoscripts Bundle 去重
+    #region InternalId 转换钩子（相对路径还原 + monoscripts Bundle 去重）
 
     /// <summary>monoscripts Bundle 去重表：Bundle文件名（含内容哈希，同名即同内容）→ 首个加载的完整InternalId</summary>
     private static readonly Dictionary<string, string> s_MonoScriptBundleCanonicalIds = new Dictionary<string, string>();
@@ -189,33 +221,65 @@ public partial class ModManager : BaseManager
     /// <summary>已打印过共享日志的monoscripts Bundle文件名（避免重复刷日志）</summary>
     private static readonly HashSet<string> s_MonoScriptBundleSharedLogged = new HashSet<string>();
 
-    /// <summary>monoscripts Bundle 去重钩子是否已安装</summary>
-    private static bool s_IsMonoScriptDedupInstalled;
+    /// <summary>InternalId 转换钩子是否已安装</summary>
+    private static bool s_IsInternalIdTransformInstalled;
 
     /// <summary>InternalId路径分隔符（可能是URL或含两种分隔符的相对/绝对路径）</summary>
     private static readonly char[] s_PathSeparators = { '/', '\\' };
 
     /// <summary>
-    /// 安装monoscripts Bundle去重钩子（幂等，在每次加载Mod Catalog前调用）。
-    /// 多个Mod用同一构建环境（如同一Spine版本）构建时会产出内容完全相同的monoscripts Bundle，
-    /// 而Unity禁止两个不同Bundle包含相同资产文件（MonoScript的GUID相同），后加载者报
-    /// "another AssetBundle with the same files is already loaded"并导致该Mod资源加载失败。
-    /// 这里通过InternalIdTransformFunc把同名Bundle重定向到首个已加载实例的InternalId，
-    /// Addressables的AssetBundleProvider按转换后ID作缓存键，直接复用已加载Bundle，规避冲突。
+    /// 安装 InternalId 转换钩子（幂等，在每次加载Mod Catalog前调用）。钩子链依次执行：
+    /// ① 相对路径还原（ResolveRelativeBundlePath）：Mod Catalog 中的 Bundle InternalId 若是相对路径
+    ///    （如 Mods\Xxx\a.bundle），转为以游戏根目录为基准的绝对路径，避免打包后按进程工作目录解析失败；
+    /// ② monoscripts Bundle 去重（DedupMonoScriptBundleId）：多个Mod用同一构建环境（如同一Spine版本）构建时
+    ///    会产出内容完全相同的monoscripts Bundle，而Unity禁止两个不同Bundle包含相同资产文件（MonoScript的GUID相同），
+    ///    后加载者报"another AssetBundle with the same files is already loaded"并导致该Mod资源加载失败；
+    ///    通过InternalIdTransformFunc把同名Bundle重定向到首个已加载实例的InternalId，
+    ///    Addressables的AssetBundleProvider按转换后ID作缓存键，直接复用已加载Bundle，规避冲突。
     /// </summary>
-    private static void EnsureMonoScriptDedupInstalled()
+    private static void EnsureInternalIdTransformInstalled()
     {
-        if (s_IsMonoScriptDedupInstalled)
+        if (s_IsInternalIdTransformInstalled)
             return;
-        s_IsMonoScriptDedupInstalled = true;
+        s_IsInternalIdTransformInstalled = true;
 
         // InternalIdTransformFunc为全局单点，链式保留已有转换（当前工程无其他设置者，防御性处理）
         var existing = Addressables.InternalIdTransformFunc;
         Addressables.InternalIdTransformFunc = (location) =>
         {
             string id = existing != null ? existing(location) : location?.InternalId;
+            id = ResolveRelativeBundlePath(id);
             return DedupMonoScriptBundleId(id);
         };
+    }
+
+    /// <summary>
+    /// 相对路径还原：相对路径的Bundle文件InternalId转为以游戏根目录（Application.dataPath/..）为基准的绝对路径。
+    /// 原因：相对路径按进程当前工作目录(CWD)解析——编辑器下CWD=项目根恰好可用；打包后CWD取决于启动方式
+    /// （快捷方式起始位置/启动器/命令行所在目录），不保证是exe目录，导致找不到Bundle
+    /// （Unable to open archive file / Invalid path in AssetBundleProvider）。
+    /// 注意：仅处理 .bundle 结尾的文件路径——InternalIdTransformFunc 对所有 location 生效，
+    /// BundledAssetProvider 会把转换结果当作 Bundle 内资源名去 LoadAssetAsync（见其 InternalOp 第108/158行），
+    /// 若误改 Bundle 内资源路径（如 Assets/Xxx.prefab）会导致按名取资源失败（Unable to load asset of type ...）。
+    /// </summary>
+    private static string ResolveRelativeBundlePath(string internalId)
+    {
+        if (string.IsNullOrEmpty(internalId))
+            return internalId;
+        //仅处理Bundle文件路径：Bundle内资源路径/运行时变量({UnityEngine.Application.XXX})/网络地址(含://)/绝对路径一律原样放行
+        if (!internalId.EndsWith(".bundle", StringComparison.OrdinalIgnoreCase)
+            || internalId[0] == '{' || internalId.Contains("://") || Path.IsPathRooted(internalId))
+            return internalId;
+        try
+        {
+            string gameRoot = Path.Combine(Application.dataPath, "..");
+            return Path.GetFullPath(Path.Combine(gameRoot, internalId)).Replace("\\", "/");
+        }
+        catch (Exception)
+        {
+            //含非法字符等异常情况保持原样，交由后续加载流程按原逻辑报错
+            return internalId;
+        }
     }
 
     /// <summary>
@@ -293,7 +357,7 @@ public partial class ModManager : BaseManager
     /// </summary>
     public void LoadModCatalog(string modName, Action<bool> callBack)
     {
-        EnsureMonoScriptDedupInstalled();
+        EnsureInternalIdTransformInstalled();
         if (IsModLoaded(modName))
         {
             LogUtil.Log($"[Mod] Mod已加载: {modName}");
@@ -356,7 +420,7 @@ public partial class ModManager : BaseManager
     /// </summary>
     public async Task<bool> LoadModCatalogAsync(string modName)
     {
-        EnsureMonoScriptDedupInstalled();
+        EnsureInternalIdTransformInstalled();
         if (IsModLoaded(modName))
         {
             LogUtil.Log($"[Mod] Mod已加载: {modName}");
@@ -419,7 +483,7 @@ public partial class ModManager : BaseManager
     /// </summary>
     public bool LoadModCatalogSync(string modName)
     {
-        EnsureMonoScriptDedupInstalled();
+        EnsureInternalIdTransformInstalled();
         if (IsModLoaded(modName))
         {
             LogUtil.Log($"[Mod] Mod已加载: {modName}");

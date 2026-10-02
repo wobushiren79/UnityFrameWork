@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEditor;
 using System;
+using System.Collections.Generic;
 
 [Serializable]
 public partial class GameConfigBean
@@ -44,6 +45,38 @@ public partial class GameConfigBean
     public int antialiasingMode = 0;
     //抗锯齿质量
     public int antialiasingQualityLevel = 0;
+
+    //已开启的Mod名列表（不在列表中的Mod视为关闭；新出现的Mod默认不在列表=默认关闭）
+    public List<string> listModEnable = new List<string>();
+
+    /// <summary>
+    /// 判断指定Mod是否已开启
+    /// </summary>
+    public bool IsModEnable(string modName)
+    {
+        if (listModEnable == null || modName.IsNull())
+            return false;
+        return listModEnable.Contains(modName);
+    }
+
+    /// <summary>
+    /// 设置指定Mod的开启状态（开启=加入列表，关闭=移出列表）
+    /// </summary>
+    public void SetModEnable(string modName, bool isEnable)
+    {
+        if (modName.IsNull())
+            return;
+        listModEnable ??= new List<string>();
+        if (isEnable)
+        {
+            if (!listModEnable.Contains(modName))
+                listModEnable.Add(modName);
+        }
+        else
+        {
+            listModEnable.Remove(modName);
+        }
+    }
 
 
     /// <summary>
