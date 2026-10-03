@@ -379,6 +379,14 @@ public partial class ModManager : BaseManager
             {
                 var locator = handle.Result;
                 var keys = new List<object>(locator.Keys);
+                // 空 Catalog（0 资源条目）判失败：多为空构建产物（Mod 分组未参与构建），避免下游报难懂的 InvalidKeyException
+                if (keys.Count == 0)
+                {
+                    Addressables.Release(handle);
+                    LogUtil.LogError($"[Mod] Catalog为空（0个资源条目），疑似空构建产物（Mod 分组未参与构建）: {modName}");
+                    callBack?.Invoke(false);
+                    return;
+                }
                 var depHandle = Addressables.DownloadDependenciesAsync(keys, Addressables.MergeMode.Union);
                 depHandle.Completed += (dh) =>
                 {
@@ -446,6 +454,13 @@ public partial class ModManager : BaseManager
 
             var locator = handle.Result;
             var keys = new List<object>(locator.Keys);
+            // 空 Catalog（0 资源条目）判失败：多为空构建产物（Mod 分组未参与构建），避免下游报难懂的 InvalidKeyException
+            if (keys.Count == 0)
+            {
+                Addressables.Release(handle);
+                LogUtil.LogError($"[Mod] Catalog为空（0个资源条目），疑似空构建产物（Mod 分组未参与构建）: {modName}");
+                return false;
+            }
             var depHandle = Addressables.DownloadDependenciesAsync(keys, Addressables.MergeMode.Union);
             await depHandle.Task;
 
@@ -508,6 +523,13 @@ public partial class ModManager : BaseManager
             }
 
             var keys = new List<object>(locator.Keys);
+            // 空 Catalog（0 资源条目）判失败：多为空构建产物（Mod 分组未参与构建），避免下游报难懂的 InvalidKeyException
+            if (keys.Count == 0)
+            {
+                Addressables.Release(handle);
+                LogUtil.LogError($"[Mod] Catalog为空（0个资源条目），疑似空构建产物（Mod 分组未参与构建）: {modName}");
+                return false;
+            }
             var depHandle = Addressables.DownloadDependenciesAsync(keys, Addressables.MergeMode.Union);
             depHandle.WaitForCompletion();
 
