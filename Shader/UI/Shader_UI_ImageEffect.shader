@@ -68,6 +68,7 @@ Shader "FrameWork/UI/Shader_UI_ImageEffect"
         _ShineInterval("流光间隔(扫过后的停顿)", Range(0, 10)) = 1
         _ShineIntensity("流光强度", Range(0, 5)) = 1
         [Enum(Off, 0, On, 1)] _ShineMaskByAlpha("仅在不透明区域显示流光", Float) = 1
+        [Enum(Off, 0, On, 1)] _ShineMaskFollowAlpha("扫光跟随图片透明度(关闭则不透明区域满强度)", Float) = 1
 
         [Header(Gradient (Color Ramp))]
         [Toggle(_GRADIENT_ON)] _GradientOn("启用渐变叠色", Float) = 0
@@ -197,6 +198,7 @@ Shader "FrameWork/UI/Shader_UI_ImageEffect"
                 half _ShineInterval;
                 half _ShineIntensity;
                 half _ShineMaskByAlpha;
+                half _ShineMaskFollowAlpha;
 
                 half4 _GradientColorA;
                 half4 _GradientColorB;
@@ -407,13 +409,24 @@ Shader "FrameWork/UI/Shader_UI_ImageEffect"
                 half sweepPos = -_ShineWidth + frac(t * _ShineSpeed) * travelRange;
                 half shineEdge = _ShineWidth * (1.0 - _ShineSoftness);
                 half shine = 1.0 - smoothstep(shineEdge, _ShineWidth, abs(proj - sweepPos));
-                half shineMask = lerp(1.0, col.a, _ShineMaskByAlpha);
+                // “仅不透明区显示”开启时：默认扫光强度跟随图片 alpha（弱透明度图片扫光同步变淡）；
+                // 关闭跟随后改为二值判定——非全透明区域即显示满强度扫光（弱透明度图片也能看清扫光）
+                half shineMask = lerp(1.0, lerp(step(0.001, col.a), col.a, _ShineMaskFollowAlpha), _ShineMaskByAlpha);
                 // 扫光带强度(含流光色自身透明度)
                 half shineBand = shine * _ShineColor.a;
                 // 在带内把底色推向流光色(lerp)，颜色因此真正生效；_ShineIntensity 控制亮度(可>1 形成HDR辉光)
                 col.rgb = lerp(col.rgb, _ShineColor.rgb * _ShineIntensity, saturate(shineBand * shineMask));
-                // 仅当关闭“仅不透明区显示”时，允许流光在透明区域点亮 alpha
-                col.a = saturate(col.a + shineBand * (1.0 - _ShineMaskByAlpha));
+                if (_ShineMaskByAlpha > 0.5)
+                {
+                    // 不跟随图片透明度时：扫光带内把 alpha 一并提起——SrcAlpha 混合下 alpha 过低时 rgb 再亮也只剩 alpha 比例可见；
+                    // 非全透明区域扫光满强度显形，跟随则 alpha 不动(保持原样)
+                    col.a = lerp(col.a, max(col.a, shineBand * shineMask), 1.0 - _ShineMaskFollowAlpha);
+                }
+                else
+                {
+                    // 关闭“仅不透明区显示”时，允许流光在透明区域点亮 alpha
+                    col.a = saturate(col.a + shineBand);
+                }
             #endif
 
                 // === 溶解 ===

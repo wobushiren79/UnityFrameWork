@@ -105,6 +105,13 @@ public class ShaderGUIImageEffect : ShaderGUI
             Prop("_ShineInterval", "流光间隔(停顿)");
             Prop("_ShineIntensity", "流光强度");
             Prop("_ShineMaskByAlpha", "仅在不透明区域显示");
+            // 仅当开启“仅在不透明区域显示”时才暴露该子参数：关闭跟随后扫光在非全透明区域满强度显示(弱透明度图片也能看清扫光)
+            if (GetFloat("_ShineMaskByAlpha") > 0.5f)
+            {
+                EditorGUI.indentLevel++;
+                Prop("_ShineMaskFollowAlpha", "扫光跟随图片透明度");
+                EditorGUI.indentLevel--;
+            }
         });
 
         DrawToggleGroup("渐变叠色", "_GradientOn", "_GRADIENT_ON", () =>

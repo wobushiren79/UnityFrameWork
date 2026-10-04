@@ -229,7 +229,8 @@ public partial class SpineWindow : EditorWindow
         SkeletonDataAsset selectSkeletonDataAsset,//传入的指定骨架资源
         bool isPutAllSkin,//是否输出所有的皮肤
         string targetSkinName,//指定皮肤输出
-        string filterSkinName//筛选的皮肤名字 填入之后只输出带有这些字符的图片（用,分割）
+        string filterSkinName,//筛选的皮肤名字 填入之后只输出带有这些字符的图片（用,分割）
+        int pixelsPerUnit = 100//导出贴图的 Pixels Per Unit
         )
     {
         try
@@ -296,7 +297,7 @@ public partial class SpineWindow : EditorWindow
                 EditorUtility.DisplayProgressBar("提取皮肤纹理",
                     $"正在处理: {asset.name} - {skin.Name} ({i + 1}/{skinTasks.Count})",
                     (float)(i + 1) / skinTasks.Count);
-                ExtractAndSaveTextures(asset, skin, outputPath, filterSkinName);
+                ExtractAndSaveTextures(asset, skin, outputPath, filterSkinName, pixelsPerUnit);
             }
 
             AssetDatabase.Refresh();
@@ -359,7 +360,7 @@ public partial class SpineWindow : EditorWindow
     /// <summary>
     /// 从图集提取并保存纹理
     /// </summary>
-    public static void ExtractAndSaveTextures(SkeletonDataAsset skeletonDataAsset, Skin skin, string outputPath, string filterSkinName)
+    public static void ExtractAndSaveTextures(SkeletonDataAsset skeletonDataAsset, Skin skin, string outputPath, string filterSkinName, int pixelsPerUnit = 100)
     {
         // 收集所有使用的图集区域
         var skeletonData = skeletonDataAsset.GetSkeletonData(true);
@@ -459,7 +460,7 @@ public partial class SpineWindow : EditorWindow
                 if (originTex != null)
                 {
                     originTex = CropTransparentEdges(originTex);
-                    SaveRegionTexture(spineAtlas, skin, originTex, outputPath);
+                    SaveRegionTexture(spineAtlas, skin, originTex, outputPath, pixelsPerUnit);
                 }
 
             }
@@ -472,7 +473,7 @@ public partial class SpineWindow : EditorWindow
                         if (filterSkinName.IsNull())
                         {
                             Texture2D newTex = CreateRegionTexture(region, sourceTexture);
-                            SaveRegionTexture(spineAtlas, skin, newTex, outputPath);
+                            SaveRegionTexture(spineAtlas, skin, newTex, outputPath, pixelsPerUnit);
                         }
                         else
                         {
@@ -483,7 +484,7 @@ public partial class SpineWindow : EditorWindow
                                 if (regionNameFirst.Equals(itemFilter))
                                 {
                                     Texture2D newTex = CreateRegionTexture(region, sourceTexture);
-                                    SaveRegionTexture(spineAtlas, skin, newTex, outputPath);
+                                    SaveRegionTexture(spineAtlas, skin, newTex, outputPath, pixelsPerUnit);
                                     break;
                                 }
                             }
@@ -531,7 +532,7 @@ public partial class SpineWindow : EditorWindow
     /// <summary>
     /// 保存区域纹理
     /// </summary>
-    public static void SaveRegionTexture(SpineAtlasAsset spineAtlasAsset, Skin skin, Texture2D newTex, string outputPath)
+    public static void SaveRegionTexture(SpineAtlasAsset spineAtlasAsset, Skin skin, Texture2D newTex, string outputPath, int pixelsPerUnit = 100)
     {
         if (newTex == null)
         {
@@ -560,7 +561,7 @@ public partial class SpineWindow : EditorWindow
             TextureImporterSettings settings = new TextureImporterSettings();
             importer.ReadTextureSettings(settings);
             settings.textureType = TextureImporterType.Sprite;
-            settings.spritePixelsPerUnit = 100;
+            settings.spritePixelsPerUnit = pixelsPerUnit;
             settings.mipmapEnabled = false;
             settings.spriteMode = (int)SpriteImportMode.Single;
             settings.alphaIsTransparency = true; // 关键参数
