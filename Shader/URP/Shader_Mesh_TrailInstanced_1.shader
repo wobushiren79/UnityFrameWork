@@ -116,7 +116,7 @@ Shader "FrameWork/URP/MeshTrailInstanced1"
 
         // 正向 Pass：轨迹唯一的 pass。
         // ⚠️不做 ShadowCaster/DepthOnly(与 MeshCommon1 的差别)：轨迹恒以 ShadowCastingMode.Off 绘制、且不写深度，
-        // 那两个 pass 永远跑不到，加了只是白编译一堆死变体。参数集仍与 MeshCommon1 完全一致。
+        // 那两个 pass 永远跑不到，加了只是白编译一堆死变体(曾加过 ShadowCaster 做拖尾阴影，效果不好已移除)。参数集仍与 MeshCommon1 完全一致。
         Pass
         {
             Name "Forward"

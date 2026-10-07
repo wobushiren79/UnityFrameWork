@@ -39,7 +39,11 @@ public partial class SpineHandler : BaseHandler<SpineHandler, SpineManager>
     {
         var skeletonDataAsset = GetSkeletonDataAssetWithMod(assetName);
         // 4.3: AddToGameObject 返回 SkeletonComponents<SkeletonRenderer, SkeletonAnimation>
-        SkeletonAnimation skeletonAnimation = SkeletonAnimation.AddToGameObject(targetObj, skeletonDataAsset).skeletonAnimation;
+        var components = SkeletonAnimation.AddToGameObject(targetObj, skeletonDataAsset);
+        SkeletonAnimation skeletonAnimation = components.skeletonAnimation;
+        //世界骨架(战斗/基地生物)强制开线程化: 全局线程化保持关闭(UI骨架线程化时, 网格生成会被工作线程竞态读到无约束中间态致UI闪烁; spine-unity三态语义只支持全局关时单独开、不支持全局开时单独关, 故全局关+本处单独开, UI骨架不走本方法保持主线程串行)
+        skeletonAnimation.ThreadedAnimation = SettingsTriState.Enable;
+        components.skeletonRenderer.ThreadedMeshGeneration = SettingsTriState.Enable;
         if (skinData != null)
         {
             ChangeSkeletonSkin(skeletonAnimation.skeleton, skinData);
