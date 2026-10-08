@@ -28,7 +28,7 @@ public class ExcelEditorWindow : EditorWindow
     {
         var window = EditorWindow.GetWindow<ExcelEditorWindow>();
         window.titleContent = new GUIContent("Excel 处理工具");
-        window.minSize = new Vector2(650, 800); // 设置窗口最小尺寸
+        window.minSize = new Vector2(900, 800); // 设置窗口最小尺寸（含左侧分类树）
         window.Show();
     }
 
@@ -82,10 +82,35 @@ public class ExcelEditorWindow : EditorWindow
     /// <summary>文件列表滚动位置</summary>
     protected Vector2 fileListScroll = Vector2.zero;
 
-    // ==================== 样式资源 ====================
-    /// <summary>样式是否已初始化标记</summary>
-    private bool stylesInitialized = false;
+    // ==================== 左侧分类树状态 ====================
+    /// <summary>分类树最小宽度（像素）</summary>
+    private const float CategoryTreeMinWidth = 180;
 
+    /// <summary>分类树最大宽度（像素）</summary>
+    private const float CategoryTreeMaxWidth = 420;
+
+    /// <summary>分类树当前宽度（按最长显示名自适应，由 DrawCategoryTree 按需重算）</summary>
+    private float categoryTreeWidth = CategoryTreeMinWidth;
+
+    /// <summary>分类树宽度脏标记 - 刷新文件列表后置位，下一帧按内容重算</summary>
+    private bool categoryWidthDirty = true;
+
+    /// <summary>分类树分隔条是否正在拖拽中</summary>
+    private bool isDraggingCategorySplitter = false;
+
+    /// <summary>分类 → 文件列表（全量文件按表名前缀分组，不受搜索/显示数量限制影响）</summary>
+    private Dictionary<string, List<FileInfo>> dicCategoryFiles = new Dictionary<string, List<FileInfo>>();
+
+    /// <summary>各类别折叠状态（true=展开），跨刷新保留</summary>
+    private Dictionary<string, bool> dicCategoryFoldout = new Dictionary<string, bool>();
+
+    /// <summary>当前选中的 Excel 文件完整路径（空=未选中，右侧列表走原查询逻辑；选中后右侧直接展示该文件）</summary>
+    private string selectedExcelPath = "";
+
+    /// <summary>左侧分类树滚动位置</summary>
+    protected Vector2 categoryTreeScroll = Vector2.zero;
+
+    // ==================== 样式资源 ====================
     /// <summary>分组框样式 - 用于区域划分</summary>
     private GUIStyle boxStyle;
 
@@ -100,6 +125,18 @@ public class ExcelEditorWindow : EditorWindow
 
     /// <summary>分区标题样式</summary>
     private GUIStyle sectionHeaderStyle;
+
+    /// <summary>分类树文件项样式 - 左对齐小按钮</summary>
+    private GUIStyle categoryItemStyle;
+
+    /// <summary>分类树面板背景样式 - 主题适配纯色，与窗口背景拉开层次</summary>
+    private GUIStyle categoryPanelStyle;
+
+    /// <summary>分类树折叠头样式 - 加粗主题色，与文件项拉开层级</summary>
+    private GUIStyle categoryHeaderStyle;
+
+    /// <summary>分类树文件项选中态样式 - 蓝底白字</summary>
+    private GUIStyle categoryItemSelectedStyle;
 
     #endregion
 
@@ -175,9 +212,9 @@ public class ExcelEditorWindow : EditorWindow
     }
 
     /// <summary>
-    /// 工具栏快捷操作：所有 Excel 转 Json（默认路径，不打开窗口）
+    /// 工具栏快捷操作：所有 Excel 转 Json（默认路径，不打开窗口）；打包工具（GameBuildEditorWindow）打包前导出也复用此入口
     /// </summary>
-    static void QuickExcelToJson()
+    public static void QuickExcelToJson()
     {
         ExcelToJsonAll(DefaultExcelFolderPath, DefaultJsonFolderPath);
     }
@@ -195,7 +232,8 @@ public class ExcelEditorWindow : EditorWindow
     #region Unity 生命周期
 
     /// <summary>
-    /// 窗口启用时初始化路径和样式
+    /// 窗口启用时初始化路径
+    /// 样式不在此初始化（GUI.skin 等只能在 OnGUI 内访问），由 OnGUI 首帧懒加载
     /// </summary>
     private void OnEnable()
     {
@@ -205,7 +243,6 @@ public class ExcelEditorWindow : EditorWindow
         entityFolderPathForFrameWork = DefaultEntityFolderPathForFrameWork;
         jsonFolderPath = DefaultJsonFolderPath;
 
-        InitializeStyles();
         RefreshFileList();
     }
 
@@ -222,8 +259,8 @@ public class ExcelEditorWindow : EditorWindow
     /// </summary>
     private void OnGUI()
     {
-        // 确保样式已初始化
-        if (!stylesInitialized)
+        // 样式按字段 null 检查懒加载（不用 bool 标记：EditorWindow 重建/domain reload 后私有字段会丢初始值）
+        if (NeedsStyleInit())
         {
             InitializeStyles();
         }
@@ -252,12 +289,22 @@ public class ExcelEditorWindow : EditorWindow
     #region 样式初始化
 
     /// <summary>
+    /// 样式是否需要初始化 - 任一关键样式为 null 即需重建
+    /// （不用 bool 标记、不信字段初始值：EditorWindow 重建/domain reload 后私有字段会丢初始值恢复类型默认值）
+    /// </summary>
+    private bool NeedsStyleInit()
+    {
+        return boxStyle == null || categoryItemStyle == null
+            || categoryPanelStyle == null || categoryHeaderStyle == null || categoryItemSelectedStyle == null;
+    }
+
+    /// <summary>
     /// 初始化所有自定义 UI 样式
-    /// 使用单例模式确保只初始化一次
+    /// 仅可在 OnGUI 内调用（GUI.skin 等依赖 GUI 上下文）
     /// </summary>
     private void InitializeStyles()
     {
-        if (stylesInitialized) return;
+        if (!NeedsStyleInit()) return;
 
         // 分区标题样式 - 大号加粗字体，自适应明暗主题
         sectionHeaderStyle = new GUIStyle(EditorStyles.boldLabel)
@@ -302,7 +349,54 @@ public class ExcelEditorWindow : EditorWindow
                 new Color(0.3f, 0.3f, 0.3f, 0.8f) : new Color(0.95f, 0.95f, 0.95f)) }
         };
 
-        stylesInitialized = true;
+        // 分类树面板背景 - 深色主题略深于窗口、浅色主题近白，与灰窗口背景拉开层次
+        categoryPanelStyle = new GUIStyle(GUI.skin.box)
+        {
+            padding = new RectOffset(4, 4, 4, 4),
+            normal = { background = MakeTex(2, 2, EditorGUIUtility.isProSkin ?
+                new Color(0.2f, 0.2f, 0.2f) : new Color(0.92f, 0.92f, 0.92f)) }
+        };
+
+        // 分类折叠头样式 - 加粗主题色文字，与文件项拉开层级
+        categoryHeaderStyle = new GUIStyle(EditorStyles.foldout)
+        {
+            fontStyle = FontStyle.Bold,
+            fontSize = 12,
+            normal = { textColor = EditorGUIUtility.isProSkin ?
+                new Color(0.55f, 0.75f, 1f) : new Color(0.1f, 0.3f, 0.6f) },
+            hover = { textColor = EditorGUIUtility.isProSkin ?
+                new Color(0.65f, 0.82f, 1f) : new Color(0.15f, 0.4f, 0.75f) }
+        };
+
+        // 分类树文件项样式 - 无边框 label 风格（类 Project 侧栏），hover 淡色高亮
+        Color itemTextColor = EditorGUIUtility.isProSkin ?
+            new Color(0.85f, 0.85f, 0.85f) : new Color(0.18f, 0.18f, 0.18f);
+        categoryItemStyle = new GUIStyle()
+        {
+            alignment = TextAnchor.MiddleLeft,
+            fontSize = 12,
+            padding = new RectOffset(16, 4, 3, 3),
+            margin = new RectOffset(10, 2, 1, 1),
+            wordWrap = false,
+            normal = { textColor = itemTextColor },
+            hover = { textColor = itemTextColor,
+                background = MakeTex(2, 2, EditorGUIUtility.isProSkin ?
+                    new Color(1f, 1f, 1f, 0.07f) : new Color(0f, 0f, 0f, 0.06f)) },
+            active = { textColor = itemTextColor,
+                background = MakeTex(2, 2, EditorGUIUtility.isProSkin ?
+                    new Color(1f, 1f, 1f, 0.12f) : new Color(0f, 0f, 0f, 0.1f)) }
+        };
+
+        // 分类树选中项样式 - 蓝底白字
+        categoryItemSelectedStyle = new GUIStyle(categoryItemStyle)
+        {
+            normal = { textColor = Color.white,
+                background = MakeTex(2, 2, new Color(0.24f, 0.48f, 0.9f)) },
+            hover = { textColor = Color.white,
+                background = MakeTex(2, 2, new Color(0.3f, 0.55f, 0.95f)) },
+            active = { textColor = Color.white,
+                background = MakeTex(2, 2, new Color(0.2f, 0.42f, 0.85f)) }
+        };
     }
 
     /// <summary>
@@ -475,6 +569,21 @@ public class ExcelEditorWindow : EditorWindow
         {
             RefreshFileList();
         }
+
+        // 选中态：显示当前选中文件与取消按钮（选中优先于搜索/显示模式）
+        if (!selectedExcelPath.IsNull())
+        {
+            GUILayout.Space(10);
+            string selectedName = GetExcelDisplayName(new FileInfo(selectedExcelPath));
+            GUIContent cancelSelectContent = new GUIContent($"✖ {selectedName}", "取消选择，恢复查询列表");
+            Color oldBgColor = GUI.backgroundColor;
+            GUI.backgroundColor = new Color(0.35f, 0.65f, 1f);
+            if (GUILayout.Button(cancelSelectContent, buttonStyle, GUILayout.Width(160), GUILayout.Height(25)))
+            {
+                selectedExcelPath = "";
+            }
+            GUI.backgroundColor = oldBgColor;
+        }
         EditorGUILayout.EndHorizontal();
 
         GUILayout.Space(15);
@@ -489,17 +598,42 @@ public class ExcelEditorWindow : EditorWindow
             // 动态计算文件列表高度（根据窗口高度自适应）
             float listHeight = Mathf.Max(300, position.height - 450);
 
+            // 左右分栏：左侧分类树 + 可拖拽分隔条 + 右侧查询列表
+            EditorGUILayout.BeginHorizontal();
+
+            DrawCategoryTree(listHeight);
+            DrawCategorySplitter();
+
             // 文件列表滚动区域
             fileListScroll = EditorGUILayout.BeginScrollView(fileListScroll, GUILayout.Height(listHeight));
 
-            DrawFileList();
+            if (!selectedExcelPath.IsNull())
+            {
+                // 选中态：直接展示选中的 Excel 文件
+                FileInfo selectedFile = new FileInfo(selectedExcelPath);
+                if (selectedFile.Exists)
+                {
+                    DrawFileList(new FileInfo[] { selectedFile });
+                }
+                else
+                {
+                    selectedExcelPath = "";
+                }
+            }
+            else
+            {
+                DrawFileList(queryFileInfos);
+            }
 
             EditorGUILayout.EndScrollView();
+
+            EditorGUILayout.EndHorizontal();
 
             // 底部统计信息
             EditorGUILayout.BeginHorizontal();
             GUILayout.FlexibleSpace();
-            string displayMode = showAllFiles ? "全部" : $"最近{maxDisplayCount}条";
+            string displayMode = !selectedExcelPath.IsNull() ? "已选中单个 Excel"
+                : (showAllFiles ? "全部" : $"最近{maxDisplayCount}条");
             EditorGUILayout.LabelField($"📈 显示模式：{displayMode} | 共 {queryFileInfos.Length} 个 Excel 文件",
                 EditorStyles.miniLabel);
             EditorGUILayout.EndHorizontal();
@@ -509,12 +643,26 @@ public class ExcelEditorWindow : EditorWindow
     }
 
     /// <summary>
-    /// 刷新文件列表 - 扫描目录、应用搜索过滤、排序、限制显示数量
+    /// 刷新文件列表 - 扫描目录、重建分类树、应用搜索过滤、排序、限制显示数量
     /// </summary>
     private void RefreshFileList()
     {
         // 获取目录下所有文件
-        queryFileInfos = FileUtil.GetFilesByPath(excelFolderPath);
+        FileInfo[] allFileInfos = FileUtil.GetFilesByPath(excelFolderPath);
+
+        // 重建左侧分类树（基于全量文件，不受搜索/数量限制影响）
+        RebuildCategoryTree(allFileInfos);
+
+        // 列表内容变化后重算分类树自适应宽度
+        categoryWidthDirty = true;
+
+        // 选中文件已不存在（删除/重命名）时清除选中态
+        if (!selectedExcelPath.IsNull() && !File.Exists(selectedExcelPath))
+        {
+            selectedExcelPath = "";
+        }
+
+        queryFileInfos = allFileInfos;
 
         // 应用搜索过滤
         if (!queryStr.IsNull())
@@ -567,18 +715,228 @@ public class ExcelEditorWindow : EditorWindow
     }
 
     /// <summary>
-    /// 绘制文件列表内容 - 遍历文件数组，绘制每个文件的详细信息和操作按钮
+    /// 重建分类树数据 - 按表名前缀分组，类别按字母序、组内按文件名排序保证展示稳定
     /// </summary>
-    private void DrawFileList()
+    /// <param name="allFileInfos">目录下全部文件（未过滤）</param>
+    private void RebuildCategoryTree(FileInfo[] allFileInfos)
+    {
+        dicCategoryFiles.Clear();
+        for (int i = 0; i < allFileInfos.Length; i++)
+        {
+            FileInfo fileInfo = allFileInfos[i];
+            if (!IsValidExcelFile(fileInfo))
+                continue;
+
+            string category = GetCategoryKey(fileInfo.Name);
+            if (!dicCategoryFiles.TryGetValue(category, out List<FileInfo> list))
+            {
+                list = new List<FileInfo>();
+                dicCategoryFiles.Add(category, list);
+            }
+            list.Add(fileInfo);
+        }
+
+        // 排序后重建字典，折叠状态字典不受影响
+        dicCategoryFiles = dicCategoryFiles
+            .OrderBy(kvp => kvp.Key)
+            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value.OrderBy(f => f.Name).ToList());
+    }
+
+    /// <summary>
+    /// 提取分类键 - 去掉 excel_ 前缀与 [...] 后缀后，取第一段下划线前的单词（如 excel_creature_info → creature）
+    /// </summary>
+    private static string GetCategoryKey(string fileName)
+    {
+        string name = fileName;
+        if (name.StartsWith("excel_"))
+            name = name.Substring("excel_".Length);
+        int bracketIdx = name.IndexOf('[');
+        if (bracketIdx >= 0)
+            name = name.Substring(0, bracketIdx);
+        int underscoreIdx = name.IndexOf('_');
+        return underscoreIdx > 0 ? name.Substring(0, underscoreIdx) : name;
+    }
+
+    /// <summary>
+    /// 获取 Excel 显示名 - 去扩展名与 excel_ 前缀，保留 [...] 中文注释（如 creature_info[生物信息]）
+    /// </summary>
+    private static string GetExcelDisplayName(FileInfo fileInfo)
+    {
+        string name = fileInfo.Name;
+        int dotIdx = name.LastIndexOf('.');
+        if (dotIdx >= 0)
+            name = name.Substring(0, dotIdx);
+        if (name.StartsWith("excel_"))
+            name = name.Substring("excel_".Length);
+        return name;
+    }
+
+    /// <summary>
+    /// 是否有效 Excel 文件 - 限定 .xlsx 扩展名（顺带排除 .meta/.bak 等杂项）并排除 ~$ 开头的 Excel 临时锁文件
+    /// </summary>
+    private static bool IsValidExcelFile(FileInfo fileInfo)
+    {
+        return fileInfo.Extension.Equals(".xlsx", StringComparison.OrdinalIgnoreCase)
+            && !fileInfo.Name.Contains("~$");
+    }
+
+    /// <summary>
+    /// 绘制左侧分类树 - 按类别折叠展示全部 Excel，点击某项右侧查询列表直接展示该文件（再点已选中项取消）
+    /// </summary>
+    /// <param name="treeHeight">树区域高度（与右侧列表对齐）</param>
+    private void DrawCategoryTree(float treeHeight)
+    {
+        // 按需重算自适应宽度（纯字符估算不依赖 GUI 状态；
+        // IsNaN/<=1 兜底 EditorWindow 重建后字段丢初始值或意外非法值的情况）
+        if (categoryWidthDirty || float.IsNaN(categoryTreeWidth) || categoryTreeWidth <= 1f)
+        {
+            RecalcCategoryTreeWidth();
+            categoryWidthDirty = false;
+        }
+        // 终极兜底：任何情况下都保证宽度是合法值（NaN 宽度会被 GUILayout 静默忽略，布局退回自然宽度）
+        if (float.IsNaN(categoryTreeWidth) || categoryTreeWidth <= 1f)
+        {
+            categoryTreeWidth = CategoryTreeMinWidth;
+        }
+
+        EditorGUILayout.BeginVertical(GUILayout.Width(categoryTreeWidth),
+            GUILayout.MinWidth(categoryTreeWidth), GUILayout.MaxWidth(categoryTreeWidth));
+        EditorGUILayout.LabelField("🗂 分类浏览", EditorStyles.miniBoldLabel);
+
+        // ScrollView 不传宽度 option：靠默认 ExpandWidth 填满外层固定宽度的 Vertical
+        // （此前给 ScrollView 传 Width/MinWidth/MaxWidth 未生效，面板塌缩到内容自然宽度）
+        categoryTreeScroll = EditorGUILayout.BeginScrollView(categoryTreeScroll,
+            categoryPanelStyle, GUILayout.Height(treeHeight));
+
+        foreach (var kvp in dicCategoryFiles)
+        {
+            string category = kvp.Key;
+            List<FileInfo> files = kvp.Value;
+
+            // 折叠头（带组内数量，加粗主题色样式）
+            bool expanded = dicCategoryFoldout.TryGetValue(category, out bool val) && val;
+            bool newExpanded = EditorGUILayout.Foldout(expanded, $"{category} ({files.Count})", true, categoryHeaderStyle);
+            if (newExpanded != expanded)
+                dicCategoryFoldout[category] = newExpanded;
+
+            if (!expanded)
+                continue;
+
+            // 组内文件项，选中项用蓝底白字样式
+            for (int i = 0; i < files.Count; i++)
+            {
+                FileInfo fileInfo = files[i];
+                bool isSelected = fileInfo.FullName == selectedExcelPath;
+
+                if (GUILayout.Button(GetExcelDisplayName(fileInfo),
+                    isSelected ? categoryItemSelectedStyle : categoryItemStyle))
+                {
+                    // 点击选中，再点已选中项取消选中
+                    selectedExcelPath = isSelected ? "" : fileInfo.FullName;
+                    GUI.FocusControl(null);
+                }
+            }
+        }
+
+        EditorGUILayout.EndScrollView();
+        EditorGUILayout.EndVertical();
+    }
+
+    /// <summary>
+    /// 绘制分类树与右侧列表之间的可拖拽分隔条 - 拖动按鼠标增量实时调整分类树宽度
+    /// （点刷新按钮后宽度仍按内容重新自适应，手动调整仅本次有效）
+    /// </summary>
+    private void DrawCategorySplitter()
+    {
+        // 分隔条占位 6px、高度撑满，鼠标悬停显示左右调整光标
+        Rect splitterRect = GUILayoutUtility.GetRect(6, 6, GUILayout.ExpandHeight(true));
+        EditorGUIUtility.AddCursorRect(splitterRect, MouseCursor.SplitResizeLeftRight);
+
+        // 分隔条视觉线（中间 2px 竖线）
+        Rect lineRect = new Rect(splitterRect.x + 2, splitterRect.y, 2, splitterRect.height);
+        EditorGUI.DrawRect(lineRect, EditorGUIUtility.isProSkin ?
+            new Color(0.45f, 0.45f, 0.45f) : new Color(0.6f, 0.6f, 0.6f));
+
+        // 拖拽事件：条内按下开始、拖动按增量调宽（clamp 在最小/最大宽度间）、任意处抬起结束
+        Event e = Event.current;
+        switch (e.type)
+        {
+            case EventType.MouseDown:
+                if (splitterRect.Contains(e.mousePosition))
+                {
+                    isDraggingCategorySplitter = true;
+                    e.Use();
+                }
+                break;
+            case EventType.MouseDrag:
+                if (isDraggingCategorySplitter)
+                {
+                    categoryTreeWidth = Mathf.Clamp(categoryTreeWidth + e.delta.x,
+                        CategoryTreeMinWidth, CategoryTreeMaxWidth);
+                    e.Use();
+                    Repaint();
+                }
+                break;
+            case EventType.MouseUp:
+                if (isDraggingCategorySplitter)
+                {
+                    isDraggingCategorySplitter = false;
+                    e.Use();
+                }
+                break;
+        }
+    }
+
+    /// <summary>
+    /// 重算分类树自适应宽度 - 折叠头与全部文件显示名（无论折叠状态）按字符单位估算取最大值，限制在最小/最大宽度之间
+    /// 不用 GUIStyle.CalcSize：裸 new GUIStyle()（font=null）上 CalcSize 返回 NaN，经 Mathf.Max/Clamp 传播后 GUILayout.Width(NaN) 被静默忽略
+    /// </summary>
+    private void RecalcCategoryTreeWidth()
+    {
+        int maxUnits = 0;
+        foreach (var kvp in dicCategoryFiles)
+        {
+            // 折叠头（含折叠箭头，+46 补偿里已含）
+            maxUnits = Mathf.Max(maxUnits, MeasureTextUnits($"{kvp.Key} ({kvp.Value.Count})"));
+
+            // 文件项（+2 单位补偿相对折叠头的缩进）
+            for (int i = 0; i < kvp.Value.Count; i++)
+            {
+                maxUnits = Mathf.Max(maxUnits, MeasureTextUnits(GetExcelDisplayName(kvp.Value[i])) + 2);
+            }
+        }
+        // 12px 字号：1 单位≈7px（拉丁字符），中文 2 单位≈14px；+46 补偿项 padding/margin、面板 padding、滚动条与折叠箭头
+        categoryTreeWidth = Mathf.Clamp(maxUnits * 7f + 46, CategoryTreeMinWidth, CategoryTreeMaxWidth);
+    }
+
+    /// <summary>
+    /// 测量文本显示宽度单位 - CJK/全角字符算 2 单位，其余算 1（分类树宽度估算用）
+    /// </summary>
+    private static int MeasureTextUnits(string text)
+    {
+        int units = 0;
+        for (int i = 0; i < text.Length; i++)
+        {
+            // U+2E7F 之后覆盖 CJK 部首扩展、统一表意文字、全角标点等双宽字符区间
+            units += text[i] > '⹿' ? 2 : 1;
+        }
+        return units;
+    }
+
+    /// <summary>
+    /// 绘制文件列表内容 - 遍历传入的文件数组，绘制每个文件的详细信息和操作按钮
+    /// </summary>
+    /// <param name="fileInfos">要展示的文件数组（查询结果或选中的单个文件）</param>
+    private void DrawFileList(FileInfo[] fileInfos)
     {
         int validFileCount = 0;
 
-        for (int i = 0; i < queryFileInfos.Length; i++)
+        for (int i = 0; i < fileInfos.Length; i++)
         {
-            FileInfo fileInfo = queryFileInfos[i];
+            FileInfo fileInfo = fileInfos[i];
 
             // 跳过无效文件（.meta 文件和临时文件）
-            if (fileInfo.Name.Contains(".meta") || fileInfo.Name.Contains("~$"))
+            if (!IsValidExcelFile(fileInfo))
                 continue;
 
             validFileCount++;
@@ -661,7 +1019,7 @@ public class ExcelEditorWindow : EditorWindow
             EditorGUILayout.EndVertical();
 
             // --- 分隔线（最后一项除外）---
-            if (i < queryFileInfos.Length - 1)
+            if (i < fileInfos.Length - 1)
             {
                 GUILayout.Space(5);
                 Rect separatorRect = EditorGUILayout.GetControlRect(false, 1);
