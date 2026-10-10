@@ -51,6 +51,13 @@ Shader "FrameWork/URP/MeshMagicBallInstanced1"
     //
     // 【与 TrailInstanced1 的取舍差异】不复用 ParticleCommon.hlsl(软粒子/相机淡出)：那套要采场景深度图，
     // 而火星/核心是加法混合的自发光体、与场景相交时本就不穿帮，为省一张深度采样不引入。需要软粒子时再 include 它。
+    //
+    // 【阴影投射】ShadowCaster Pass(见正向 Pass 之后)只投核心火球的影子，火星塌缩成零面积不投影(发光小点投影没意义还白画)。
+    // billboard 在阴影贴图渲染时 UNITY_MATRIX_I_V 即光源视图逆矩阵，同一套角点展开代码自然朝光投出最大面；
+    // 形状=径向衰减 × 火球贴图 alpha 恒裁 0.5(不随 _ALPHATEST_ON——否则透明队列的整片 quad 会投出方形影子)，噪声撕裂在影子里看不出故跳过。
+    // ⚠️核心贴图是方向性贴图(火球带尾焰/冰球尖锥, 头朝右)：阴影必须复刻正向的速度朝向旋转(屏幕角改用光源视图轴算)，
+    // 否则子弹头朝飞行方向、影子却保持贴图默认朝右——朝向对不上。
+    // 实际生效以游戏设置「弹道阴影」GameConfigBean.bulletShadow 为总开关(见 AttackModeInstanceRenderer.DrawBucket)。
     Properties
     {
         [Header(Surface)]
@@ -187,8 +194,8 @@ Shader "FrameWork/URP/MeshMagicBallInstanced1"
         CBUFFER_END
         ENDHLSL
 
-        // 正向 Pass：火球唯一的 pass。
-        // 不做 ShadowCaster/DepthOnly：火球恒不投影、不写深度(顶点位置是 shader 算的, 深度 pass 也对不上)，加了只是白编译死变体。
+        // 正向 Pass：唯一的正向 pass。
+        // 不做 DepthOnly：透明自发光本就不写深度，深度预通道含它反而改变其他依赖深度的效果；ShadowCaster 见下方专 Pass。
         Pass
         {
             Name "Forward"
@@ -379,6 +386,129 @@ Shader "FrameWork/URP/MeshMagicBallInstanced1"
                 // 加法是"往屏幕上加光"，混进雾色等于远处火球越雾越亮、糊成灰块；拉向0 才是正确的"被雾吃掉"
                 col.rgb = MixFogColor(col.rgb, half3(0.0, 0.0, 0.0), IN.fogFactor);
                 return col;
+            }
+            ENDHLSL
+        }
+
+        // 阴影投射 Pass：只投核心火球的影子(设计要点见文件头【阴影投射】)。
+        // 顶点=正向核心的精简版：原点+呼吸缩放+逐实例缩放+速度朝向，billboard 用阴影渲染时的视图轴(=光源视角)展开；
+        // 火星塌缩零面积，世界化/重力跳过(核心 age 恒0本就归零)。
+        Pass
+        {
+            Name "ShadowCaster"
+            Tags { "LightMode" = "ShadowCaster" }
+
+            ZWrite On
+            ZTest LEqual
+            Cull [_Cull]
+            ColorMask 0
+
+            HLSLPROGRAM
+            #pragma vertex ShadowPassVertex
+            #pragma fragment ShadowPassFragment
+
+            #pragma multi_compile_instancing
+            #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
+
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
+
+            float3 _LightDirection;
+            float3 _LightPosition;
+
+            // 阴影只需核心的逐实例相位/缩放/速度矢量(_VelocityWS.xyz 算光视角速度屏幕角做朝向, w=朝向开关；核心不世界化故 xyz 不挪顶点)
+            UNITY_INSTANCING_BUFFER_START(SparkProps)
+                UNITY_DEFINE_INSTANCED_PROP(float, _SeedOffset)
+                UNITY_DEFINE_INSTANCED_PROP(float4, _VelocityWS)
+                UNITY_DEFINE_INSTANCED_PROP(float, _InstanceScale)
+            UNITY_INSTANCING_BUFFER_END(SparkProps)
+
+            struct Attributes
+            {
+                float4 positionOS : POSITION;    // 同正向：恒为原点占位
+                half4  color      : COLOR;       // a=quad 类型(0=火星 / 1=核心)
+                float2 uv         : TEXCOORD0;   // quad 角点 UV(0..1)
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            struct Varyings
+            {
+                float4 positionHCS : SV_POSITION;
+                float2 uv          : TEXCOORD0;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            // 复刻 URP ShadowCasterPass 的偏移 + 近裁剪夹紧逻辑(与 Shader_Mesh_Common_1 同款)
+            float4 GetShadowPositionHClip(float3 positionWS, float3 normalWS)
+            {
+            #if _CASTING_PUNCTUAL_LIGHT_SHADOW
+                float3 lightDirectionWS = normalize(_LightPosition - positionWS);
+            #else
+                float3 lightDirectionWS = _LightDirection;
+            #endif
+                float4 positionCS = TransformWorldToHClip(ApplyShadowBias(positionWS, normalWS, lightDirectionWS));
+            #if UNITY_REVERSED_Z
+                positionCS.z = min(positionCS.z, UNITY_NEAR_CLIP_VALUE);
+            #else
+                positionCS.z = max(positionCS.z, UNITY_NEAR_CLIP_VALUE);
+            #endif
+                return positionCS;
+            }
+
+            Varyings ShadowPassVertex (Attributes IN)
+            {
+                Varyings OUT = (Varyings)0;
+                UNITY_SETUP_INSTANCE_ID(IN);
+                UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
+
+                // 火星塌缩成零尺寸(4顶点重合=退化三角形不产片元)；核心按呼吸缩放投影
+                half isCore = IN.color.a;
+                float size = 0.0;
+                if (isCore > 0.5h)
+                {
+                    float seedOffset = UNITY_ACCESS_INSTANCED_PROP(SparkProps, _SeedOffset);
+                    float pulse = 1.0 + _CorePulseAmount * sin((_Time.y * _CorePulseSpeed + seedOffset) * 6.2831853);
+                    size = _CoreSize * pulse * _VertexScale * UNITY_ACCESS_INSTANCED_PROP(SparkProps, _InstanceScale);
+                }
+
+                float3 posWS = TransformObjectToWorld(float3(0.0, 0.0, 0.0));
+                // billboard 朝光源：阴影贴图渲染时视图矩阵=光源视角，其右/上轴展开角点即正对光的最大面
+                float3 camRightWS = UNITY_MATRIX_I_V._m00_m10_m20;
+                float3 camUpWS    = UNITY_MATRIX_I_V._m01_m11_m21;
+                float2 corner = (IN.uv - 0.5) * size;
+
+                // 速度朝向(与正向同款公式，屏幕角改用光源视图轴算)：贴图头(quad 局部 +X)对准光视角下的飞行方向，
+                // 使影子朝向与子弹实际朝向一致；速度在光视角屏幕上≈0(正对光飞/暂停帧)时保持默认朝右姿态。火星角点=0，旋转无害。
+                float4 velocityWS4 = UNITY_ACCESS_INSTANCED_PROP(SparkProps, _VelocityWS);
+                if (velocityWS4.w > 0.5)
+                {
+                    float2 velScreen = float2(dot(velocityWS4.xyz, camRightWS), dot(velocityWS4.xyz, camUpWS));
+                    if (dot(velScreen, velScreen) > 1e-4)
+                    {
+                        float orientAngle = atan2(velScreen.y, velScreen.x);
+                        float orientCos = cos(orientAngle);
+                        float orientSin = sin(orientAngle);
+                        corner = float2(corner.x * orientCos - corner.y * orientSin,
+                                        corner.x * orientSin + corner.y * orientCos);
+                    }
+                }
+                posWS += camRightWS * corner.x + camUpWS * corner.y;
+
+                // quad 法线=视图前轴反向(面向光)，供阴影偏移的 NdotL 项用
+                float3 normalWS = -UNITY_MATRIX_I_V._m02_m12_m22;
+                OUT.positionHCS = GetShadowPositionHClip(posWS, normalWS);
+                OUT.uv = IN.uv;
+                return OUT;
+            }
+
+            half4 ShadowPassFragment (Varyings IN) : SV_Target
+            {
+                UNITY_SETUP_INSTANCE_ID(IN);
+                // 恒启用形状裁剪：径向衰减(与正向核心同边缘柔和度，省 Fbm2D) × 可选火球贴图 alpha，裁 0.5；贴图是方向性时影子形状随贴图
+                half r = length(IN.uv - 0.5) * 2.0;
+                half alpha = 1.0h - smoothstep(1.0h - _CoreEdgeSoft, 1.0h, r);
+                alpha *= SAMPLE_TEXTURE2D(_CoreMap, sampler_CoreMap, TRANSFORM_TEX(IN.uv, _CoreMap)).a;
+                clip(alpha - 0.5h);
+                return 0;
             }
             ENDHLSL
         }

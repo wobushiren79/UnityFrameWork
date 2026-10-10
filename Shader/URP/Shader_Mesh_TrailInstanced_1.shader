@@ -24,6 +24,8 @@ Shader "FrameWork/URP/MeshTrailInstanced1"
     //   _LIT_ON         : 关(轨迹走无光，与旧实现表现一致)。属性保留，想要受光轨迹改 SetupTrailMaterial 一行即可；
     //                     但注意轨迹的 MPB 只灌 _TrailAlpha、不灌 _InstancedFlatGI，开 Lit 会缺一份环境光而偏暗。
     //   表面/混合/深度   : 强制透明 + SrcAlpha/OneMinusSrcAlpha + ZWrite Off + Transparent 队列。
+    //   深度偏移         : Forward pass 带 Offset 1,1(深度恒往远推一档)——轨迹最新档与弹体近共面时,弹体(AlphaTest 2450)先画已写深度、
+    //                     轨迹(3000)后画做 LEqual 的逐像素深度误差会帧间翻转(z-fighting 闪烁);推远后重叠处稳定被弹体遮挡,轨迹恒在弹体之下。
     // _OUTLINE_ON 不强制关——描边随弹体材质继承(弹体有描边则轨迹也有，符合"轨迹是弹体贴图的快照")。
     Properties
     {
@@ -126,6 +128,8 @@ Shader "FrameWork/URP/MeshTrailInstanced1"
             Blend [_SrcBlend] [_DstBlend]
             ZWrite [_ZWrite]
             Cull [_Cull]
+            // 深度恒往远推一档:消除轨迹与弹体近共面的 z-fighting 闪烁(弹体先画写深度,轨迹 LEqual 逐像素误差帧间翻转所致),重叠处稳定被弹体遮挡
+            Offset 1, 1
 
             HLSLPROGRAM
             #pragma vertex vert
