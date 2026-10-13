@@ -647,6 +647,15 @@
                     "initialStateCheck": false
                 },
                 {
+                    "name": "Space",
+                    "type": "Button",
+                    "id": "df4b5b26-36a5-403d-a670-30085da2eb50",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
                     "name": "F3",
                     "type": "Button",
                     "id": "69d32d55-795e-4b2c-98c0-0aa857d4e274",
@@ -1456,6 +1465,17 @@
                     "processors": "",
                     "groups": "Keyboard&Mouse",
                     "action": "F2",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "a8ddd864-820a-4dc2-9ef9-dc89e177bb6d",
+                    "path": "<Keyboard>/space",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "Space",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
