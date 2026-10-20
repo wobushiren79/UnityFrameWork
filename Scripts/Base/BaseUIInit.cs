@@ -124,8 +124,9 @@ public class BaseUIInit : BaseMonoBehaviour
             return;
         if (gameObject.activeInHierarchy && gameObject.activeSelf)
         {
-            //检测是否有弹窗 如果有的话就不执行快捷键操作
-            if (UIHandler.Instance.manager.dialogList.Count > 0)
+            //检测是否有弹窗: 有弹窗时仅最顶层弹窗(dialogList末位)自身响应输入, 其余UI不执行快捷键操作
+            var listDialog = UIHandler.Instance.manager.dialogList;
+            if (listDialog.Count > 0 && listDialog[listDialog.Count - 1] != this)
                 return;
             this.WaitExecuteEndOfFrame(1, () =>
             {
