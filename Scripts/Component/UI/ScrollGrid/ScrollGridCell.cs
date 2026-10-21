@@ -9,6 +9,17 @@ public class ScrollGridCell : MonoBehaviour
     private int _index;
     private int _objIndex;
 
+    #region 布局位置
+
+    /// <summary>
+    /// 不含末行对齐偏移的规范布局位置（锚点坐标）。
+    /// 滚动复用的搬移与行列反算一律以此为准：视觉上的 anchoredPosition3D 可能带末行对齐偏移，
+    /// 若直接拿它反算列号，ceil 会把偏移舍入成多一列，导致索引错位。
+    /// </summary>
+    public Vector3 layoutPosition;
+
+    #endregion
+
     public int X { get { return _x; } }
     public int Y { get { return _y; } }
     /// <summary>

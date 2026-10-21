@@ -27,6 +27,30 @@ public enum ScrollGridCrossAlign
     End = 2,
 }
 
+/// <summary>
+/// ScrollGrid末行元素对齐方式。
+/// 数据总数不是每行槽位数（纵向=列数col；横向=整体列数allCol）的整数倍时，最后一行会不满，
+/// 本枚举控制「末行元素」在整行槽位跨度内的对齐；只影响最后一行，其余行不受影响。
+/// 与 <see cref="ScrollGridCrossAlign"/> 正交：后者对齐整块网格，本枚举只对齐末行不满的部分。
+/// </summary>
+public enum ScrollGridLastRowAlign
+{
+    /// <summary>
+    /// 末行元素靠起始边（靠左），即保持原样。
+    /// </summary>
+    Start = 0,
+
+    /// <summary>
+    /// 末行元素在整行槽位内居中。
+    /// </summary>
+    Center = 1,
+
+    /// <summary>
+    /// 末行元素靠末端边（靠右）。
+    /// </summary>
+    End = 2,
+}
+
 public class ScrollGridBaseContent : BaseMonoBehaviour
 {
     #region 序列化字段（Inspector可配置）
@@ -83,6 +107,13 @@ public class ScrollGridBaseContent : BaseMonoBehaviour
     /// </summary>
     [Header("交叉轴对齐 CrossAlign")]
     public ScrollGridCrossAlign crossAlign = ScrollGridCrossAlign.Start;
+
+    /// <summary>
+    /// 末行元素对齐方式：数据最后一行不满时，末行元素在整行槽位内的对齐（Start=靠左/Center=居中/End=靠右）。
+    /// 保持默认 Start 时行为与旧版本完全一致。
+    /// </summary>
+    [Header("末行对齐 LastRowAlign")]
+    public ScrollGridLastRowAlign lastRowAlign = ScrollGridLastRowAlign.Start;
 
     #endregion
 
@@ -441,6 +472,76 @@ public class ScrollGridBaseContent : BaseMonoBehaviour
         }
     }
 
+    #region 末行对齐
+
+    /// <summary>
+    /// 每行占用的槽位数：纵向滚动=可见列数col；横向滚动=整体列数allCol。
+    /// </summary>
+    protected int lastRowSlots
+    {
+        get
+        {
+            return Mathf.Max(1, this.contentType == 0 ? this.allCol : this.col);
+        }
+    }
+
+    /// <summary>
+    /// 数据最后一行所在行号（无数据时返回-1）。
+    /// </summary>
+    protected int lastRowIndex
+    {
+        get
+        {
+            if (this.cellCount <= 0)
+            {
+                return -1;
+            }
+            return Mathf.CeilToInt((float)this.cellCount / this.lastRowSlots) - 1;
+        }
+    }
+
+    /// <summary>
+    /// 末行未占用的槽位数（末行已满或无数据时为0）。
+    /// </summary>
+    protected int lastRowEmptySlotCount
+    {
+        get
+        {
+            int rowIndex = this.lastRowIndex;
+            if (rowIndex < 0)
+            {
+                return 0;
+            }
+            int lastRowCount = this.cellCount - rowIndex * this.lastRowSlots;
+            return Mathf.Max(0, this.lastRowSlots - lastRowCount);
+        }
+    }
+
+    /// <summary>
+    /// 取指定行需要施加的末行对齐偏移（沿布局X轴，非末行返回0）。
+    /// 偏移 = 空槽宽度按对齐方式分配，Center 且空槽数为奇数时会落在半格上（非格子线位置）。
+    /// </summary>
+    protected float GetLastRowOffsetX(int y)
+    {
+        int emptySlotCount = this.lastRowEmptySlotCount;
+        if (y != this.lastRowIndex || emptySlotCount <= 0)
+        {
+            return 0f;
+        }
+        float leftover = emptySlotCount * this.cellWidth;
+        switch (this.lastRowAlign)
+        {
+            case ScrollGridLastRowAlign.Center:
+                return leftover / 2f;
+            case ScrollGridLastRowAlign.End:
+                return leftover;
+            default:
+                return 0f;
+        }
+    }
+
+    #endregion
+
     /// <summary>
     /// 创建/补齐视野约束范围内的cell（按行列克隆tempCell并定位）。
     /// </summary>
@@ -468,6 +569,7 @@ public class ScrollGridBaseContent : BaseMonoBehaviour
                     cellRect.localScale = new Vector3(rfTempCell.localScale.x, rfTempCell.localScale.y, rfTempCell.localScale.z);
                     cellRect.anchoredPosition3D = new Vector3(x, y, 0);
                     var cell = newcellObj.AddComponent<ScrollGridCell>();
+                    cell.layoutPosition = new Vector3(x, y, 0);
                     cell.SetObjIndex(index);
                     this.cellList.Add(cell);
                 }
@@ -509,32 +611,32 @@ public class ScrollGridBaseContent : BaseMonoBehaviour
             float pageWidth = (this.col + 1) * this.cellWidth;
             foreach (ScrollGridCell cell in this.cellList)
             {
-                RectTransform cellRect = (RectTransform)cell.transform;
                 float minLeft = -this.cellWidth / 2;
                 float maxRight = this.col * this.cellWidth + this.cellWidth / 2;
-                float dist = this.scrollRect.content.offsetMin.x + cellRect.anchoredPosition3D.x;
+                //搬移以规范布局位置为准：视觉位置可能带末行对齐偏移，不可用于判断复用窗口
+                float dist = this.scrollRect.content.offsetMin.x + cell.layoutPosition.x;
                 bool moved = false;
                 //滚出左侧：整页右移，直到回到复用窗口内(content右边界兜底防越界)
                 while (dist < minLeft)
                 {
-                    float newX = cellRect.anchoredPosition3D.x + pageWidth;
+                    float newX = cell.layoutPosition.x + pageWidth;
                     if (newX >= this.scrollRect.content.rect.width)
                     {
                         break;
                     }
-                    cellRect.anchoredPosition3D = new Vector3(newX, cellRect.anchoredPosition3D.y, 0);
+                    cell.layoutPosition = new Vector3(newX, cell.layoutPosition.y, 0);
                     dist = this.scrollRect.content.offsetMin.x + newX;
                     moved = true;
                 }
                 //滚出右侧：整页左移，直到回到复用窗口内(content左边界兜底防越界)
                 while (dist > maxRight)
                 {
-                    float newX = cellRect.anchoredPosition3D.x - pageWidth;
+                    float newX = cell.layoutPosition.x - pageWidth;
                     if (newX <= 0)
                     {
                         break;
                     }
-                    cellRect.anchoredPosition3D = new Vector3(newX, cellRect.anchoredPosition3D.y, 0);
+                    cell.layoutPosition = new Vector3(newX, cell.layoutPosition.y, 0);
                     dist = this.scrollRect.content.offsetMin.x + newX;
                     moved = true;
                 }
@@ -549,32 +651,32 @@ public class ScrollGridBaseContent : BaseMonoBehaviour
             float pageHeight = (this.row + 1) * this.cellHeight;
             foreach (ScrollGridCell cell in this.cellList)
             {
-                RectTransform cellRect = (RectTransform)cell.transform;
                 float maxTop = this.cellHeight / 2;
                 float minBottom = -((this.row + 1) * this.cellHeight) + this.cellHeight / 2;
-                float dist = this.scrollRect.content.offsetMax.y + cellRect.anchoredPosition3D.y;
+                //搬移以规范布局位置为准：视觉位置可能带末行对齐偏移，不可用于判断复用窗口
+                float dist = this.scrollRect.content.offsetMax.y + cell.layoutPosition.y;
                 bool moved = false;
                 //滚出上方：整页下移，直到回到复用窗口内(content下边界兜底防越界)
                 while (dist > maxTop)
                 {
-                    float newY = cellRect.anchoredPosition3D.y - pageHeight;
+                    float newY = cell.layoutPosition.y - pageHeight;
                     if (newY <= -this.scrollRect.content.rect.height)
                     {
                         break;
                     }
-                    cellRect.anchoredPosition3D = new Vector3(cellRect.anchoredPosition3D.x, newY, 0);
+                    cell.layoutPosition = new Vector3(cell.layoutPosition.x, newY, 0);
                     dist = this.scrollRect.content.offsetMax.y + newY;
                     moved = true;
                 }
                 //滚出下方：整页上移，直到回到复用窗口内(content上边界兜底防越界)
                 while (dist < minBottom)
                 {
-                    float newY = cellRect.anchoredPosition3D.y + pageHeight;
+                    float newY = cell.layoutPosition.y + pageHeight;
                     if (newY >= 0)
                     {
                         break;
                     }
-                    cellRect.anchoredPosition3D = new Vector3(cellRect.anchoredPosition3D.x, newY, 0);
+                    cell.layoutPosition = new Vector3(cell.layoutPosition.x, newY, 0);
                     dist = this.scrollRect.content.offsetMax.y + newY;
                     moved = true;
                 }
@@ -605,8 +707,11 @@ public class ScrollGridBaseContent : BaseMonoBehaviour
     protected void CellUpdate(ScrollGridCell cell)
     {
         RectTransform cellRect = cell.GetComponent<RectTransform>();
-        int x = Mathf.CeilToInt((cellRect.anchoredPosition3D.x - this.cellOffsetX - cellWidth / 2) / cellWidth);
-        int y = Mathf.Abs(Mathf.CeilToInt((cellRect.anchoredPosition3D.y - this.cellOffsetY + cellHeight / 2) / cellHeight));
+        //用规范布局位置(不含末行偏移)反算行列，再按所在行统一施加末行对齐偏移
+        Vector3 layoutPos = cell.layoutPosition;
+        int x = Mathf.CeilToInt((layoutPos.x - this.cellOffsetX - cellWidth / 2) / cellWidth);
+        int y = Mathf.Abs(Mathf.CeilToInt((layoutPos.y - this.cellOffsetY + cellHeight / 2) / cellHeight));
+        cellRect.anchoredPosition3D = new Vector3(layoutPos.x + this.GetLastRowOffsetX(y), layoutPos.y, layoutPos.z);
 
         if (contentType == 0)
         {
