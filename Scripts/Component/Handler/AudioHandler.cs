@@ -204,7 +204,34 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
 
     #endregion
 
-    #region  环境音效 
+    #region 音效限频播放
+    //各音效上一次允许播放的时间(unscaledTime)，key=音频id；供 PlaySoundForInterval 做「同一音效最小间隔」判定
+    protected Dictionary<long, float> dicTimeForIntervalSound = new Dictionary<long, float>();
+
+    /// <summary>
+    /// 限频播放音效：同一个音效(按 id 记)距上次播放不足 interval 秒时跳过本次。
+    /// 用于长按重复触发、连续刷屏类反馈音——高频触发直接连播会糊成一片噪音。
+    /// </summary>
+    /// <param name="soundId">音频 id</param>
+    /// <param name="interval">最小播放间隔（秒），&lt;=0 视为无效不播放</param>
+    /// <param name="audioSource">指定播放源，null 时使用默认音效源</param>
+    /// <returns>本次允许播放返回 true</returns>
+    public bool PlaySoundForInterval(long soundId, float interval, AudioSource audioSource = null)
+    {
+        if (soundId == 0 || interval <= 0f)
+            return false;
+        //用 unscaledTime：UI 侧限频不受 timeScale(战斗中暂停/加速)影响
+        float nowTime = Time.unscaledTime;
+        if (dicTimeForIntervalSound.TryGetValue(soundId, out float lastTime) && nowTime - lastTime < interval)
+            return false;
+        dicTimeForIntervalSound[soundId] = nowTime;
+        PlaySound(soundId, audioSource);
+        return true;
+    }
+
+    #endregion
+
+    #region  环境音效
     /// <summary>
     /// 播放环境音乐
     /// </summary>
