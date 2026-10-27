@@ -46,6 +46,14 @@ public class LongPressButton : MonoBehaviour, IPointerDownHandler, IPointerUpHan
     }
 
     /// <summary>
+    /// 禁用时复位:按钮/界面被关闭后按压状态若残留,重开后会继续重复触发
+    /// </summary>
+    private void OnDisable()
+    {
+        Reset();
+    }
+
+    /// <summary>
     /// 重置数据
     /// </summary>
     private void Reset()
