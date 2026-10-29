@@ -23,9 +23,33 @@ public partial class UIManager : BaseUIManager
     //所有Popup模型
     public Dictionary<string, GameObject> dicPopupModel = new Dictionary<string, GameObject>();
 
-    //是否能点击UI按钮
-    public bool CanClickUIButtons = true;
-    public bool CanInputActionStarted = true;
+    #region UI 输入锁（多来源引用计数）
+    /// <summary>UI 输入锁来源集合:任一来源在集合中即锁住按钮点击与输入动作(遮罩/屏幕锁/故事演出等各自持锁,互不覆盖)</summary>
+    private readonly HashSet<UIInputLockSourceEnum> setUIInputLocker = new HashSet<UIInputLockSourceEnum>();
+
+    /// <summary>是否能点击UI按钮(无任何来源持锁时放行;只读,加解锁统一走 SetUIInputLock)</summary>
+    public bool CanClickUIButtons => setUIInputLocker.Count == 0;
+
+    /// <summary>是否能派发UI输入动作(无任何来源持锁时放行;只读,加解锁统一走 SetUIInputLock)</summary>
+    public bool CanInputActionStarted => setUIInputLocker.Count == 0;
+
+    /// <summary>
+    /// 按来源加/解 UI 输入锁(幂等):按钮点击与输入动作共用同一来源集合,
+    /// 全局=集合为空才放行——各方只增删自己的来源,不会把别人的锁解开
+    /// (旧实现直接写 true/false,遮罩关闭会把故事演出等其它来源的锁一并放掉)
+    /// </summary>
+    /// <param name="source">锁来源(UIInputLockSourceEnum;None 忽略)</param>
+    /// <param name="isLock">true=加锁,false=解锁</param>
+    public void SetUIInputLock(UIInputLockSourceEnum source, bool isLock)
+    {
+        if (source == UIInputLockSourceEnum.None)
+            return;
+        if (isLock)
+            setUIInputLocker.Add(source);
+        else
+            setUIInputLocker.Remove(source);
+    }
+    #endregion
 
     /// <summary>
     /// 获取弹窗模型

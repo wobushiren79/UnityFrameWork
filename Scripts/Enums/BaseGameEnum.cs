@@ -24,6 +24,18 @@ public enum UICloseTypeEnum
 }
 
 /// <summary>
+/// UI 输入锁来源(UIManager.SetUIInputLock 的持锁方)
+/// <para>多来源引用计数:各来源只增删自己这把锁,集合为空才放行 UI 输入,互不覆盖</para>
+/// </summary>
+public enum UIInputLockSourceEnum
+{
+    None = 0,//非法值,SetUIInputLock 直接忽略
+    Mask = 1,//全屏过渡遮罩(UICommonMask 拉起期间)
+    ScreenLock = 2,//屏幕锁(UIHandler.ShowScreenLock/HideScreenLock)
+    Story = 3,//故事演出(StoryHandler 演出期间,游戏层)
+}
+
+/// <summary>
 /// 有效值
 /// </summary>
 public enum ValidEnum

@@ -74,11 +74,18 @@ public class BaseUIInit : BaseMonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 是否忽略全局按钮点击锁(UIHandler.Instance.manager.CanClickUIButtons)
+    /// <para>故事演出期间会关掉全局点击锁防玩家点 UI 逃逸,但演出对话框必须仍能点击推进,由 UIGameConversation 在 OpenUI 置 true</para>
+    /// </summary>
+    [NonSerialized] public bool isIgnoreClickLock;
+
     public void RegisterButton(Button button)
     {
         button.onClick.AddListener(() =>
         {
-            if (!UIHandler.Instance.manager.CanClickUIButtons)
+            //白名单 UI(如故事演出对话)不受全局点击锁限制
+            if (!isIgnoreClickLock && !UIHandler.Instance.manager.CanClickUIButtons)
                 return;
             OnClickForButton(button);
         });

@@ -78,8 +78,8 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
     /// </summary>
     public void ShowScreenLock()
     {
-        manager.CanClickUIButtons = false;
-        manager.CanInputActionStarted = false;
+        //按来源持锁:只增删自己的来源,不会误开/误关其它来源(遮罩/故事演出)的锁
+        manager.SetUIInputLock(UIInputLockSourceEnum.ScreenLock, true);
         OpenUI<UIScreenLock>(uiType: UITypeEnum.Overlay);
     }
 
@@ -88,8 +88,7 @@ public partial class UIHandler : BaseUIHandler<UIHandler, UIManager>
     /// </summary>
     public void HideScreenLock()
     {
-        manager.CanClickUIButtons = true;
-        manager.CanInputActionStarted = true;
+        manager.SetUIInputLock(UIInputLockSourceEnum.ScreenLock, false);
         CloseUI<UIScreenLock>();
     }
 
