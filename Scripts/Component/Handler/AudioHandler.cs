@@ -6,8 +6,6 @@ using System;
 
 public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
 {
-    //重复播放时间检测
-    protected float timeUpdateForRepeatPlay = 0;
     //重复音乐列表
     protected List<long> listMusicLoop = new List<long>();
     protected Coroutine coroutineForMusicLoop;
@@ -17,10 +15,6 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
         if (Camera.main != null)
         {
             manager.audioListener.transform.position = Camera.main.transform.position;
-        }
-        if (timeUpdateForRepeatPlay > 0)
-        {
-            timeUpdateForRepeatPlay -= Time.deltaTime;
         }
     }
 
@@ -120,13 +114,18 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     #endregion
 
     #region  音效播放
-    protected long lastPlaySoundId;//上一个播放的音效
+    //各音效上一次播放的时间(unscaledTime)，key=音频id；重复播放判定按 id 各自计算，供 PlaySound 默认去重与 PlaySoundForInterval 共用
+    protected Dictionary<long, float> dicTimeForLastPlaySound = new Dictionary<long, float>();
+    //同一音效的默认最小重复间隔（秒）：间隔内对该音效的重复请求直接丢弃
+    protected const float RepeatSoundInterval = 0.1f;
 
     /// <summary>
     /// 播放音效
     /// </summary>
-    /// <param name="sound">音效</param>
+    /// <param name="soundId">音效 id</param>
+    /// <param name="soundPosition">播放位置</param>
     /// <param name="volumeScale">音量大小</param>
+    /// <param name="audioSource">指定播放源，null 时按位置用 PlayClipAtPoint 播放</param>
     public void PlaySound(long soundId, Vector3 soundPosition, float volumeScale, AudioSource audioSource = null)
     {
         if (soundId == 0)
@@ -134,9 +133,37 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
         //如果音效为0 则不播放
         if (volumeScale == 0)
             return;
-        //如果上一个音效和这次播放的音效一样，并且间隔再 0.1s内，则不播放
-        if (lastPlaySoundId == soundId && timeUpdateForRepeatPlay > 0)
+        //同一音效最小间隔判定(按 id 各自计算)：间隔内的重复请求直接丢弃，A→B→A 的第三声同样会被丢弃
+        if (!TryPassRepeatSoundCheck(soundId, RepeatSoundInterval))
             return;
+        PlaySoundInternal(soundId, soundPosition, volumeScale, audioSource);
+    }
+
+    /// <summary>
+    /// 重复播放判定：同一音效距上次播放不足 interval 秒时返回 false（不更新时间）；否则记录本次时间并返回 true。
+    /// 用 unscaledTime 计时，不受 timeScale(战斗中暂停/加速)影响。
+    /// </summary>
+    /// <param name="soundId">音效 id</param>
+    /// <param name="interval">最小播放间隔（秒）</param>
+    /// <returns>本次允许播放返回 true</returns>
+    protected bool TryPassRepeatSoundCheck(long soundId, float interval)
+    {
+        float nowTime = Time.unscaledTime;
+        if (dicTimeForLastPlaySound.TryGetValue(soundId, out float lastTime) && nowTime - lastTime < interval)
+            return false;
+        dicTimeForLastPlaySound[soundId] = nowTime;
+        return true;
+    }
+
+    /// <summary>
+    /// 实际播放音效（调用方已完成重复播放判定）
+    /// </summary>
+    /// <param name="soundId">音效 id</param>
+    /// <param name="soundPosition">播放位置</param>
+    /// <param name="volumeScale">音量大小</param>
+    /// <param name="audioSource">指定播放源，null 时按位置用 PlayClipAtPoint 播放</param>
+    private void PlaySoundInternal(long soundId, Vector3 soundPosition, float volumeScale, AudioSource audioSource)
+    {
         AudioInfoBean audioInfo = AudioInfoCfg.GetItemData(soundId);
         if (audioInfo == null)
             return;
@@ -156,8 +183,6 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
                 Debug.LogError($"没有名字为:{audioInfo.name_res} 的音效资源");
             }
         });
-        timeUpdateForRepeatPlay = 0.1f;
-        lastPlaySoundId = soundId;
     }
 
     /// <summary>
@@ -205,12 +230,10 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     #endregion
 
     #region 音效限频播放
-    //各音效上一次允许播放的时间(unscaledTime)，key=音频id；供 PlaySoundForInterval 做「同一音效最小间隔」判定
-    protected Dictionary<long, float> dicTimeForIntervalSound = new Dictionary<long, float>();
-
     /// <summary>
     /// 限频播放音效：同一个音效(按 id 记)距上次播放不足 interval 秒时跳过本次。
     /// 用于长按重复触发、连续刷屏类反馈音——高频触发直接连播会糊成一片噪音。
+    /// 与 PlaySound 默认 0.1 秒去重共用同一份按 id 的时间记录（dicTimeForLastPlaySound）。
     /// </summary>
     /// <param name="soundId">音频 id</param>
     /// <param name="interval">最小播放间隔（秒），&lt;=0 视为无效不播放</param>
@@ -220,12 +243,14 @@ public partial class AudioHandler : BaseHandler<AudioHandler, AudioManager>
     {
         if (soundId == 0 || interval <= 0f)
             return false;
-        //用 unscaledTime：UI 侧限频不受 timeScale(战斗中暂停/加速)影响
-        float nowTime = Time.unscaledTime;
-        if (dicTimeForIntervalSound.TryGetValue(soundId, out float lastTime) && nowTime - lastTime < interval)
+        if (!TryPassRepeatSoundCheck(soundId, interval))
             return false;
-        dicTimeForIntervalSound[soundId] = nowTime;
-        PlaySound(soundId, audioSource);
+        //已通过限频判定，直接走实际播放：跳过 4 参 PlaySound 内部的默认 0.1 秒二次判定（刚记录的时间会把它拦掉）
+        if (audioSource == null)
+            audioSource = manager.audioSourceForSound;
+        GameConfigBean gameConfig = GameDataHandler.Instance.manager.GetGameConfig();
+        if (Camera.main != null)
+            PlaySoundInternal(soundId, Camera.main.transform.position, gameConfig.soundVolume, audioSource);
         return true;
     }
 
