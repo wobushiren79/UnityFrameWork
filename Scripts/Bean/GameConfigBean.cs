@@ -34,17 +34,10 @@ public partial class GameConfigBean
 
     //是否展示帧数
     public bool framesShow = false;
-    //是否显示按键提示(UIViewPressCommon 等快捷按键提示)，默认开启
-    public bool pressKeyTipShow = true;
     //阴影距离
     public float shadowDis = 50;
     //阴影质量等级
     public int shadowResolutionLevel = 3;
-
-    //弹道阴影（战斗中子弹弹道是否投/收阴影：开启=所有弹道投阴影，配置表 visual_data 可显式 cast:0 单独关闭某种弹道；接收阴影仍按 receive:1 配置），默认开启
-    public bool bulletShadow = true;
-    //物品阴影（战斗中魔晶掉落物是否投阴影），默认开启
-    public bool itemShadow = true;
 
     //抗锯齿模式
     public int antialiasingMode = 0;
