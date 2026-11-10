@@ -6,11 +6,12 @@ using UnityEngine;
 /// <summary>
 /// FlowerSeaInstanceRenderer 的自定义 Inspector：
 /// <para>① 全部参数中文化标注（字段名→中文 GUIContent 映射 + 悬停中文提示；枚举弹窗同步中文化）；</para>
-/// <para>② 贴图区按 textureMode 条件显示——图集模式只显示图集字段（关闭「使用图集全部格子」时展开行列 toggle 网格，点选要用的格子），单图模式只显示单图字段；</para>
+/// <para>② 分布方式决定是否显示抖动网格或团簇参数，贴图来源模式决定显示图集字段或单图字段。</para>
 /// <para>③ 底部提供「重新生成花海 / 重置全部消散 / 测试踩踏」手动按钮（组件本身已对 Inspector 改动做自动实时刷新，按钮作兜底）；</para>
 /// <para>④ 状态行实时显示花朵总数/已消散数。</para>
 /// </summary>
 [CustomEditor(typeof(FlowerSeaInstanceRenderer))]
+[CanEditMultipleObjects]
 public class InspectorFlowerSeaInstanceRenderer : Editor
 {
     #region 常量
@@ -28,14 +29,25 @@ public class InspectorFlowerSeaInstanceRenderer : Editor
         "terrainRenderer", "terrainHeightMap", "terrainHeightScale", "terrainHeightInvert",
     };
 
+    //团簇参数字段名（主循环跳过，仅团簇模式由 DrawClusterFields 绘制）
+    private static readonly string[] clusterFieldNames =
+    {
+        "clusterCount", "clusterRadiusRange", "clusterCenterBias", "clusterScatterRatio",
+    };
+
     /// <summary>字段名 → 中文标注（标签 + 悬停提示）；不在表内的字段按原名显示</summary>
     private static readonly Dictionary<string, GUIContent> fieldContents = new Dictionary<string, GUIContent>
     {
         //花海范围
         { "rangeSize", new GUIContent("范围大小(X/Z)", "花海范围(世界单位)，以组件位置为中心") },
-        { "flowerCount", new GUIContent("花朵总数", "严格生效；超过格子数时多轮复用格子，密度过大会重叠，请加大范围或调小缩放") },
+        { "flowerCount", new GUIContent("花朵总数", "适用于所有分布方式。花海范围相同时，数量越多，密度越高") },
         { "randomSeed", new GUIContent("随机种子", "同种子生成结果一致") },
-        { "gridCells", new GUIContent("抖动网格(列×行)", "按洗牌序分格布点，均匀防扎堆；花朵数超过格子数时多轮复用格子") },
+        { "distributionMode", new GUIContent("分布方式", "随机抖动网格保留原有分布。均匀错列减少扎堆和空隙。团簇分布使用独立团心形成大尺度疏密变化") },
+        { "gridCells", new GUIContent("抖动网格(列×行)", "随机抖动网格的列数和行数。花朵数超过格子数时多轮复用格子") },
+        { "clusterCount", new GUIContent("团簇数量", "独立团心数量。团内花朵随机分配到各团，每团平均花数见下方提示") },
+        { "clusterRadiusRange", new GUIContent("团簇半径随机区间", "各团簇的世界半径最小值/最大值；半径超过花海范围时自动缩小，花朵不会越界") },
+        { "clusterCenterBias", new GUIContent("团心聚集程度", "0=花朵在圆盘内面积均匀；越大越向团心集中，团簇边缘越稀疏") },
+        { "clusterScatterRatio", new GUIContent("散花比例", "不参与团簇、在全场均匀随机的花朵比例；0=全部成团，1=全部散花") },
         { "scaleRange", new GUIContent("缩放随机区间", "每朵花的世界缩放随机区间") },
         { "yOffset", new GUIContent("贴地Y偏移", "防 z-fight 的 Y 抬升（战斗道路面惯例 0.0001，花默认略高）") },
         { "generateOnEnable", new GUIContent("激活时自动生成", "关闭则需调用方手动 Generate()") },
@@ -88,6 +100,7 @@ public class InspectorFlowerSeaInstanceRenderer : Editor
     };
 
     //枚举中文化（按下标对齐声明顺序）
+    private static readonly string[] distributionModeNames = { "随机抖动网格", "均匀错列", "团簇分布" };
     private static readonly string[] textureModeNames = { "图集", "单图列表" };
     private static readonly string[] shapeNames = { "竖直立牌(广告牌)", "贴地平铺" };
     private static readonly string[] heightModeNames = { "固定高度", "射线采样", "高度图地形" };
@@ -96,11 +109,12 @@ public class InspectorFlowerSeaInstanceRenderer : Editor
 
     #region Inspector 绘制
 
-    /// <summary>主入口：中文化标注 + 跳过非当前模式的贴图字段，其余按声明顺序绘制（含 Header 分组）</summary>
+    /// <summary>按声明顺序绘制中文字段，并根据分布、贴图和高度模式显示各自的参数</summary>
     public override void OnInspectorGUI()
     {
         serializedObject.Update();
 
+        SerializedProperty distributionMode = serializedObject.FindProperty("distributionMode");
         SerializedProperty it = serializedObject.GetIterator();
         it.NextVisible(true);
         // m_Script 字段只读绘制
@@ -111,18 +125,33 @@ public class InspectorFlowerSeaInstanceRenderer : Editor
         {
             if (System.Array.IndexOf(textureFieldNames, it.name) >= 0) continue;
             if (System.Array.IndexOf(terrainFieldNames, it.name) >= 0) continue;
+            if (System.Array.IndexOf(clusterFieldNames, it.name) >= 0) continue;
+            if (it.name == "distributionMode")
+            {
+                DrawHeaderFor(it);
+                DrawEnumPopup(it, distributionModeNames);
+                if (!distributionMode.hasMultipleDifferentValues &&
+                    distributionMode.enumValueIndex == (int)FlowerSeaInstanceRenderer.DistributionMode.Clustered)
+                    DrawClusterFields();
+                continue;
+            }
+            if (it.name == "gridCells" && !distributionMode.hasMultipleDifferentValues &&
+                distributionMode.enumValueIndex != (int)FlowerSeaInstanceRenderer.DistributionMode.JitteredGrid)
+                continue;
             if (it.name == "textureMode")
             {
                 DrawHeaderFor(it);
                 DrawEnumPopup(it, textureModeNames);
-                DrawTextureModeFields();
+                if (!it.hasMultipleDifferentValues)
+                    DrawTextureModeFields();
                 continue;
             }
             if (it.name == "heightMode")
             {
                 DrawHeaderFor(it);
                 DrawEnumPopup(it, heightModeNames);
-                DrawHeightModeFields();
+                if (!it.hasMultipleDifferentValues)
+                    DrawHeightModeFields();
                 continue;
             }
             if (it.name == "shape")
@@ -146,12 +175,18 @@ public class InspectorFlowerSeaInstanceRenderer : Editor
         return fieldContents.TryGetValue(fieldName, out GUIContent content) ? content : null;
     }
 
-    /// <summary>枚举字段中文弹窗（PropertyField 不支持枚举项中文化，改用 Popup）</summary>
+    /// <summary>绘制中文枚举弹窗，保留预制体覆盖和多选混合值显示</summary>
     private void DrawEnumPopup(SerializedProperty property, string[] displayNames)
     {
-        int newIndex = EditorGUILayout.Popup(GetFieldContent(property.name), property.enumValueIndex, displayNames);
-        if (newIndex != property.enumValueIndex)
+        Rect position = EditorGUILayout.GetControlRect();
+        GUIContent label = EditorGUI.BeginProperty(position, GetFieldContent(property.name), property);
+        EditorGUI.BeginChangeCheck();
+        int selectedIndex = property.hasMultipleDifferentValues ? -1 : property.enumValueIndex;
+        Rect popupPosition = EditorGUI.PrefixLabel(position, label);
+        int newIndex = EditorGUI.Popup(popupPosition, selectedIndex, displayNames);
+        if (EditorGUI.EndChangeCheck() && newIndex >= 0)
             property.enumValueIndex = newIndex;
+        EditorGUI.EndProperty();
     }
 
     /// <summary>手动补画字段的 [Header] 分组标题（Popup 替代 PropertyField 后 Header 装饰不会自动绘制）</summary>
@@ -164,6 +199,27 @@ public class InspectorFlowerSeaInstanceRenderer : Editor
             EditorGUILayout.Space();
             EditorGUILayout.LabelField(headers[0].header, EditorStyles.boldLabel);
         }
+    }
+
+    /// <summary>团簇模式专用参数：数量、世界半径、团心聚集程度和散花比例，并显示花朵分配预览</summary>
+    private void DrawClusterFields()
+    {
+        EditorGUI.indentLevel++;
+        SerializedProperty countProp = serializedObject.FindProperty("clusterCount");
+        SerializedProperty scatterProp = serializedObject.FindProperty("clusterScatterRatio");
+        EditorGUILayout.PropertyField(countProp, GetFieldContent(countProp.name));
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("clusterRadiusRange"), GetFieldContent("clusterRadiusRange"));
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("clusterCenterBias"), GetFieldContent("clusterCenterBias"));
+        EditorGUILayout.PropertyField(scatterProp, GetFieldContent(scatterProp.name));
+        if (!serializedObject.isEditingMultipleObjects)
+        {
+            int totalFlowerCount = serializedObject.FindProperty("flowerCount").intValue;
+            int actualClusterCount = Mathf.Clamp(countProp.intValue, 1, Mathf.Max(1, totalFlowerCount));
+            int clusteredFlowerCount = Mathf.RoundToInt(totalFlowerCount * (1f - Mathf.Clamp01(scatterProp.floatValue)));
+            float average = clusteredFlowerCount / (float)actualClusterCount;
+            EditorGUILayout.HelpBox($"团内 {clusteredFlowerCount} 朵，每团平均约 {average:0.#} 朵（各团随机增减）；散花 {totalFlowerCount - clusteredFlowerCount} 朵。", MessageType.None);
+        }
+        EditorGUI.indentLevel--;
     }
 
     /// <summary>贴图模式条件字段：Atlas 画图集字段（含行列子集网格），SingleList 画单图三件套（同样中文化）</summary>
@@ -179,7 +235,7 @@ public class InspectorFlowerSeaInstanceRenderer : Editor
             EditorGUILayout.PropertyField(gridProp, GetFieldContent("atlasGrid"));
             SerializedProperty useAllProp = serializedObject.FindProperty("atlasUseAllCells");
             EditorGUILayout.PropertyField(useAllProp, GetFieldContent("atlasUseAllCells"));
-            if (!useAllProp.boolValue)
+            if (!useAllProp.boolValue || useAllProp.hasMultipleDifferentValues)
                 DrawAtlasCellGrid(serializedObject.FindProperty("atlasSelectedCells"), Mathf.Max(1, gridProp.vector2IntValue.x), Mathf.Max(1, gridProp.vector2IntValue.y));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("manualRects"), GetFieldContent("manualRects"), true);
         }
@@ -192,11 +248,10 @@ public class InspectorFlowerSeaInstanceRenderer : Editor
         EditorGUI.indentLevel--;
     }
 
-    /// <summary>图集行列选择网格：按均分列×行画 toggle 阵列（顶行=贴图最上行，与看图习惯一致），点击即选中/取消该格子</summary>
+    /// <summary>按图集行列画选择网格，多选或网格过大时显示序列化列表</summary>
     private void DrawAtlasCellGrid(SerializedProperty cellsProp, int cols, int rows)
     {
-        // 格子总数过大时 toggle 阵列会卡 Inspector，退化为直接画列表
-        if (cols * rows > 256)
+        if (serializedObject.isEditingMultipleObjects || cols * rows > 256)
         {
             EditorGUILayout.PropertyField(cellsProp, GetFieldContent("atlasSelectedCells"), true);
             return;

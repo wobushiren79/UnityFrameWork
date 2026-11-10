@@ -8,7 +8,7 @@ using UnityEditor;
 /// <summary>
 /// 花海 GPU Instancing(Indirect) 渲染器：框架层通用组件，挂场景即用（不走 Handler/Manager 体系，公开 API 由调用方触发）。
 /// <para>【核心】整片花海 = 纯数据（每朵花一条 32B 实例数据），全场一次 Graphics.DrawMeshInstancedIndirect 画完（1 个 draw call，零 GameObject/Renderer 开销），突破 DrawMeshInstanced 1023/批硬限。</para>
-/// <para>【数据流】Generate() 一次性生成静态实例 buffer（位置/缩放/图集变体/风摆相位/yaw）+ 图集 Rect buffer；
+/// <para>【数据流】Generate() 按所选分布模式采样花朵位置，一次性生成静态实例 buffer（位置/缩放/图集变体/风摆相位/yaw）+ 图集 Rect buffer；
 /// 消散走独立的每实例 float 动态 buffer（dissolveStartTime，哨兵 -1），仅踩踏发生帧整份重传（10k 实例=40KB，微秒级），
 /// shader 内 progress=saturate((_Time.y-start)/duration) 驱动噪声抖动裁剪（像素 dither 消散）。</para>
 /// <para>【零物理】踩踏检测不走 Collider：TrampleAt(worldPos, radius) 走 XZ 空间哈希网格查花；消散花在 shader 里 clip 消失，不删实例、不改 instanceCount，零回读零 CPU 压缩。</para>
@@ -32,6 +32,17 @@ using UnityEditor;
 public class FlowerSeaInstanceRenderer : BaseMonoBehaviour
 {
     #region 枚举
+
+    /// <summary>花朵在 XZ 平面上的分布方式</summary>
+    public enum DistributionMode
+    {
+        /// <summary>在洗牌后的网格中随机布点，格子可多轮复用</summary>
+        JitteredGrid = 0,
+        /// <summary>按范围和数量自动生成错列位置，每个位置布一朵并做少量随机偏移</summary>
+        EvenSpread = 1,
+        /// <summary>在独立随机团心周围生成大小可调的花团，并按比例补充全场散花</summary>
+        Clustered = 2,
+    }
 
     /// <summary>花贴图来源模式</summary>
     public enum FlowerSeaTextureMode
@@ -69,12 +80,23 @@ public class FlowerSeaInstanceRenderer : BaseMonoBehaviour
     [Header("花海范围")]
     /// <summary>花海范围(世界单位 X/Z)，以组件位置为中心</summary>
     public Vector2 rangeSize = new Vector2(20f, 20f);
-    /// <summary>花朵总数（严格生效；超过格子数时多轮复用格子，密度过大会重叠，请加大范围或调小缩放）</summary>
+    /// <summary>各分布模式实际生成的花朵总数</summary>
     [Range(1, 50000)] public int flowerCount = 3000;
     /// <summary>随机种子（同种子生成结果一致）</summary>
     public int randomSeed = 12345;
-    /// <summary>抖动网格行列：按洗牌序分格布点（均匀防扎堆；花朵数超过格子数时多轮复用格子）</summary>
+    /// <summary>决定花朵的 XZ 平面布点方式，默认沿用原有随机网格</summary>
+    public DistributionMode distributionMode = DistributionMode.JitteredGrid;
+    /// <summary>随机网格的列数和行数，花朵数超过格子数时多轮复用</summary>
     public Vector2Int gridCells = new Vector2Int(60, 60);
+    [Header("团簇分布（仅团簇模式生效）")]
+    /// <summary>团心数量；团内花朵随机分配到各团，每团平均数量由团内总数除以团簇数量决定</summary>
+    [Min(1)] public int clusterCount = 24;
+    /// <summary>各团簇的世界半径随机区间；超过花海范围时自动缩小，保证采样点不越界</summary>
+    public Vector2 clusterRadiusRange = new Vector2(1.5f, 3f);
+    /// <summary>花朵向团心聚集的程度：0=圆盘内均匀，1=明显向团心集中</summary>
+    [Range(0f, 1f)] public float clusterCenterBias = 0.45f;
+    /// <summary>不参与团簇、在全场均匀随机的散花比例：0=全部成团，1=全部散花</summary>
+    [Range(0f, 1f)] public float clusterScatterRatio = 0.15f;
     /// <summary>每朵花的世界缩放随机区间</summary>
     public Vector2 scaleRange = new Vector2(0.8f, 1.3f);
     /// <summary>贴地防 z-fight 的 Y 偏移（战斗道路面惯例 0.0001，花默认略高）</summary>
@@ -357,6 +379,12 @@ public class FlowerSeaInstanceRenderer : BaseMonoBehaviour
     {
         gridCells.x = Mathf.Max(1, gridCells.x);
         gridCells.y = Mathf.Max(1, gridCells.y);
+        clusterCount = Mathf.Max(1, clusterCount);
+        clusterRadiusRange.x = Mathf.Max(0.01f, clusterRadiusRange.x);
+        clusterRadiusRange.y = Mathf.Max(0.01f, clusterRadiusRange.y);
+        if (clusterRadiusRange.x > clusterRadiusRange.y) clusterRadiusRange = new Vector2(clusterRadiusRange.y, clusterRadiusRange.x);
+        clusterCenterBias = Mathf.Clamp01(clusterCenterBias);
+        clusterScatterRatio = Mathf.Clamp01(clusterScatterRatio);
         atlasGrid.x = Mathf.Max(1, atlasGrid.x);
         atlasGrid.y = Mathf.Max(1, atlasGrid.y);
         if (atlasSelectedCells != null)
@@ -706,14 +734,36 @@ public class FlowerSeaInstanceRenderer : BaseMonoBehaviour
         return rects.ToArray();
     }
 
-    /// <summary>采样布点：抖动网格（格子下标洗牌后按序取格，花朵数超过格子数时多轮复用、每朵仍独立随机抖动）+ 地形射线高度 + 随机缩放/相位/yaw/变体</summary>
+    /// <summary>按分布模式采样花朵位置，生成实例数据、初始消散状态及视锥剔除包围盒</summary>
     private void SamplePositions()
     {
         System.Random rng = new System.Random(randomSeed);
-        int cellTotal = gridCells.x * gridCells.y;
-        currentCount = flowerCount; // 数量严格等于 flowerCount（格子不够时复用格子，不再截断）
+        Vector3 center = transform.position;
+        Vector2 origin = new Vector2(center.x, center.z) - rangeSize * 0.5f;
+        currentCount = flowerCount;
+        instanceDataArray = new InstanceData[currentCount];
+        dissolveStartTimes = new float[currentCount];
 
-        // 格子下标洗牌：花朵按洗牌序取格，保证优先均匀铺满全场不扎堆；超过格子数则取模多轮复用
+        switch (distributionMode)
+        {
+            case DistributionMode.EvenSpread:
+                SampleStaggeredRows(origin, rng);
+                break;
+            case DistributionMode.Clustered:
+                SampleClusters(origin, rangeSize, rng);
+                break;
+            default:
+                SampleJitteredGrid(origin, rng);
+                break;
+        }
+
+        UpdateSampledBounds();
+    }
+
+    /// <summary>沿用原有的格子洗牌、随机数顺序和重复布点方式</summary>
+    private void SampleJitteredGrid(Vector2 origin, System.Random rng)
+    {
+        int cellTotal = gridCells.x * gridCells.y;
         List<int> cellIndices = new List<int>(cellTotal);
         for (int i = 0; i < cellTotal; i++) cellIndices.Add(i);
         for (int i = cellTotal - 1; i > 0; i--)
@@ -722,42 +772,140 @@ public class FlowerSeaInstanceRenderer : BaseMonoBehaviour
             (cellIndices[i], cellIndices[j]) = (cellIndices[j], cellIndices[i]);
         }
 
-        Vector3 center = transform.position;
-        float originX = center.x - rangeSize.x * 0.5f;
-        float originZ = center.z - rangeSize.y * 0.5f;
         float cellW = rangeSize.x / gridCells.x;
         float cellH = rangeSize.y / gridCells.y;
-        int variantCount = variantRects.Length;
-
-        instanceDataArray = new InstanceData[currentCount];
-        dissolveStartTimes = new float[currentCount];
-        Vector3 min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
-        Vector3 max = new Vector3(float.MinValue, float.MinValue, float.MinValue);
 
         for (int i = 0; i < currentCount; i++)
         {
             int cell = cellIndices[i % cellTotal]; // 超过格子数时多轮复用格子（每朵仍独立随机抖动，均匀度优于纯随机）
             int cx = cell % gridCells.x;
             int cz = cell / gridCells.x;
-            float x = originX + (cx + (float)rng.NextDouble()) * cellW;
-            float z = originZ + (cz + (float)rng.NextDouble()) * cellH;
-            float y = SampleGroundY(x, z);
+            float x = origin.x + (cx + (float)rng.NextDouble()) * cellW;
+            float z = origin.y + (cz + (float)rng.NextDouble()) * cellH;
+            WriteSampledFlower(i, x, z, rng);
+        }
+    }
 
-            float scale = scaleRange.x + (scaleRange.y - scaleRange.x) * (float)rng.NextDouble();
-            float phase = (float)(rng.NextDouble() * Mathf.PI * 2.0);
-            float yaw = randomYaw ? (float)(rng.NextDouble() * Mathf.PI * 2.0) : 0f;
-            float variant = rng.Next(variantCount);
+    /// <summary>按范围和花数生成错列行，每个位置布一朵</summary>
+    private void SampleStaggeredRows(Vector2 origin, System.Random rng)
+    {
+        const double StaggeredRowSpacing = 0.8660254; // 错列行的目标纵向间距与横向间距之比
+        double aspect = (double)Mathf.Abs(rangeSize.y) / Mathf.Max(Mathf.Abs(rangeSize.x), Mathf.Epsilon);
+        double idealRows = System.Math.Sqrt(currentCount * aspect / StaggeredRowSpacing);
+        int rows = (int)System.Math.Clamp(System.Math.Round(idealRows), 1d, currentCount);
+        int columnsPerRow = currentCount / rows;
+        int extraColumns = currentCount % rows;
+        float cellH = rangeSize.y / rows;
+        int flowerIndex = 0;
+        int columnRemainder = 0;
 
-            instanceDataArray[i] = new InstanceData
+        for (int row = 0; row < rows; row++)
+        {
+            columnRemainder += extraColumns;
+            int columns = columnsPerRow;
+            if (columnRemainder >= rows)
             {
-                posScale = new Vector4(x, y, z, scale),
-                params0 = new Vector4(variant, phase, yaw, 0f),
-            };
-            dissolveStartTimes[i] = -1f;
-            min = Vector3.Min(min, new Vector3(x, y, z));
-            max = Vector3.Max(max, new Vector3(x, y, z));
+                columns++;
+                columnRemainder -= rows;
+            }
+
+            float cellW = rangeSize.x / columns;
+            float rowOffset = rows == 1 ? 0f : (row % 2 == 0 ? -0.23f : 0.23f);
+            for (int column = 0; column < columns; column++)
+            {
+                // 随机偏移限制在格子中心附近，降低相邻位置的重叠并保留空隙的变化。
+                float offsetX = ((float)rng.NextDouble() - 0.5f) * 0.36f;
+                float offsetZ = ((float)rng.NextDouble() - 0.5f) * 0.36f;
+                float x = origin.x + (column + 0.5f + rowOffset + offsetX) * cellW;
+                float z = origin.y + (row + 0.5f + offsetZ) * cellH;
+                WriteSampledFlower(flowerIndex++, x, z, rng);
+            }
+        }
+    }
+
+    /// <summary>在独立随机团心周围生成可调大小的花团，再按散花比例补充全场随机花朵</summary>
+    private void SampleClusters(Vector2 origin, Vector2 size, System.Random rng)
+    {
+        Vector2 min = Vector2.Min(origin, origin + size);
+        Vector2 max = Vector2.Max(origin, origin + size);
+        Vector2 validSize = max - min;
+        int actualClusterCount = Mathf.Clamp(clusterCount, 1, currentCount);
+        Vector2[] centers = new Vector2[actualClusterCount];
+        float[] radii = new float[actualClusterCount];
+        float minRadius = Mathf.Max(0f, Mathf.Min(clusterRadiusRange.x, clusterRadiusRange.y));
+        float maxRadius = Mathf.Max(minRadius, Mathf.Max(clusterRadiusRange.x, clusterRadiusRange.y));
+
+        // 团心按本团半径留边距，后续圆盘采样无需夹取坐标，避免边界堆成直线。
+        for (int i = 0; i < actualClusterCount; i++)
+        {
+            float radius = Mathf.Min(minRadius + (maxRadius - minRadius) * (float)rng.NextDouble(), validSize.x * 0.5f, validSize.y * 0.5f);
+            radii[i] = radius;
+            centers[i] = new Vector2(
+                min.x + radius + (validSize.x - radius * 2f) * (float)rng.NextDouble(),
+                min.y + radius + (validSize.y - radius * 2f) * (float)rng.NextDouble());
         }
 
+        int clusteredFlowerCount = Mathf.RoundToInt(currentCount * (1f - Mathf.Clamp01(clusterScatterRatio)));
+        int[] flowerCounts = new int[actualClusterCount];
+        int assignedCount = 0;
+        // 花数足够时每个团先分一朵，余量随机分配，在精确总数下保留各团大小差异。
+        for (; assignedCount < clusteredFlowerCount && assignedCount < actualClusterCount; assignedCount++)
+            flowerCounts[assignedCount] = 1;
+        for (; assignedCount < clusteredFlowerCount; assignedCount++)
+            flowerCounts[rng.Next(actualClusterCount)]++;
+
+        float radialExponent = Mathf.Lerp(0.5f, 1.75f, Mathf.Clamp01(clusterCenterBias));
+        int flowerIndex = 0;
+        for (int clusterIndex = 0; clusterIndex < actualClusterCount; clusterIndex++)
+            for (int i = 0; i < flowerCounts[clusterIndex]; i++)
+            {
+                Vector2 position = SampleClusterPosition(centers[clusterIndex], radii[clusterIndex], radialExponent, rng);
+                WriteSampledFlower(flowerIndex++, position.x, position.y, rng);
+            }
+
+        for (; flowerIndex < currentCount; flowerIndex++)
+        {
+            float x = min.x + validSize.x * (float)rng.NextDouble();
+            float z = min.y + validSize.y * (float)rng.NextDouble();
+            WriteSampledFlower(flowerIndex, x, z, rng);
+        }
+    }
+
+    /// <summary>在团簇圆盘内采样；径向指数 0.5 为面积均匀，指数越大越向团心集中</summary>
+    private static Vector2 SampleClusterPosition(Vector2 center, float radius, float radialExponent, System.Random rng)
+    {
+        float angle = (float)rng.NextDouble() * 2f * Mathf.PI;
+        float distance = Mathf.Pow((float)rng.NextDouble(), radialExponent) * radius;
+        return center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
+    }
+
+    /// <summary>为采样位置读取地形高度，写入尺寸、图集变体、风摆参数和初始消散状态</summary>
+    private void WriteSampledFlower(int index, float x, float z, System.Random rng)
+    {
+        float y = SampleGroundY(x, z);
+        float scale = scaleRange.x + (scaleRange.y - scaleRange.x) * (float)rng.NextDouble();
+        float phase = (float)(rng.NextDouble() * Mathf.PI * 2.0);
+        float yaw = randomYaw ? (float)(rng.NextDouble() * Mathf.PI * 2.0) : 0f;
+        float variant = rng.Next(variantRects.Length);
+        instanceDataArray[index] = new InstanceData
+        {
+            posScale = new Vector4(x, y, z, scale),
+            params0 = new Vector4(variant, phase, yaw, 0f),
+        };
+        dissolveStartTimes[index] = -1f;
+    }
+
+    /// <summary>根据实际采样位置更新实例批次的视锥剔除包围盒</summary>
+    private void UpdateSampledBounds()
+    {
+        Vector3 min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+        Vector3 max = new Vector3(float.MinValue, float.MinValue, float.MinValue);
+        for (int i = 0; i < currentCount; i++)
+        {
+            Vector3 position = instanceDataArray[i].posScale;
+            min = Vector3.Min(min, position);
+            max = Vector3.Max(max, position);
+        }
         // 视锥剔除包围盒：实例数据 min/max 外扩（最大缩放 + 风摆/高度余量）
         float margin = scaleRange.y + 1.5f;
         cachedBounds = new Bounds((min + max) * 0.5f, (max - min) + Vector3.one * margin * 2f);
@@ -936,7 +1084,7 @@ public class FlowerSeaInstanceRenderer : BaseMonoBehaviour
     #region 内部实现：参数实时刷新
 
     /// <summary>
-    /// 结构参数签名：范围/数量/种子/网格/缩放/偏移/贴图来源与列表/地形/朝向等影响实例数据烘焙的参数；
+    /// 结构参数签名：范围/数量/种子/分布模式/网格/团簇参数/缩放/偏移/贴图来源与列表/地形/朝向等影响实例数据烘焙的参数；
     /// 消散/风摆/形态 keyword 等表现参数不入签名（只刷材质即可）
     /// </summary>
     private string BuildStructuralSignature()
@@ -951,7 +1099,9 @@ public class FlowerSeaInstanceRenderer : BaseMonoBehaviour
         if (textureList != null)
             for (int i = 0; i < textureList.Count; i++) sb.Append(textureList[i] != null ? textureList[i].GetInstanceID() : 0).Append(';');
         sb.Append(packAtlasSize).Append(packPadding);
-        sb.Append(rangeSize).Append(flowerCount).Append(randomSeed).Append(gridCells).Append(scaleRange).Append(yOffset);
+        sb.Append(rangeSize).Append(flowerCount).Append(randomSeed).Append(distributionMode).Append(gridCells);
+        sb.Append(clusterCount).Append(clusterRadiusRange).Append(clusterCenterBias).Append(clusterScatterRatio);
+        sb.Append(scaleRange).Append(yOffset);
         sb.Append(heightMode).Append(terrainLayer.value).Append(rayStartHeight).Append(rayMaxDistance)
           .Append(terrainRenderer != null ? terrainRenderer.GetInstanceID() : 0)
           .Append(terrainHeightMap != null ? terrainHeightMap.GetInstanceID() : 0)
