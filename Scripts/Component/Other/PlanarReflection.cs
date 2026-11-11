@@ -3,10 +3,8 @@ using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
 /// <summary>
-/// 平面反射（Planar Reflection）组件：在指定水平面下方维护一台镜像相机，
-/// 把场景（含天空盒/树木/角色）渲染到 RenderTexture 并写入全局 Shader 纹理 _PuddlePlanarTex，
-/// 配合 FrameWork/URP/Puddle1 水洼 shader（FrameWork/Shader/URP/Shader_Puddle_1.shader）的屏幕空间采样实现"水面倒映场景物体与角色"。
-/// 挂在雨天 Details 的水洼组节点上，随 details 显隐释放或创建相机与 RT；仅当前全局 RT 的持有者关闭时清除全局反射。
+/// 在水平面下方维护一台镜像相机，将场景倒影渲染到纹理。
+/// 水面通过指定的 Renderer 接收纹理，雨天水洼组沿用全局反射纹理。
 /// </summary>
 public class PlanarReflection : MonoBehaviour
 {
@@ -26,6 +24,16 @@ public class PlanarReflection : MonoBehaviour
     public float farClipOverride = 0f;
     [Tooltip("水洼不在主相机视野内时跳过渲染（视野外零开销）")]
     public bool skipWhenNotVisible = true;
+
+    [Tooltip("接收倒影的水面渲染器，留空时供雨天水洼组使用")]
+    public Renderer waterRenderer;
+
+    [Tooltip("水面镜像相机使用的 URP 渲染器，需要列在当前管线的 Renderer List 中")]
+    public ScriptableRendererData waterReflectionRenderer;
+
+    [Min(0)]
+    [Tooltip("镜头静止时水面反射的每秒更新上限（0=不限频），镜头变化时立即刷新")]
+    public int waterIdleRefreshRate;
     #endregion
 
     #region 运行时状态
@@ -41,18 +49,30 @@ public class PlanarReflection : MonoBehaviour
     protected Renderer[] cacheChildRenderers;
     /// <summary>主相机视锥平面缓存（视野检测用，避免每帧分配）</summary>
     protected readonly Plane[] cacheFrustumPlanes = new Plane[6];
+    private static readonly int WaterReflectionTextureId = Shader.PropertyToID("_WaterPlanarReflectionTex");
+    private static readonly int WaterReflectionActiveId = Shader.PropertyToID("_WaterPlanarReflectionActive");
+    private MaterialPropertyBlock waterProperties;
+    private bool waterReflectionReady;
+    private Camera lastWaterSourceCamera;
+    private Matrix4x4 lastWaterView;
+    private Matrix4x4 lastWaterProjection;
+    private float lastWaterPlaneY;
+    private double lastWaterRenderTime;
     #endregion
 
     #region 生命周期
     /// <summary>
-    /// 启用时创建镜像相机与反射纹理，并开启全局 Shader 采样开关
+    /// 启用时创建镜像相机与反射纹理，并为水洼组发布全局纹理
     /// </summary>
     protected void OnEnable()
     {
         CreateReflectionCamera();
         cacheChildRenderers = GetComponentsInChildren<Renderer>(true);
-        Shader.SetGlobalFloat("_PuddlePlanarActive", 1f);
-        Shader.SetGlobalTexture("_PuddlePlanarTex", reflectionRT);
+        if (waterRenderer == null)
+        {
+            Shader.SetGlobalFloat("_PuddlePlanarActive", 1f);
+            Shader.SetGlobalTexture("_PuddlePlanarTex", reflectionRT);
+        }
     }
 
     /// <summary>
@@ -60,23 +80,28 @@ public class PlanarReflection : MonoBehaviour
     /// </summary>
     protected void OnDisable()
     {
+        if (waterReflectionReady && waterRenderer != null)
+            SetWaterReflection(Texture2D.blackTexture, false);
+
         // 雨天分支切换时，新水洼可能已在旧水洼禁用前绑定自己的反射纹理。
-        if (reflectionRT != null && Shader.GetGlobalTexture("_PuddlePlanarTex") == reflectionRT)
+        if (waterRenderer == null && reflectionRT != null && Shader.GetGlobalTexture("_PuddlePlanarTex") == reflectionRT)
         {
             Shader.SetGlobalFloat("_PuddlePlanarActive", 0f);
             Shader.SetGlobalTexture("_PuddlePlanarTex", (Texture)null);
         }
         cacheMainCamera = null;
         cacheChildRenderers = null;
+        waterReflectionReady = false;
+        lastWaterSourceCamera = null;
         if (reflectionCamera != null)
         {
-            Destroy(reflectionCamera.gameObject);
+            CoreUtils.Destroy(reflectionCamera.gameObject);
             reflectionCamera = null;
         }
         if (reflectionRT != null)
         {
             reflectionRT.Release();
-            Destroy(reflectionRT);
+            CoreUtils.Destroy(reflectionRT);
             reflectionRT = null;
         }
     }
@@ -94,7 +119,24 @@ public class PlanarReflection : MonoBehaviour
             return;
         if (skipWhenNotVisible && !IsAnyPuddleVisible(cacheMainCamera))
             return;
+        if (waterRenderer != null && CanReuseWaterReflection(cacheMainCamera))
+            return;
         RenderReflection(cacheMainCamera);
+    }
+
+    /// <summary>
+    /// 镜头与反射平面静止且未到更新时间时复用水面纹理
+    /// </summary>
+    private bool CanReuseWaterReflection(Camera sourceCamera)
+    {
+        return waterIdleRefreshRate > 0
+            && waterReflectionReady
+            && reflectionRT.IsCreated()
+            && lastWaterSourceCamera == sourceCamera
+            && Time.unscaledTimeAsDouble - lastWaterRenderTime < 1d / waterIdleRefreshRate
+            && lastWaterPlaneY == transform.position.y + waterLevelOffset
+            && lastWaterView == sourceCamera.worldToCameraMatrix
+            && lastWaterProjection == sourceCamera.projectionMatrix;
     }
 
     /// <summary>
@@ -132,12 +174,40 @@ public class PlanarReflection : MonoBehaviour
         reflectionCamera.enabled = false;//手动 Render，不参与常规渲染
         reflectionCamera.clearFlags = CameraClearFlags.Skybox;
         reflectionCamera.cullingMask = reflectMask;
-        //关阴影与后处理（URP 附加数据），反射渲染开销减半
-        var cameraData = objCamera.GetComponent<UniversalAdditionalCameraData>();
+        // 水面主动创建 URP 附加数据以关闭阴影和后处理。
+        var cameraData = waterRenderer != null
+            ? reflectionCamera.GetUniversalAdditionalCameraData()
+            : objCamera.GetComponent<UniversalAdditionalCameraData>();
         if (cameraData != null)
         {
             cameraData.renderShadows = false;
             cameraData.renderPostProcessing = false;
+        }
+        if (waterRenderer != null)
+            ConfigureWaterReflectionCamera(cameraData);
+    }
+
+    /// <summary>
+    /// 为水面镜像相机关闭屏幕纹理复制，并选用当前管线注册的轻量渲染器
+    /// </summary>
+    private void ConfigureWaterReflectionCamera(UniversalAdditionalCameraData cameraData)
+    {
+        reflectionCamera.allowHDR = false;
+        reflectionCamera.allowMSAA = false;
+        cameraData.requiresDepthOption = CameraOverrideOption.Off;
+        cameraData.requiresColorOption = CameraOverrideOption.Off;
+
+        var pipeline = UniversalRenderPipeline.asset;
+        if (waterReflectionRenderer == null || pipeline == null)
+            return;
+
+        var rendererList = pipeline.rendererDataList;
+        for (int index = 0; index < rendererList.Length; index++)
+        {
+            if (rendererList[index] != waterReflectionRenderer)
+                continue;
+            cameraData.SetRenderer(index);
+            break;
         }
     }
 
@@ -160,19 +230,60 @@ public class PlanarReflection : MonoBehaviour
         reflectionCamera.nearClipPlane = srcCamera.nearClipPlane;
         reflectionCamera.farClipPlane = farClipOverride > 0f ? farClipOverride : srcCamera.farClipPlane;
         reflectionCamera.cullingMask = reflectMask;
+        if (waterRenderer != null)
+        {
+            reflectionCamera.clearFlags = srcCamera.clearFlags == CameraClearFlags.Skybox
+                ? CameraClearFlags.Skybox
+                : CameraClearFlags.SolidColor;
+            reflectionCamera.backgroundColor = srcCamera.backgroundColor;
+            reflectionCamera.cullingMask &= srcCamera.cullingMask & ~(1 << waterRenderer.gameObject.layer);
+        }
         //RT 宽度按源相机纵横比自适应（窗口比例变化时重建）
         int targetWidth = Mathf.Max(16, Mathf.RoundToInt(textureHeight * srcCamera.aspect));
         if (reflectionRT.width != targetWidth)
         {
             reflectionRT.Release();
             reflectionRT.width = targetWidth;
-            reflectionRT.Create();
         }
+        if (!reflectionRT.IsCreated())
+            reflectionRT.Create();
         reflectionCamera.targetTexture = reflectionRT;
         //斜投影近裁剪面=水平面，裁掉水面以下的几何（如地面背面）
         reflectionCamera.projectionMatrix = CalculateObliqueMatrix(srcCamera.projectionMatrix, CameraSpacePlane(reflectionCamera, new Vector3(0f, planeY, 0f), Vector3.up));
-        reflectionCamera.Render();
-        reflectionCamera.targetTexture = null;
+        try
+        {
+            reflectionCamera.Render();
+        }
+        finally
+        {
+            reflectionCamera.targetTexture = null;
+        }
+
+        if (waterRenderer == null)
+            return;
+
+        if (!waterReflectionReady)
+        {
+            SetWaterReflection(reflectionRT, true);
+            waterReflectionReady = true;
+        }
+        lastWaterSourceCamera = srcCamera;
+        lastWaterView = srcCamera.worldToCameraMatrix;
+        lastWaterProjection = srcCamera.projectionMatrix;
+        lastWaterPlaneY = planeY;
+        lastWaterRenderTime = Time.unscaledTimeAsDouble;
+    }
+
+    /// <summary>
+    /// 只更新指定水面的反射纹理和开关，保留渲染器上的其他材质参数
+    /// </summary>
+    private void SetWaterReflection(Texture texture, bool active)
+    {
+        waterProperties ??= new MaterialPropertyBlock();
+        waterRenderer.GetPropertyBlock(waterProperties);
+        waterProperties.SetTexture(WaterReflectionTextureId, texture);
+        waterProperties.SetFloat(WaterReflectionActiveId, active ? 1f : 0f);
+        waterRenderer.SetPropertyBlock(waterProperties);
     }
 
     /// <summary>

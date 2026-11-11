@@ -6,7 +6,7 @@
 //    - 不需要任何贴图, 全部参数化, 简单易懂
 //    - 正弦波顶点起伏 + 解析法线 (平滑波纹)
 //    - 靠岸浅色 -> 远岸深色 (基于场景深度)
-//    - 反射探针/天空盒反射 + 菲涅尔
+//    - 反射探针/天空盒反射 + 菲涅尔，可选接入镜像相机的平面反射纹理
 //    - 太阳高光
 //  前置: URP Asset 开启 Depth Texture (用于靠岸渐变与边缘软融)
 //  性能/缩放: 波纹法线在【片元逐像素】程序化计算(世界空间), 因此:
@@ -40,6 +40,12 @@ Shader "FrameWork/URP/WaterSimple"
         _SpecularStrength ("太阳高光强度", Range(0, 8))   = 2.0
         _SpecularColor    ("高光颜色", Color)             = (1, 1, 1, 1)
         _ShadowStrength   ("阴影强度 (0=不受阴影)", Range(0, 1)) = 0.5
+
+        [Header(PlanarReflection)]
+        _PlanarReflectionAmount ("平面倒影强度 (0=关闭)", Range(0, 1)) = 0
+        _PlanarDistortion ("倒影波纹扭曲幅度", Range(0, 0.05)) = 0.012
+        [HideInInspector] _WaterPlanarReflectionTex ("平面倒影纹理", 2D) = "black" {}
+        [HideInInspector] _WaterPlanarReflectionActive ("平面倒影纹理是否就绪", Float) = 0
 
         [Header(Edge)]
         _EdgeFade       ("岸边软融距离", Range(0, 3))     = 0.4
@@ -92,6 +98,8 @@ Shader "FrameWork/URP/WaterSimple"
                 float  fogFactor  : TEXCOORD2;
             };
 
+            TEXTURE2D(_WaterPlanarReflectionTex);
+
             CBUFFER_START(UnityPerMaterial)
                 float  _EffectScale;
                 float  _VertexWave;
@@ -107,6 +115,9 @@ Shader "FrameWork/URP/WaterSimple"
                 float  _SpecularStrength;
                 float4 _SpecularColor;
                 float  _ShadowStrength;
+                float  _PlanarReflectionAmount;
+                float  _PlanarDistortion;
+                float  _WaterPlanarReflectionActive;
                 float  _EdgeFade;
             CBUFFER_END
 
@@ -160,6 +171,17 @@ Shader "FrameWork/URP/WaterSimple"
                 float fresnel = pow(1.0 - NdotV, _FresnelPower) * _ReflectionAmount;
 
                 float3 color = lerp(waterColor.rgb * shadowFactor, reflection, saturate(fresnel));
+
+                UNITY_BRANCH
+                if (_WaterPlanarReflectionActive > 0.5 && _PlanarReflectionAmount > 0.0)
+                {
+                    // 镜像相机的右轴与真实倒影相反，横向翻转后用水面法线轻微扰动采样。
+                    float2 planarUV = float2(1.0 - screenUV.x, screenUV.y);
+                    planarUV = saturate(planarUV + normalWS.xz * _PlanarDistortion);
+                    half3 planarReflection = SAMPLE_TEXTURE2D(_WaterPlanarReflectionTex, sampler_LinearClamp, planarUV).rgb;
+                    float planarWeight = saturate(_PlanarReflectionAmount) * lerp(0.3, 1.0, 1.0 - NdotV);
+                    color = lerp(color, planarReflection, planarWeight);
+                }
 
                 // 太阳高光 (阴影内不出现)
                 float3 halfVec = normalize(mainLight.direction + viewDirWS);
