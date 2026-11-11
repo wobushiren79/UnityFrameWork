@@ -6,7 +6,7 @@ using UnityEngine.Rendering.Universal;
 /// 平面反射（Planar Reflection）组件：在指定水平面下方维护一台镜像相机，
 /// 把场景（含天空盒/树木/角色）渲染到 RenderTexture 并写入全局 Shader 纹理 _PuddlePlanarTex，
 /// 配合 FrameWork/URP/Puddle1 水洼 shader（FrameWork/Shader/URP/Shader_Puddle_1.shader）的屏幕空间采样实现"水面倒映场景物体与角色"。
-/// 挂在雨天 Details 的水洼组节点上，随 details 显隐自动开关；关闭时释放相机与 RT 并把全局开关 _PuddlePlanarActive 置 0。
+/// 挂在雨天 Details 的水洼组节点上，随 details 显隐释放或创建相机与 RT；仅当前全局 RT 的持有者关闭时清除全局反射。
 /// </summary>
 public class PlanarReflection : MonoBehaviour
 {
@@ -56,11 +56,16 @@ public class PlanarReflection : MonoBehaviour
     }
 
     /// <summary>
-    /// 禁用时关闭全局采样开关并释放镜像相机与反射纹理
+    /// 禁用时释放镜像相机与反射纹理，仅清理本组件仍持有的全局反射状态
     /// </summary>
     protected void OnDisable()
     {
-        Shader.SetGlobalFloat("_PuddlePlanarActive", 0f);
+        // 雨天分支切换时，新水洼可能已在旧水洼禁用前绑定自己的反射纹理。
+        if (reflectionRT != null && Shader.GetGlobalTexture("_PuddlePlanarTex") == reflectionRT)
+        {
+            Shader.SetGlobalFloat("_PuddlePlanarActive", 0f);
+            Shader.SetGlobalTexture("_PuddlePlanarTex", (Texture)null);
+        }
         cacheMainCamera = null;
         cacheChildRenderers = null;
         if (reflectionCamera != null)
