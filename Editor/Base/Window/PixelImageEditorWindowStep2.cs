@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace PixelImageEditor
 {
-    /// <summary>像素图编辑器 · 步骤② 定位与转换：拖拽定位、取色算法、智能网格检测、转换核心。</summary>
+    /// <summary>像素图编辑器 · 步骤② 定位与转换：取色算法、智能网格检测、Sprite Fusion 网格校正。</summary>
     public partial class PixelImageEditorWindow : EditorWindow
     {
         #region 字段 - 步骤② 定位与转换
@@ -48,6 +48,17 @@ namespace PixelImageEditor
         private bool _autoFixSquare = true;
         /// <summary>智能检测最近一次的提示/结果信息（空表示无）。</summary>
         private string _autoMessage = "";
+
+        #endregion
+
+        #region 字段 - 步骤② Sprite Fusion 网格校正
+
+        private enum SnapGridMode { Automatic, PixelSize, CanvasSize }
+
+        private SnapGridMode _snapGridMode = SnapGridMode.Automatic;
+        private float _snapPixelSize = 8f;
+        private string _snapPaletteText = "";
+        private string _snapError = "";
 
         #endregion
 
@@ -121,6 +132,7 @@ namespace PixelImageEditor
             EndCard();
 
             DrawStep2AutoDetect();
+            DrawSpriteFusionSnap();
 
             BeginCard("源图定位预览（在画布内拖拽移动源图）");
             DrawStep2Preview();
@@ -260,6 +272,34 @@ namespace PixelImageEditor
 
             if (!string.IsNullOrEmpty(_autoMessage))
                 EditorGUILayout.HelpBox(_autoMessage, MessageType.Info);
+            EndCard();
+        }
+
+        /// <summary>显示 Sprite Fusion 网格校正的间距、画布和色板设置。</summary>
+        private void DrawSpriteFusionSnap()
+        {
+            BeginCard("Sprite Fusion 网格校正");
+            EditorGUILayout.LabelField("直接处理已载入源图的网格。源图定位预览中的拖拽和缩放用于下方手动转换。", _hintStyle);
+            _snapGridMode = (SnapGridMode)EditorGUILayout.Popup("网格设置", (int)_snapGridMode,
+                new[] { "自动检测", "指定像素块边长", "固定当前画布尺寸" });
+            if (_snapGridMode == SnapGridMode.PixelSize)
+            {
+                _snapPixelSize = EditorGUILayout.DelayedFloatField(
+                    new GUIContent("源图像素块边长", "载入后源图中每个逻辑像素块的边长，单位为 px。"), _snapPixelSize);
+            }
+            else if (_snapGridMode == SnapGridMode.CanvasSize)
+            {
+                EditorGUILayout.LabelField($"输出 {_gridWidth}×{_gridHeight}，横纵分别重采样。正方形图标请使用正方形源图。", _hintStyle);
+            }
+
+            _snapPaletteText = EditorGUILayout.DelayedTextField(
+                new GUIContent("固定色板（可选）", "输入以逗号或空格分隔的 RGB 十六进制色值。留空时沿用上方的颜色数量设置。"), _snapPaletteText);
+            EditorGUILayout.LabelField("例如 #1E1727, #8B6A50, #F0DDB4。逐格提取主色，透明区域保留。", _hintStyle);
+
+            if (GUILayout.Button("校正并转换 → 步骤③"))
+                ConvertSpriteFusionSnap();
+            if (!string.IsNullOrEmpty(_snapError))
+                EditorGUILayout.HelpBox(_snapError, MessageType.Warning);
             EndCard();
         }
 
@@ -624,6 +664,264 @@ namespace PixelImageEditor
             public float repR, repG, repB;
             public float totalWeight;
             public float sumR, sumG, sumB;
+        }
+
+        #endregion
+
+        #region Sprite Fusion 网格校正
+
+        // 参考 Sprite Fusion Pixel Snapper 的边缘投影与逐格取样思路（Hugo Duprez，MIT）。
+        // https://github.com/Hugo-Dz/spritefusion-pixel-snapper
+
+        /// <summary>确定校正尺寸，逐格采样后进入编辑与导出。</summary>
+        private void ConvertSpriteFusionSnap()
+        {
+            _snapError = "";
+            if (_srcTopDown == null)
+                return;
+            if (!TryParseSnapPalette(_snapPaletteText, out List<Color32> palette))
+            {
+                _snapError = "固定色板需要 1 至 256 个不同的 RGB 色值，例如 #1E1727, #F0DDB4。";
+                return;
+            }
+
+            BuildSnapEdgeProfiles(out float[] columns, out float[] rows);
+            int width = _gridWidth;
+            int height = _gridHeight;
+            if (_snapGridMode != SnapGridMode.CanvasSize)
+            {
+                float pitch = _snapPixelSize;
+                if (_snapGridMode == SnapGridMode.Automatic)
+                {
+                    float horizontal = EstimateSnapPitch(columns);
+                    float vertical = EstimateSnapPitch(rows);
+                    float smaller = Mathf.Min(horizontal, vertical);
+                    float larger = Mathf.Max(horizontal, vertical);
+                    if (smaller <= 0f)
+                        pitch = larger;
+                    else
+                        pitch = larger > smaller * 1.8f ? smaller : (horizontal + vertical) / 2f;
+                    if (pitch <= 0f)
+                    {
+                        _snapError = "未找到重复的像素边缘。请指定源图像素块边长，或固定当前画布尺寸。";
+                        return;
+                    }
+                }
+
+                int maximumPitch = Mathf.Min(_srcW, _srcH);
+                if (float.IsNaN(pitch) || pitch < 1f || pitch > maximumPitch)
+                {
+                    _snapError = $"像素块边长需在 1 到 {maximumPitch} px 之间。";
+                    return;
+                }
+                width = Mathf.Max(1, Mathf.RoundToInt(_srcW / pitch));
+                height = Mathf.Max(1, Mathf.RoundToInt(_srcH / pitch));
+            }
+
+            if (width > _srcW || height > _srcH)
+            {
+                _snapError = $"当前画布大于已载入的源图（{_srcW}×{_srcH}），请选较小的画布尺寸。";
+                return;
+            }
+
+            _pixels = SampleSnapGrid(SnapGridCuts(columns, width), SnapGridCuts(rows, height));
+            _gridWidth = width;
+            _gridHeight = height;
+            if (palette.Count > 0)
+                ApplySnapPalette(palette);
+            else if (_limitColors)
+                QuantizeToMaxColors(_maxColors, _colorLimitMode);
+
+            EnterStep3();
+        }
+
+        /// <summary>从相邻像素的颜色和透明度变化构建横纵边缘投影。</summary>
+        private void BuildSnapEdgeProfiles(out float[] columns, out float[] rows)
+        {
+            columns = new float[_srcW];
+            rows = new float[_srcH];
+            for (int y = 0; y < _srcH; y++)
+            {
+                int start = y * _srcW;
+                for (int x = 0; x < _srcW; x++)
+                {
+                    Color32 pixel = _srcTopDown[start + x];
+                    if (x > 0)
+                        columns[x] += SnapColorEdge(pixel, _srcTopDown[start + x - 1]);
+                    if (y > 0)
+                        rows[y] += SnapColorEdge(pixel, _srcTopDown[start + x - _srcW]);
+                }
+            }
+        }
+
+        /// <summary>比较预乘色和透明度，避免全透明区域的隐藏 RGB 干扰检测。</summary>
+        private static int SnapColorEdge(Color32 a, Color32 b)
+        {
+            return Mathf.Abs(a.r * a.a - b.r * b.a) + Mathf.Abs(a.g * a.a - b.g * b.a)
+                + Mathf.Abs(a.b * a.a - b.b * b.a) + 765 * Mathf.Abs(a.a - b.a);
+        }
+
+        /// <summary>从显著边缘峰之间的中位间隔估计像素块边长。</summary>
+        private static float EstimateSnapPitch(float[] profile)
+        {
+            float maximum = 0f;
+            foreach (float value in profile)
+                maximum = Mathf.Max(maximum, value);
+
+            var peaks = new List<int>();
+            float threshold = maximum * 0.2f;
+            for (int i = 1; i < profile.Length; i++)
+            {
+                float next = i + 1 < profile.Length ? profile[i + 1] : 0f;
+                float value = profile[i];
+                if (value <= threshold || value <= profile[i - 1] || value < next)
+                    continue;
+                if (peaks.Count == 0 || i - peaks[peaks.Count - 1] >= 2)
+                    peaks.Add(i);
+                else if (value > profile[peaks[peaks.Count - 1]])
+                    peaks[peaks.Count - 1] = i;
+            }
+
+            if (peaks.Count < 3)
+                return 0f;
+            var intervals = new List<int>(peaks.Count - 1);
+            for (int i = 1; i < peaks.Count; i++)
+                intervals.Add(peaks[i] - peaks[i - 1]);
+            intervals.Sort();
+            int middle = intervals.Count / 2;
+            return intervals.Count % 2 == 0 ? (intervals[middle - 1] + intervals[middle]) / 2f : intervals[middle];
+        }
+
+        /// <summary>逐线搜索邻近显著边缘，保持格子数且避免位移累计。</summary>
+        private static int[] SnapGridCuts(float[] profile, int cells)
+        {
+            int extent = profile.Length;
+            var cuts = new int[cells + 1];
+            cuts[cells] = extent;
+            float pitch = (float)extent / cells;
+            int radius = Mathf.Max(1, Mathf.FloorToInt(pitch * 0.35f));
+            float total = 0f;
+            foreach (float value in profile)
+                total += value;
+            float minimumStrength = total / extent * 0.5f;
+
+            for (int i = 1; i < cells; i++)
+            {
+                int target = Mathf.RoundToInt(i * pitch);
+                int left = cuts[i - 1] + 1;
+                int right = extent - (cells - i);
+                int best = Mathf.Clamp(target, left, right);
+                float bestScore = minimumStrength;
+                for (int x = Mathf.Max(left, target - radius); x <= Mathf.Min(right, target + radius); x++)
+                {
+                    float score = profile[x] * (1f - 0.5f * Mathf.Abs(x - target) / radius);
+                    if (score > bestScore)
+                    {
+                        best = x;
+                        bestScore = score;
+                    }
+                }
+                cuts[i] = best;
+            }
+            return cuts;
+        }
+
+        /// <summary>逐格按透明覆盖和主色采样，输出二值透明的 1× 像素数组。</summary>
+        private Color32[] SampleSnapGrid(int[] xCuts, int[] yCuts)
+        {
+            int width = xCuts.Length - 1;
+            int height = yCuts.Length - 1;
+            var result = new Color32[width * height];
+            var colors = new Dictionary<int, int>();
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                    result[y * width + x] = SampleSnapCell(xCuts[x], xCuts[x + 1], yCuts[y], yCuts[y + 1], colors);
+            }
+            return result;
+        }
+
+        /// <summary>采样占多数的可见色块，忽略低透明度的边缘。</summary>
+        private Color32 SampleSnapCell(int x0, int x1, int y0, int y1, Dictionary<int, int> colors)
+        {
+            colors.Clear();
+            int visible = 0;
+            int highestCount = 0;
+            Color32 winner = kTransparent;
+            for (int y = y0; y < y1; y++)
+            {
+                for (int x = x0; x < x1; x++)
+                {
+                    Color32 pixel = _srcTopDown[y * _srcW + x];
+                    if (pixel.a < 128)
+                        continue;
+                    visible++;
+                    int key = ((pixel.r >> 4) << 8) | ((pixel.g >> 4) << 4) | (pixel.b >> 4);
+                    colors.TryGetValue(key, out int count);
+                    colors[key] = ++count;
+                    if (count > highestCount)
+                    {
+                        highestCount = count;
+                        winner = pixel;
+                    }
+                }
+            }
+            if (visible * 2 <= (x1 - x0) * (y1 - y0))
+                return kTransparent;
+            winner.a = 255;
+            return winner;
+        }
+
+        /// <summary>解析逗号、空格和换行分隔的六位 RGB 色板，允许留空。</summary>
+        private static bool TryParseSnapPalette(string text, out List<Color32> palette)
+        {
+            palette = new List<Color32>();
+            if (string.IsNullOrWhiteSpace(text))
+                return true;
+            var keys = new HashSet<int>();
+            foreach (string value in text.Split(new[] { ',', '，', ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string hex = value.StartsWith("#", StringComparison.Ordinal) ? value.Substring(1) : value;
+                if (hex.Length != 6 || !ColorUtility.TryParseHtmlString($"#{hex}", out Color color))
+                    return false;
+                Color32 rgb = color;
+                if (keys.Add(PackRGB(rgb)))
+                    palette.Add(rgb);
+                if (palette.Count > 256)
+                    return false;
+            }
+            return palette.Count > 0;
+        }
+
+        /// <summary>映射到固定色板内最接近的 RGB 颜色，保留透明像素。</summary>
+        private void ApplySnapPalette(List<Color32> palette)
+        {
+            var mapped = new Dictionary<int, Color32>();
+            for (int i = 0; i < _pixels.Length; i++)
+            {
+                Color32 pixel = _pixels[i];
+                if (pixel.a == 0)
+                    continue;
+                int key = PackRGB(pixel);
+                if (!mapped.TryGetValue(key, out Color32 closest))
+                {
+                    int bestDistance = int.MaxValue;
+                    foreach (Color32 color in palette)
+                    {
+                        int dr = pixel.r - color.r;
+                        int dg = pixel.g - color.g;
+                        int db = pixel.b - color.b;
+                        int distance = dr * dr + dg * dg + db * db;
+                        if (distance < bestDistance)
+                        {
+                            closest = color;
+                            bestDistance = distance;
+                        }
+                    }
+                    mapped.Add(key, closest);
+                }
+                _pixels[i] = closest;
+            }
         }
 
         #endregion

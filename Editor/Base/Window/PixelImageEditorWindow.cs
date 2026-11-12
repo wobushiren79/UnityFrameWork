@@ -445,6 +445,7 @@ namespace PixelImageEditor
             _srcTopDown = topDown;
             _srcW = w;
             _srcH = h;
+            _snapError = "";
 
             // 显示纹理（自上而下数组 → Texture2D 需翻回自下而上）
             if (_srcDisplayTex != null) DestroyImmediate(_srcDisplayTex);
@@ -496,6 +497,10 @@ namespace PixelImageEditor
             _similarityThreshold = kDefaultSimilarityThreshold; _limitColors = false; _maxColors = 16; _colorLimitMode = ColorLimitMode.AtMost;
             _srcColorCountExact = _srcColorCountApprox = -1;
             _autoUseRefine = true; _refineIntensity = 0.25f; _autoFixSquare = true; _autoMessage = "";
+            _snapGridMode = SnapGridMode.Automatic;
+            _snapPixelSize = 8f;
+            _snapPaletteText = "";
+            _snapError = "";
             _pixels = null;
             if (_artTex != null) { DestroyImmediate(_artTex); _artTex = null; }
             _canvasZoom = 1; _resultZoom = 6; _resultScroll = Vector2.zero;
