@@ -6,12 +6,16 @@ using UnityEngine.Rendering.Universal;
 /// 在水平面下方维护一台镜像相机，将场景倒影渲染到纹理。
 /// 水面通过指定的 Renderer 接收纹理，雨天水洼组沿用全局反射纹理。
 /// </summary>
+[DefaultExecutionOrder(110)] // 在 CinemachineBrain（100）更新镜头后渲染倒影。
 public class PlanarReflection : MonoBehaviour
 {
     #region 配置参数
     [Header("反射平面")]
     [Tooltip("反射水平面相对本节点世界Y的偏移（水洼面片离地高度）")]
     public float waterLevelOffset = 0.02f;
+
+    [Tooltip("启用时以接收渲染器的世界包围盒顶面为反射高度；否则使用节点世界 Y 加偏移")]
+    public bool useRendererBoundsTop;
 
     [Header("渲染设置")]
     [Tooltip("反射纹理高度（宽度按源相机纵横比推导），越低越省")]
@@ -134,7 +138,7 @@ public class PlanarReflection : MonoBehaviour
             && reflectionRT.IsCreated()
             && lastWaterSourceCamera == sourceCamera
             && Time.unscaledTimeAsDouble - lastWaterRenderTime < 1d / waterIdleRefreshRate
-            && lastWaterPlaneY == transform.position.y + waterLevelOffset
+            && lastWaterPlaneY == GetReflectionPlaneY()
             && lastWaterView == sourceCamera.worldToCameraMatrix
             && lastWaterProjection == sourceCamera.projectionMatrix;
     }
@@ -159,6 +163,14 @@ public class PlanarReflection : MonoBehaviour
     #endregion
 
     #region 反射渲染
+    /// <summary>返回当前反射平面的世界高度，水面可随渲染器的位置和缩放变化。</summary>
+    private float GetReflectionPlaneY()
+    {
+        return useRendererBoundsTop && waterRenderer != null
+            ? waterRenderer.bounds.max.y
+            : transform.position.y + waterLevelOffset;
+    }
+
     /// <summary>
     /// 创建镜像相机子物体与反射 RT（关阴影/后处理省开销，ClearFlags=Skybox 让反射自带天空）
     /// </summary>
@@ -217,7 +229,7 @@ public class PlanarReflection : MonoBehaviour
     /// <param name="srcCamera">被镜像的源相机（主相机）</param>
     protected void RenderReflection(Camera srcCamera)
     {
-        float planeY = transform.position.y + waterLevelOffset;
+        float planeY = GetReflectionPlaneY();
         //几何镜像：位置关于水平面对称，前向/上向反射后重建朝向（镜像视差自然成立，无需翻转裁剪面）
         Vector3 srcPos = srcCamera.transform.position;
         Vector3 mirrorPos = new Vector3(srcPos.x, 2f * planeY - srcPos.y, srcPos.z);
