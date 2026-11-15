@@ -38,6 +38,64 @@ public class FileUtil
     }
 
 
+    #region 原子文本写入
+    /// <summary>以同目录临时文件和原子替换保存文本；目标已存在时保留上一份为 文件名_Backup，失败不覆盖原文件</summary>
+    /// <param name="filePath">目标目录</param>
+    /// <param name="fileName">目标文件名</param>
+    /// <param name="strData">完整文本内容</param>
+    /// <returns>写入并替换成功返回 true，否则返回 false</returns>
+    public static bool TryCreateTextFileAtomic(string filePath, string fileName, string strData)
+    {
+        return TryCreateTextFileAtomic($"{filePath}/{fileName}", strData);
+    }
+
+    /// <summary>以同目录临时文件和原子替换保存文本；目标已存在时保留上一份为 文件名_Backup，失败不覆盖原文件</summary>
+    /// <param name="filePathName">目标完整路径</param>
+    /// <param name="strData">完整文本内容</param>
+    /// <returns>写入并替换成功返回 true，否则返回 false</returns>
+    public static bool TryCreateTextFileAtomic(string filePathName, string strData)
+    {
+        string tempFilePath = null;
+        try
+        {
+            string directory = Path.GetDirectoryName(filePathName);
+            if (!string.IsNullOrEmpty(directory))
+                Directory.CreateDirectory(directory);
+            tempFilePath = $"{filePathName}.{Guid.NewGuid():N}.tmp";
+            using (StreamWriter writer = new StreamWriter(tempFilePath, false, Encoding.UTF8))
+            {
+                writer.Write(strData);
+            }
+            if (File.Exists(filePathName))
+                File.Replace(tempFilePath, filePathName, $"{filePathName}_Backup");
+            else
+                File.Move(tempFilePath, filePathName);
+            tempFilePath = null;
+            return true;
+        }
+        catch (Exception e)
+        {
+            LogUtil.LogWarning($"原子创建文本文件失败:{filePathName}, 错误:{e.Message}");
+            return false;
+        }
+        finally
+        {
+            if (tempFilePath != null)
+            {
+                try
+                {
+                    if (File.Exists(tempFilePath))
+                        File.Delete(tempFilePath);
+                }
+                catch (Exception e)
+                {
+                    LogUtil.LogWarning($"清理临时文本文件失败:{tempFilePath}, 错误:{e.Message}");
+                }
+            }
+        }
+    }
+    #endregion
+
     /// <summary>
     /// 加载文本
     /// </summary>

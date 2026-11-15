@@ -50,6 +50,27 @@ public class BaseDataService<T> where T : class, new()
         FileUtil.CreateTextFile(StoragePath, FileName, json);
     }
 
+    #region 原子保存
+    /// <summary>以原子替换方式保存数据；旧文件保留为 文件名_Backup，失败返回 false 且原文件不被主动删除</summary>
+    /// <param name="data">要完整序列化保存的数据</param>
+    /// <returns>序列化并原子替换成功返回 true，参数或写入失败返回 false</returns>
+    public virtual bool SaveAtomic(T data)
+    {
+        if (FileName.IsNull())
+        {
+            LogUtil.Log("保存文件失败-没有文件名称");
+            return false;
+        }
+        if (data == null)
+        {
+            LogUtil.Log("保存文件失败-没有数据");
+            return false;
+        }
+        string json = JsonUtil.ToJson(data, JsonType);
+        return FileUtil.TryCreateTextFileAtomic(StoragePath, FileName, json);
+    }
+    #endregion
+
     /// <summary>
     /// 删除数据文件
     /// </summary>

@@ -351,6 +351,24 @@ public partial class ModManager : BaseManager
         return $"{modName}|{assetKey}";
     }
 
+    #region Catalog注册回滚
+    /// <summary>回滚已完成依赖加载但ModID映射提交失败的Catalog注册，释放同一句柄并清除资源/配置索引，避免下次被IsModLoaded误跳过</summary>
+    /// <param name="modName">本次加载的Mod名称</param>
+    /// <param name="locator">已注册的ResourceLocator</param>
+    /// <param name="handle">对应的Catalog加载句柄</param>
+    private void RollbackModCatalogRegistration(string modName, IResourceLocator locator, AsyncOperationHandle<IResourceLocator> handle)
+    {
+        dicModLocators.Remove(modName);
+        dicCatalogHandles.Remove(modName);
+        dicModAssetKeys.Remove(modName);
+        dicModJsonTextFiles.Remove(modName);
+        if (locator != null)
+            Addressables.RemoveResourceLocator(locator);
+        if (handle.IsValid())
+            Addressables.Release(handle);
+    }
+    #endregion
+
     /// <summary>
     /// 加载Mod的Content Catalog（异步回调）
     /// 仅在 Catalog + 依赖均成功后才写入缓存字典
@@ -401,7 +419,13 @@ public partial class ModManager : BaseManager
                         dicModLocators[modName] = locator;
                         dicCatalogHandles[modName] = handle;
                         RecordModAssetKeys(modName, locator);
-                        RebuildModIds();
+                        if (!RebuildModIds())
+                        {
+                            RollbackModCatalogRegistration(modName, locator, handle);
+                            LogUtil.LogError($"[Mod] ModID映射处理失败，已回滚Catalog注册:{modName}");
+                            callBack?.Invoke(false);
+                            return;
+                        }
                         LogUtil.Log($"[Mod] Catalog+依赖加载成功: {modName}");
                         callBack?.Invoke(true);
                     }
@@ -474,7 +498,12 @@ public partial class ModManager : BaseManager
                 dicModLocators[modName] = locator;
                 dicCatalogHandles[modName] = handle;
                 RecordModAssetKeys(modName, locator);
-                RebuildModIds();
+                if (!RebuildModIds())
+                {
+                    RollbackModCatalogRegistration(modName, locator, handle);
+                    LogUtil.LogError($"[Mod] ModID映射处理失败，已回滚Catalog注册:{modName}");
+                    return false;
+                }
                 LogUtil.Log($"[Mod] Catalog+依赖加载成功: {modName}");
                 return true;
             }
@@ -543,7 +572,12 @@ public partial class ModManager : BaseManager
                 dicModLocators[modName] = locator;
                 dicCatalogHandles[modName] = handle;
                 RecordModAssetKeys(modName, locator);
-                RebuildModIds();
+                if (!RebuildModIds())
+                {
+                    RollbackModCatalogRegistration(modName, locator, handle);
+                    LogUtil.LogError($"[Mod] ModID映射处理失败，已回滚Catalog注册:{modName}");
+                    return false;
+                }
                 LogUtil.Log($"[Mod] Catalog+依赖同步加载成功: {modName}");
                 return true;
             }
@@ -932,31 +966,39 @@ public partial class ModManager : BaseManager
     private HashSet<int> occupiedModIds = new HashSet<int>();
 
     /// <summary>
-    /// 根据当前已加载的所有Mod重新构建modId映射，按Mod名称排序后统一分配。
-    /// 通过GameDataManager持久化映射保证：同一modName跨会话始终获得相同ID、
-    /// 新增Mod不会导致旧ModID变化。
+    /// 根据当前已加载Mod补齐modId映射；已有名称保留原ID，新名称按排序取第一个空号。
+    /// 读取失败或空映射拒绝重建；原子保存成功才提交候选映射，任何失败均恢复旧内存状态。
     /// </summary>
-    private void RebuildModIds()
+    /// <returns>无需变更或保存提交成功返回true，读取/保存失败返回false</returns>
+    private bool RebuildModIds()
     {
-        ModIdMapBean modIdMapBean = null;
-        if (GameDataHandler.Instance != null && GameDataHandler.Instance.manager != null)
-            modIdMapBean = GameDataHandler.Instance.manager.GetModIdMap();
+        if (GameDataHandler.Instance == null || GameDataHandler.Instance.manager == null)
+        {
+            LogUtil.LogError("[Mod] GameDataManager未就绪，取消ModID分配");
+            return false;
+        }
 
-        if (modIdMapBean != null && modIdMapBean.modIdMap != null)
+        var gameDataManager = GameDataHandler.Instance.manager;
+        ModIdMapBean persistedData;
+        try
         {
-            modIdMap = new Dictionary<string, int>(modIdMapBean.modIdMap);
-            occupiedModIds = new HashSet<int>(modIdMap.Values);
+            persistedData = gameDataManager.GetModIdMap();
         }
-        else
+        catch (Exception ex)
         {
-            modIdMap = new Dictionary<string, int>();
-            occupiedModIds = new HashSet<int>();
+            LogUtil.LogError($"[Mod] ModID映射读取失败，禁止空表重建与覆盖:{ex.Message}");
+            return false;
         }
+
+        Dictionary<string, int> previousModIdMap = modIdMap;
+        HashSet<int> previousOccupiedModIds = occupiedModIds;
+        ModIdMapBean previousManagerBean = gameDataManager.modIdMapBean;
+        modIdMap = new Dictionary<string, int>(persistedData.modIdMap);
+        occupiedModIds = new HashSet<int>(modIdMap.Values);
 
         var loadedModNames = new List<string>(dicModLocators.Keys);
         loadedModNames.Sort(StringComparer.Ordinal);
-
-        bool changed = false;
+        var addedMappings = new List<string>();
         foreach (var modName in loadedModNames)
         {
             // 已在持久化映射中的Mod直接保留原ID
@@ -977,17 +1019,36 @@ public partial class ModManager : BaseManager
 
             modIdMap[modName] = finalId;
             occupiedModIds.Add(finalId);
-            changed = true;
+            addedMappings.Add($"{modName}={finalId}");
         }
 
-        if (changed)
+        if (addedMappings.Count == 0)
+            return true;
+
+        var candidateData = new ModIdMapBean { modIdMap = new Dictionary<string, int>(modIdMap) };
+        gameDataManager.modIdMapBean = candidateData;
+        string saveError = null;
+        bool saveSuccess = false;
+        try
         {
-            if (modIdMapBean == null)
-                modIdMapBean = new ModIdMapBean();
-            modIdMapBean.modIdMap = new Dictionary<string, int>(modIdMap);
-            GameDataHandler.Instance.manager.modIdMapBean = modIdMapBean;
-            GameDataHandler.Instance.manager.SaveModIdMap();
+            saveSuccess = gameDataManager.SaveModIdMap();
         }
+        catch (Exception ex)
+        {
+            saveError = ex.Message;
+        }
+
+        if (!saveSuccess)
+        {
+            modIdMap = previousModIdMap;
+            occupiedModIds = previousOccupiedModIds;
+            gameDataManager.modIdMapBean = previousManagerBean;
+            LogUtil.LogError($"[Mod] ModID映射保存失败，已恢复旧内存映射且未主动删除原文件:{saveError}");
+            return false;
+        }
+
+        LogUtil.Log($"[Mod] ModID映射原子保存成功，新增:{string.Join(", ", addedMappings)}");
+        return true;
     }
 
     /// <summary>
