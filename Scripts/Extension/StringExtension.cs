@@ -116,7 +116,18 @@ public static class StringExtension
             );
     }
     
+    /// <summary>
+    /// 以当前区域格式分割长整型键和浮点值。
+    /// </summary>
     public static Dictionary<long, float> SplitForDictionaryLongFloat(this string selfData, char keyValueSeparator = ':', char pairSeparator = '&')
+    {
+        return SplitForDictionaryLongFloat(selfData, null, keyValueSeparator, pairSeparator);
+    }
+
+    /// <summary>
+    /// 以指定的数值格式分割长整型键和浮点值。
+    /// </summary>
+    public static Dictionary<long, float> SplitForDictionaryLongFloat(this string selfData, IFormatProvider formatProvider, char keyValueSeparator = ':', char pairSeparator = '&')
     {
         if (string.IsNullOrEmpty(selfData))
         {
@@ -126,8 +137,8 @@ public static class StringExtension
             .Select(part => part.Split(new[] { keyValueSeparator }, 2))
             .Where(parts => parts.Length == 2)
             .ToDictionary(
-                parts => long.Parse(parts[0]),
-                parts => float.Parse(parts[1])
+                parts => long.Parse(parts[0], formatProvider),
+                parts => float.Parse(parts[1], formatProvider)
             );
     }
 

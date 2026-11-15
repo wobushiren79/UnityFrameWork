@@ -215,4 +215,6 @@ public enum TextReplaceEnum
     OnFieldTime,//在场存活时间(秒)
     Value,//触发值(trigger_value,通用数值占位,如无敌秒数)
     TriggerChance,//实际触发概率(trigger_chance,0按必然触发显示为100%)
+    PercentageSecondary,//第二属性的变化幅度
+    ValueRange,//触发时随机数值范围
 }
