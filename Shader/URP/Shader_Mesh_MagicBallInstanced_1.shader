@@ -11,7 +11,7 @@ Shader "FrameWork/URP/MeshMagicBallInstanced1"
     //
     // 【本质】把 ParticleSystem 的模拟搬进顶点着色器：
     // 每个火星 quad 的 4 个顶点共享一份预烤随机数据(方向/种子/速度/大小)，
-    // vertex shader 按 _Time 算出该 quad 当前的生命进度 t(0→1 循环)，据此把它推出去 + 展成朝向相机的 billboard。
+    // vertex shader 按渲染时间算出该 quad 当前的生命进度 t(0→1 循环)，据此把它推出去 + 展成朝向相机的 billboard。
     // 火星数量 = 网格 quad 数，改数量 = 换网格，不改代码。
     //
     // 【配套网格必须由「火球网格生成器」生成】(Custom/工具弹窗/火球网格生成器 → FireBallMeshGeneratorWindow)
@@ -27,7 +27,7 @@ Shader "FrameWork/URP/MeshMagicBallInstanced1"
     // 本 shader 只由 DrawMeshInstanced 使用(与 SRP Batcher 本就互斥)，故逐实例属性在这里零代价。
     //
     // 【⚠️_SeedOffset 必须逐实例灌，否则同屏所有火球会整齐跳动】
-    // _Time.y 是全局的：不灌种子偏移时，每发弹道的 frac(seed + _Time*rate) 完全相同 = 所有火球同一帧同时爆同时灭，一眼假。
+    // 渲染时间在同批弹道间共享：不灌种子偏移时，每发弹道的火星相位完全相同 = 所有火球同一帧同时爆同时灭，一眼假。
     // 灌法与 TrailInstanced1 的 _TrailAlpha 完全一致：MaterialPropertyBlock.SetFloatArray 逐实例给不同随机值。
     // (单发预览/挂 MeshRenderer 直接看效果时不灌也行，默认 0 即可)
     //
@@ -111,6 +111,9 @@ Shader "FrameWork/URP/MeshMagicBallInstanced1"
         // 整体缩放：同时作用于发散距离/起始半径/火星大小/火球大小，故调它=整团火球等比放大缩小
         _VertexScale ("大小 (整体缩放倍数 / 物体空间)", Float) = 1
 
+        // 战斗渲染器每批传入的时间，暂停时保持上一帧；未传入时单独预览材质仍用 Unity 时间。
+        [HideInInspector] _MagicBallRenderTime ("魔法弹渲染时间", Float) = -1
+
         [Header(Instanced)]
         // ——以下三项均为**逐实例属性**, 由 AttackModeInstanceRenderer 经 MaterialPropertyBlock 按实例灌入,
         //   材质面板上填的值对 DrawMeshInstanced 路径无效(会被 MPB 数组覆盖), 故一律 HideInInspector;
@@ -191,7 +194,13 @@ Shader "FrameWork/URP/MeshMagicBallInstanced1"
             half   _CorePulseAmount;
             float  _CorePulseSpeed;
             float  _VertexScale;
+            float  _MagicBallRenderTime;
         CBUFFER_END
+
+        float GetMagicBallRenderTime()
+        {
+            return _MagicBallRenderTime >= 0.0 ? _MagicBallRenderTime : _Time.y;
+        }
         ENDHLSL
 
         // 正向 Pass：唯一的正向 pass。
@@ -257,13 +266,14 @@ Shader "FrameWork/URP/MeshMagicBallInstanced1"
                 half4  tint;
                 float  t = 0.0;     // 火星的生命进度(核心恒0, 下面重力/世界化项据此自动归零)
                 float  age = 0.0;   // 火星已存活秒数(核心恒0)
+                float renderTime = GetMagicBallRenderTime();
 
                 if (isCore > 0.5h)
                 {
                     // ——核心：钉在物体原点，只做呼吸缩放。着色全部交给 frag 的程序化噪声——
                     posOS = float3(0.0, 0.0, 0.0);
                     // 呼吸相位也叠 seedOffset，使每发弹道的火球胀缩不同步
-                    float pulse = 1.0 + _CorePulseAmount * sin((_Time.y * _CorePulseSpeed + seedOffset) * 6.2831853);
+                    float pulse = 1.0 + _CorePulseAmount * sin((renderTime * _CorePulseSpeed + seedOffset) * 6.2831853);
                     size = _CoreSize * pulse * _VertexScale * instanceScale;
                     #if !defined(_CORE_ON)
                         size = 0.0;   // 关闭核心：塌缩成零尺寸, 该 quad 不产生任何像素
@@ -274,7 +284,7 @@ Shader "FrameWork/URP/MeshMagicBallInstanced1"
                 {
                     // ——火星：沿自身方向从球壳飞出, 循环生灭——
                     // 生命进度 t：0(刚喷出) → 1(熄灭) 循环。种子使每个火星错开相位，逐实例偏移使每发弹道也错开
-                    t = frac(IN.sparkData.x + seedOffset + _Time.y * _SparkRate * IN.sparkData.w);
+                    t = frac(IN.sparkData.x + seedOffset + renderTime * _SparkRate * IN.sparkData.w);
                     // 已存活秒数 = 生命进度 × 单条生命的时长(时长=1/每秒生命周期数)。供下面的"世界化"回退出生点用
                     age = t / max(_SparkRate * IN.sparkData.w, 1e-4);
                     // pow 缓动使火星先快后慢(_SparkEase<1)，像被空气拖住
@@ -312,7 +322,7 @@ Shader "FrameWork/URP/MeshMagicBallInstanced1"
                 // 【速度朝向(_VelocityWS.w>0.5 启用, 默认关)】把 billboard 角点绕视轴旋转, 使贴图头(quad 局部 +X, 本项目子弹贴图约定默认朝右)
                 // 对准飞行方向——拖尾画在贴图左侧故自动朝飞行反方向, 斜射弹亦"低头"对准速度矢量。核心与火星统一旋转(火星是软圆点, 转了不可见, 无害)。
                 // 旋转后 UV 随角点走, frag 里的噪声上滚方向自动跟随贴图姿态, 无需另改。
-                // 速度在屏幕上≈0(暂停帧/原地弹/正对相机飞)时保持默认朝右姿态, 不旋转。
+                // 速度在屏幕上≈0(原地弹/正对相机飞)时保持默认朝右姿态, 不旋转。
                 if (velocityWS4.w > 0.5)
                 {
                     float2 velScreen = float2(dot(velocityWS, camRightWS), dot(velocityWS, camUpWS));
@@ -344,7 +354,7 @@ Shader "FrameWork/URP/MeshMagicBallInstanced1"
                 float r = length(uv - 0.5) * 2.0;
 
                 // 噪声随时间向上滚 = 火焰往上舔；seedOffset 让每发弹道的火焰纹路不同
-                float2 nuv = uv * _CoreNoiseScale + float2(seedOffset * 13.7, -_Time.y * _CoreNoiseSpeed);
+                float2 nuv = uv * _CoreNoiseScale + float2(seedOffset * 13.7, -GetMagicBallRenderTime() * _CoreNoiseSpeed);
                 float n = Fbm2D(nuv, 3);
 
                 // 用噪声扰动"到边缘的距离"：噪声高处半径被推大 → 该处提前消失(撕出缺口)；低处被拉小 → 火舌探出
@@ -466,7 +476,7 @@ Shader "FrameWork/URP/MeshMagicBallInstanced1"
                 if (isCore > 0.5h)
                 {
                     float seedOffset = UNITY_ACCESS_INSTANCED_PROP(SparkProps, _SeedOffset);
-                    float pulse = 1.0 + _CorePulseAmount * sin((_Time.y * _CorePulseSpeed + seedOffset) * 6.2831853);
+                    float pulse = 1.0 + _CorePulseAmount * sin((GetMagicBallRenderTime() * _CorePulseSpeed + seedOffset) * 6.2831853);
                     size = _CoreSize * pulse * _VertexScale * UNITY_ACCESS_INSTANCED_PROP(SparkProps, _InstanceScale);
                 }
 
@@ -477,7 +487,7 @@ Shader "FrameWork/URP/MeshMagicBallInstanced1"
                 float2 corner = (IN.uv - 0.5) * size;
 
                 // 速度朝向(与正向同款公式，屏幕角改用光源视图轴算)：贴图头(quad 局部 +X)对准光视角下的飞行方向，
-                // 使影子朝向与子弹实际朝向一致；速度在光视角屏幕上≈0(正对光飞/暂停帧)时保持默认朝右姿态。火星角点=0，旋转无害。
+                // 使影子朝向与子弹实际朝向一致；速度在光视角屏幕上≈0(正对光飞/原地弹)时保持默认朝右姿态。火星角点=0，旋转无害。
                 float4 velocityWS4 = UNITY_ACCESS_INSTANCED_PROP(SparkProps, _VelocityWS);
                 if (velocityWS4.w > 0.5)
                 {
