@@ -4,7 +4,7 @@ Aseprite 到 Spine 导出脚本
 原作者: Jordan Bleu
 https://github.com/jordanbleu/aseprite-to-spine
 
-优化: 支持重名图层导出，按层级优先（上层覆盖下层）规则处理重复图片
+可用 Spine-Export-Marking 标记需要跳过的 Cel。同名附件采用最上层可导出的 Cel。
 
 ]]
 
@@ -52,30 +52,11 @@ function checkDuplicates(layers)
     return duplicateNames
 end
 
---[[
-获取每个图层的可见性状态数组。
-layers: 展平后的图层列表
-]]
-function captureVisibilityStates(layers)
-    local visibilities = {}
-    for i, layer in ipairs(layers) do
-        visibilities[i] = layer.isVisible
+local function isExcluded(cel)
+    for line in cel.data:gmatch("[^\r\n]+") do
+        if line == "[spine:skip]" then return true end
     end
-    return visibilities
-end
-
---[[
-隐藏所有图层（图层组保持可见以便子图层可被访问）。
-layers: 展平后的图层列表
-]]
-function hideAllLayers(layers)
-    for i, layer in ipairs(layers) do
-        if (layer.isGroup) then
-            layer.isVisible = true
-        else
-            layer.isVisible = false
-        end
-    end
+    return false
 end
 
 --[[
@@ -125,125 +106,78 @@ end
 
 layers: 展平后的图层列表
 sprite: 当前活动精灵
-visibilityStates: 各图层导出前的可见性状态
 ]]
-function captureLayers(layers, sprite, visibilityStates)
-    hideAllLayers(layers)
-
+function captureLayers(layers, sprite)
     local outputDir = app.fs.filePath(sprite.filename)
     local spriteFileName = app.fs.fileTitle(sprite.filename)
+    local imagesDir = app.fs.joinPath(outputDir, "images")
+    local jsonFileName = app.fs.joinPath(outputDir, spriteFileName .. ".json")
+    local candidates = {}
+    local topCel = {}
+    local markedNames = {}
+    local markedCount = 0
 
-    local jsonFileName = outputDir .. app.fs.pathSeparator .. spriteFileName .. ".json"
-    json = io.open(jsonFileName, "w")
-
-    json:write('{')
-
-    -- 骨骼信息
-    json:write([[ "skeleton": { "images": "images/" }, ]])
-
-    -- 骨骼节点
-    json:write([[ "bones": [ { "name": "root" }	], ]])
-
-    -- 构建 slots 和 skins 的 JSON 数据
-    -- 使用有序表记录帧名称，重名时后出现的（层级更高的）覆盖前面的
-    local frameDataMap = {}    -- frameName -> { slotJson, skinJson }
-    local frameOrder = {}      -- 按首次出现顺序记录帧名称
-
-    local separator = app.fs.pathSeparator
-
-    for i, layer in ipairs(layers) do
-        -- 忽略图层组和不可见图层
-        if (not layer.isGroup and visibilityStates[i] == true) then
-            layer.isVisible = true
-
+    for _, layer in ipairs(layers) do
+        if not layer.isGroup then
             local prefix, startNum, suffix = parseLayerName(layer.name)
-            local frameCount = 1
-
-            if prefix then
-                -- 图层名含数字：按精灵帧数导出所有帧
-                frameCount = #sprite.frames
-            end
-
-            for f = 1, frameCount do
-                -- 获取指定帧号的 cel
-                local cel = layer:cel(f)
-                -- 跳过无内容的帧（cel 为空或图像完全透明）
-                if cel and not isImageEmpty(cel.image) then
-                    local frameName
-                    if prefix then
-                        frameName = buildFrameName(prefix, startNum + (f - 1), suffix)
-                    else
-                        frameName = layer.name
+            local frameCount = prefix and #sprite.frames or 1
+            for frame = 1, frameCount do
+                local cel = layer:cel(frame)
+                if cel then
+                    local name = prefix and buildFrameName(prefix, startNum + frame - 1, suffix) or layer.name
+                    if isExcluded(cel) then
+                        markedNames[name] = true
+                        markedCount = markedCount + 1
+                    elseif layer.isVisible and not isImageEmpty(cel.image) then
+                        candidates[#candidates + 1] = { name = name, cel = cel }
+                        topCel[name] = cel
                     end
-
-                    -- 从 cel 图像直接创建新精灵，避免复制多帧精灵时的帧删除问题
-                    local cropped = Sprite(cel.bounds.width, cel.bounds.height, sprite.colorMode)
-                    cropped.cels[1].image = cel.image:clone()
-                    cropped:saveCopyAs(outputDir .. separator .. "images" .. separator .. frameName .. ".png")
-                    cropped:close()
-                    app.activeSprite = sprite
-
-                    local slotJson = string.format([[ { "name": "%s", "bone": "%s", "attachment": "%s" } ]], frameName, "root", frameName)
-                    local skinJson = string.format([[ "%s": { "%s": { "x": %.2f, "y": %.2f, "width": 1, "height": 1 } } ]], frameName, frameName, cel.bounds.width/2 + cel.position.x - sprite.bounds.width/2, sprite.bounds.height - cel.position.y - cel.bounds.height/2)
-
-                    -- 如果该帧名已存在，先从顺序表中移除旧位置
-                    if frameDataMap[frameName] then
-                        for k = #frameOrder, 1, -1 do
-                            if frameOrder[k] == frameName then
-                                table.remove(frameOrder, k)
-                                break
-                            end
-                        end
-                    end
-                    -- 追加到顺序表末尾，确保绘制顺序与图层层级一致
-                    frameOrder[#frameOrder + 1] = frameName
-                    -- 直接覆盖：后处理的图层层级更高，优先显示
-                    frameDataMap[frameName] = { slot = slotJson, skin = skinJson }
                 end
             end
-
-            layer.isVisible = false
         end
     end
 
-    -- 按首次出现顺序构建最终的 JSON 数组
+    if not app.fs.isDirectory(imagesDir) then
+        assert(app.fs.makeDirectory(imagesDir), "无法创建分件目录 " .. imagesDir)
+    end
+    -- 只写最终采用的 Cel，PNG 和 JSON 按同一套排除与重名规则生成。
     local slotsJson = {}
     local skinsJson = {}
-    for idx, frameName in ipairs(frameOrder) do
-        local data = frameDataMap[frameName]
-        slotsJson[idx] = data.slot
-        skinsJson[idx] = data.skin
+    for _, candidate in ipairs(candidates) do
+        local name, cel = candidate.name, candidate.cel
+        if topCel[name] == cel then
+            local cropped = Sprite(cel.bounds.width, cel.bounds.height, sprite.colorMode)
+            cropped.cels[1].image = cel.image:clone()
+            cropped:saveCopyAs(app.fs.joinPath(imagesDir, name .. ".png"))
+            cropped:close()
+            app.activeSprite = sprite
+
+            -- Aseprite 只编码表，取单项数组括号内的 JSON 字符串以保留名称转义。
+            local key = json.encode({ name }):sub(2, -2)
+            local x = cel.bounds.width / 2 + cel.position.x - sprite.bounds.width / 2
+            local y = sprite.bounds.height - cel.position.y - cel.bounds.height / 2
+            slotsJson[#slotsJson + 1] = string.format([[ { "name": %s, "bone": "root", "attachment": %s } ]], key, key)
+            skinsJson[#skinsJson + 1] = string.format([[ %s: { %s: { "x": %.2f, "y": %.2f, "width": 1, "height": 1 } } ]], key, key, x, y)
+        end
     end
 
-    -- 插槽
-    json:write('"slots": [')
-    json:write(table.concat(slotsJson, ","))
-    json:write("],")
+    local file = assert(io.open(jsonFileName, "w"))
+    assert(file:write('{', [[ "skeleton": { "images": "images/" }, ]],
+        [[ "bones": [ { "name": "root" }	], ]], '"slots": [', table.concat(slotsJson, ","),
+        '],"skins": {"default": {', table.concat(skinsJson, ","), '}}}'))
+    assert(file:close())
 
-    -- 皮肤
-    json:write('"skins": {')
-    json:write('"default": {')
-    json:write(table.concat(skinsJson, ","))
-    json:write('}')
-    json:write('}')
-
-    -- 关闭 JSON 文件
-    json:write("}")
-
-    json:close()
-
-    app.alert("导出完成！使用文件 '" .. jsonFileName .. "' 导入到 Spine。")
-end
-
---[[
-恢复图层到导出前的可见性状态。
-layers: 展平后的图层列表
-visibilityStates: 各图层导出前的可见性状态
-]]
-function restoreVisibilities(layers, visibilityStates)
-    for i, layer in ipairs(layers) do
-        layer.isVisible = visibilityStates[i]
+    -- 增量发布根据这份清单移除旧附件，或以同名候选替换旧图与坐标。
+    if not app.isUIAvailable then
+        for name in pairs(markedNames) do
+            if topCel[name] then
+                print("SPINE_REPLACE " .. name)
+            else
+                print("SPINE_SKIP " .. name)
+            end
+        end
     end
+    app.alert("导出完成！使用文件 '" .. jsonFileName .. "' 导入到 Spine。\n已跳过 " .. markedCount .. " 个标记的 Cel。")
 end
 
 -----------------------------------------------[[ 主执行流程 ]]-----------------------------------------------
@@ -271,11 +205,5 @@ if #dupList > 0 then
     app.alert("发现重名图层: " .. table.concat(dupList, ", ") .. "\n将按层级优先规则导出（上层覆盖下层）。")
 end
 
--- 记录每个图层当前的可见性状态
-local visibilities = captureVisibilityStates(flattenedLayers)
-
 -- 将每个图层导出为独立的 PNG 文件，并生成 Spine 导入用的 JSON 文件
-captureLayers(flattenedLayers, activeSprite, visibilities)
-
--- 恢复图层的可见性到导出前的状态
-restoreVisibilities(flattenedLayers, visibilities)
+captureLayers(flattenedLayers, activeSprite)
