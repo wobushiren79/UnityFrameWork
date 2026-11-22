@@ -172,7 +172,7 @@ public class PlanarReflection : MonoBehaviour
     }
 
     /// <summary>
-    /// 创建镜像相机子物体与反射 RT（关阴影/后处理省开销，ClearFlags=Skybox 让反射自带天空）
+    /// 创建独立的镜像相机与反射 RT（关阴影/后处理省开销，ClearFlags=Skybox 让反射自带天空）
     /// </summary>
     protected void CreateReflectionCamera()
     {
@@ -180,8 +180,8 @@ public class PlanarReflection : MonoBehaviour
         reflectionRT.name = "PlanarReflectionRT";
         reflectionRT.Create();
 
+        // 相机不继承水面节点的非均匀缩放，避免视图矩阵带缩放/剪切后使斜投影视锥失效。
         GameObject objCamera = new GameObject("ReflectionCamera");
-        objCamera.transform.SetParent(transform, false);
         reflectionCamera = objCamera.AddComponent<Camera>();
         reflectionCamera.enabled = false;//手动 Render，不参与常规渲染
         reflectionCamera.clearFlags = CameraClearFlags.Skybox;
