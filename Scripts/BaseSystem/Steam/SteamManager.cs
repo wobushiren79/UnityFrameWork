@@ -42,6 +42,9 @@ public class SteamManager : MonoBehaviour {
 		Debug.LogWarning(pchDebugText);
 	}
 
+	#region Steam 生命周期
+
+	/// <summary>创建唯一的 Steam 管理器，初始化 API，并在失败时记录 SDK 返回的原因。</summary>
 	private void Awake() {
 		// Only one instance of SteamManager at a time!
 		if (s_instance != null) {
@@ -97,17 +100,12 @@ public class SteamManager : MonoBehaviour {
 		// [*] Your App ID is not completely set up, i.e. in [code-inline]Release State: Unavailable[/code-inline], or it's missing default packages.
 		// Valve's documentation for this is located here:
 		// https://partner.steamgames.com/doc/sdk/api#initialization_and_shutdown
-		m_bInitialized = SteamAPI.Init();
-		if (!m_bInitialized)
-        {
-			Debug.LogError("[Steamworks.NET] SteamAPI_Init() failed. Refer to Valve's documentation or the comment above this line for more information.", this);
+		ESteamAPIInitResult result = SteamAPI.InitEx(out string errorMessage);
+		m_bInitialized = result == ESteamAPIInitResult.k_ESteamAPIInitResult_OK;
+		if (!m_bInitialized) {
+			Debug.LogError($"[Steamworks.NET] SteamAPI.InitEx failed ({result}): {errorMessage}", this);
 			return;
-        }
-        else
-        {
-            //��ʼ���û�״̬
-            SteamUserStatsHandle.UserStatsInit();
-        }
+		}
 
 		s_EverInialized = true;
 	}
@@ -155,4 +153,6 @@ public class SteamManager : MonoBehaviour {
 		// Run Steam client callbacks
 		SteamAPI.RunCallbacks();
 	}
+
+	#endregion
 }

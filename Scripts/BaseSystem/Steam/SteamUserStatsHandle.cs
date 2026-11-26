@@ -3,8 +3,10 @@ using UnityEditor;
 
 public class SteamUserStatsHandle : ScriptableObject
 {
+    #region 用户统计
+
     /// <summary>
-    /// 初始化用户数据 如要调用相关Stats方法 必须初始化  不过已在SteamManager里初始化过
+    /// 显式请求当前用户的统计信息。Steam 客户端会在游戏启动前自动同步本地统计。
     /// </summary>
     public static void UserStatsInit()
     {
@@ -41,4 +43,6 @@ public class SteamUserStatsHandle : ScriptableObject
             statsImpl.UserCompleteNumberChange(apiName, data);
         }
     }
+
+    #endregion
 }

@@ -16,12 +16,6 @@ public partial class SteamHandler : BaseHandler<SteamHandler, BaseManager>
         steamManager = gameObject.AddComponent<SteamManager>();
     }
 
-    public void Start()
-    {
-        SteamUserStatsImpl.InitUserStats();
-    }
-
-
     /// <summary>
     /// 获取用户信息
     /// </summary>
@@ -35,8 +29,10 @@ public partial class SteamHandler : BaseHandler<SteamHandler, BaseManager>
         yield return steamWeb.GetPlayerSummaries(steamId, callBack);
     }
 
+    #region Steam 成就
+
     /// <summary>
-    /// 解锁用户成就
+    /// 使用 Steam 客户端在启动时同步的用户数据解锁成就。
     /// </summary>
     public void UnLockAchievement(long achId)
     {
@@ -45,10 +41,11 @@ public partial class SteamHandler : BaseHandler<SteamHandler, BaseManager>
         if (steamUserStats == null)
         {
             steamUserStats = new SteamUserStatsImpl();
-            SteamUserStatsImpl.InitUserStats();
         }
-        steamUserStats.UserCompleteAchievement(achId + "");
+        steamUserStats.UserCompleteAchievement($"{achId}");
     }
+
+    #endregion
 
     /// <summary>
     /// 设置排行榜数据
